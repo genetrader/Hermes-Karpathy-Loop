@@ -1,0 +1,12 @@
+# Example project manifest for the Karpathy Loop.
+# Each project: a name, the path to its git repo, and a gate command that
+# MUST pass for a round to be accepted (tests, lint, build -- your call).
+projects:
+  - name: my-webapp
+    path: C:/code/my-webapp          # or /home/you/code/my-webapp
+    gate: "npm test -- --run"          # acceptance gate; empty = no gate
+  - name: my-api
+    path: C:/code/my-api
+    gate: "pytest -q"
+
+# The loop reads this file at start. See README.md for the full contract.

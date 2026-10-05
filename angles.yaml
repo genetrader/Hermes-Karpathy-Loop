@@ -1,0 +1,470 @@
+# Karpathy Loop — angle library
+#
+# An ANGLE is a lens applied to a codebase, not a task list. Every angle must
+# work on any repo, and must state the EVIDENCE the agent has to produce so the
+# work is falsifiable rather than vibes.
+#
+# Schema per angle:
+#   id        stable slug, used in checkpoint tags kp/<project>/<round>/<id>
+#   family    one of the 8 families below
+#   lens      one-line statement of what this angle looks at
+#   look_for  concrete things to hunt
+#   evidence  what the agent MUST produce to claim it did the work
+#   avoid_when  when this angle is a waste of a round
+#
+# Families: correctness, robustness, simplification, performance,
+#           gameplay, interface, comprehension, meta
+
+version: 1
+updated: "2026-09-22"
+
+# --- knobs the picker reads -------------------------------------------------
+picker:
+  # Don't repeat an angle already used in the last N rounds across all projects.
+  cooldown_rounds: 8
+  # An angle that produces no accepted commit K times in a row gets retired
+  # (set to 0 to never retire).
+  retire_after_failures: 4
+  # Families are chosen first, then an angle within the family, so a long run
+  # doesn't collapse onto one family.
+  family_rotation: true
+
+angles:
+  # ======================= A. CORRECTNESS =======================
+  - id: lying-test
+    family: correctness
+    lens: Find tests that pass without asserting anything real.
+    look_for:
+      - test bodies with no assert statement
+      - '"assert True" / "assert x == x" / assert on a mock return'
+      - tests that only check no exception was raised
+      - skip/xfail markers used to hide a real failure
+    evidence: A list of suspect tests with file:line, and for each one either a deleted test, a strengthened assertion, or a written justification for keeping it.
+    avoid_when: The repo has fewer than 5 test files.
+
+  - id: swallowed-exception
+    family: correctness
+    lens: Find exceptions being caught and discarded, hiding real failures.
+    look_for:
+      - 'bare "except:" / "except Exception:" with pass or continue'
+      - except blocks that log nothing and return a default
+      - try/finally with no except at all around risky IO
+    evidence: file:line for each site, what class of failure it hides, and a narrowed except or re-raise applied (with the test that proves it now surfaces).
+    avoid_when: Repo is not a language with exceptions.
+
+  - id: off-by-one
+    family: correctness
+    lens: Find boundary errors in loops, slices, ranges and pagination.
+    look_for:
+      - range(n) vs range(n+1), <= vs <, slice end +1 / -1
+      - empty-collection paths, single-element paths
+      - pagination last page, page=0, page beyond the end
+    evidence: A specific input that produces the wrong result, plus the fix and a regression test named after that input.
+    avoid_when: Repo has no loops, slicing or pagination.
+
+  - id: race-condition
+    family: correctness
+    lens: Find shared mutable state touched without synchronisation.
+    look_for:
+      - module-level or class-level mutable state read and written from async/threads
+      - read-modify-write without a lock
+      - TOCTOU on the filesystem (exists() then open())
+    evidence: The two interleavings that break it, file:line for each participant, and either a lock or a documented single-threaded guarantee.
+    avoid_when: Repo is single-threaded and synchronous throughout.
+
+  - id: resource-leak
+    family: correctness
+    lens: Find handles that do not close on the error path.
+    look_for:
+      - open()/connect()/acquire() not in a with/try-finally
+      - early return or raise between acquire and release
+      - subprocess without wait/communicate
+    evidence: file:line, the error path that leaks, and the resource-managed fix.
+    avoid_when: No file, socket, DB or subprocess handles.
+
+  - id: unsafe-none
+    family: correctness
+    lens: Find the optional that is treated as guaranteed.
+    look_for:
+      - dict.get()/find()/first() result used without a None check
+      - attribute chains through values that can be null
+      - function returns a default on failure that callers assume is data
+    evidence: The input that makes it None, the resulting traceback, and the guard added.
+    avoid_when: Strongly typed language enforcing non-null.
+
+  - id: unreachable-branch
+    family: correctness
+    lens: Find code that can never run.
+    look_for:
+      - contradictory conditions (x > 5 and x < 3)
+      - statements after return/raise/break
+      - flags that are constant so one arm is dead
+      - conditions on a value already narrowed away
+    evidence: The proof it is unreachable (the constraint), and the deletion or the fix that reconnects it.
+    avoid_when: None — this angle is always applicable.
+
+  - id: state-round-trip
+    family: correctness
+    lens: Prove that save -> load -> save is stable.
+    look_for:
+      - serialisation that drops fields, reorders, or coerces types
+      - defaults applied on load that change the data
+      - asymmetric to_dict / from_dict
+    evidence: A concrete object where round-tripping changes it, shown before/after, plus the fix.
+    avoid_when: Repo has no persistence or serialisation.
+
+  # ======================= B. ROBUSTNESS =======================
+  - id: garbage-input
+    family: robustness
+    lens: Break the entry point with hostile input.
+    look_for:
+      - empty string / whitespace-only where text is expected
+      - huge numbers, negative numbers, zero
+      - unicode, emoji, RTL, very long strings
+      - null where an object is expected
+    evidence: The exact inputs tried, which crashed or produced nonsense, and the guard added with a test per input.
+    avoid_when: None — always applicable to a public entry point.
+
+  - id: network-failure
+    family: robustness
+    lens: Kill the network mid-call and see what happens.
+    look_for:
+      - no timeout set on outbound calls
+      - partial response treated as complete
+      - no retry, or retry without backoff
+      - offline path missing entirely
+    evidence: The failure injected, the observed behaviour, and the timeout/retry added. State explicitly if no outbound calls exist.
+    avoid_when: Repo makes no outbound network calls.
+
+  - id: unbounded-growth
+    family: robustness
+    lens: Find the thing that grows forever.
+    look_for:
+      - lists/dicts appended to per-request and never cleared
+      - caches with no size cap or TTL
+      - log files with no rotation
+      - in-memory history that accumulates across a session
+    evidence: The growth measured over N iterations, where it lives, and the cap/eviction added.
+    avoid_when: Repo is a pure function library with no long-lived process.
+
+  - id: restart-mid-write
+    family: robustness
+    lens: Crash between write and commit.
+    look_for:
+      - multi-step writes with no atomicity (write file then update index)
+      - partial state observable after a crash
+      - no recovery or reconciliation on startup
+    evidence: The precise interruption point, the resulting inconsistent state, and the atomic/recoverable fix.
+    avoid_when: Repo is read-only or holds no state.
+
+  - id: self-ingestion
+    family: robustness
+    lens: Feed the system its own output.
+    look_for:
+      - is the output valid input to the same parser
+      - escaping/quoting round-trip
+      - repeated invocation producing drift
+    evidence: The concrete feed-back test, its result, and the fix if it breaks.
+    avoid_when: Repo produces no structured output.
+
+  # ======================= C. SIMPLIFICATION =======================
+  - id: delete-dead-code
+    family: simplification
+    lens: Find code nothing calls, and prove it.
+    look_for:
+      - definitions with zero references (excluding tests, exports, entry points)
+      - commented-out blocks kept "just in case"
+      - feature flags permanently off
+    evidence: For each candidate, the grep showing zero callers, and the deletion. If a thing looks dead but is used dynamically, say so and keep it.
+    avoid_when: None.
+
+  - id: collapse-duplication
+    family: simplification
+    lens: Find the same logic in several places that has drifted.
+    look_for:
+      - near-identical blocks differing in a constant or one branch
+      - the same validation repeated in 3+ handlers
+      - copy-pasted error handling
+    evidence: The sites listed with their drift described, and one shared implementation with all sites pointed at it.
+    avoid_when: Repo is under 200 lines.
+
+  - id: inline-abstraction
+    family: simplification
+    lens: Find indirection that earns nothing.
+    look_for:
+      - a helper with exactly one caller that only forwards arguments
+      - a wrapper adding no validation, logging or transformation
+      - a class with one method that wraps a function
+    evidence: The call graph proving one caller, and the inlining done (or a written reason it is worth keeping).
+    avoid_when: Repo is under 200 lines.
+
+  - id: flatten-nesting
+    family: simplification
+    lens: Un-pyramid the deep nesting.
+    look_for:
+      - functions nested 4+ levels deep
+      - else branches that could be guard clauses / early returns
+      - try blocks wrapping far more than they need
+    evidence: The specific function, its depth before/after, and the flattened version with tests still passing.
+    avoid_when: None.
+
+  - id: dead-config
+    family: simplification
+    lens: Remove configuration nobody sets.
+    look_for:
+      - options with a single value everywhere
+      - defaults never overridden
+      - env vars read but never set anywhere in the repo or docs
+    evidence: The grep across repo + docs showing no setter, then removal.
+    avoid_when: Repo has no configuration surface.
+
+  # ======================= D. PERFORMANCE =======================
+  - id: accidental-quadratic
+    family: performance
+    lens: Find the accidental O(n^2).
+    look_for:
+      - '"x in list" inside a loop over a large collection'
+      - nested loops over the same collection
+      - repeated linear scans that could be a set/dict
+    evidence: The measurement at realistic size before/after, the complexity described, and the data structure change.
+    avoid_when: No loops over collections.
+
+  - id: repeated-work
+    family: performance
+    lens: Find work recomputed that could be done once.
+    look_for:
+      - invariants recomputed per iteration
+      - files/urls re-read or re-parsed in a loop
+      - N+1 queries or per-item round trips
+    evidence: The call site, the measurement, and the hoist/cache applied.
+    avoid_when: None.
+
+  - id: unbounded-memory
+    family: performance
+    lens: Find memory that grows with input without limit.
+    look_for:
+      - whole-file reads where streaming works
+      - accumulating results in memory that could be yielded
+      - large objects retained by a long-lived cache
+    evidence: Peak memory measured at realistic size, the change, and peak after.
+    avoid_when: Repo never handles large inputs.
+
+  - id: slow-startup
+    family: performance
+    lens: Find work at import/startup that could be lazy.
+    look_for:
+      - heavy imports at module scope
+      - network or disk access during import
+      - eager construction of things maybe never used
+    evidence: Time-to-ready before/after, and the deferred code shown.
+    avoid_when: Repo is not an importable module or service.
+
+  # ======================= E. GAMEPLAY =======================
+  - id: log-every-refusal
+    family: gameplay
+    lens: Play a session and count every turn the engine rejected.
+    look_for:
+      - turns refused with the player's plausible in-world intent
+      - the exact phrasing that tripped the guard
+      - whether the GM ever saw the turn
+    evidence: A table of refused turns with the verbatim player text and the guard that fired; the count before and after any fix.
+    avoid_when: Not a game or interactive experience.
+
+  - id: dead-end-action
+    family: gameplay
+    lens: Find player actions that change nothing.
+    look_for:
+      - an action that returns text but alters no state
+      - a door/exit/NPC that leads nowhere
+      - a prompt that loops back to itself
+    evidence: The action, the state before/after (proving no delta), and a fix that makes it matter or removes it.
+    avoid_when: Not a game.
+
+  - id: choice-that-doesnt-matter
+    family: gameplay
+    lens: Find options with identical outcomes.
+    look_for:
+      - branches converging immediately
+      - cosmetic-only differences
+      - the "correct" option being unmarked and the wrong one unpunished
+    evidence: The choice listed, the outcome comparison, and either a real consequence added or the fake choice removed.
+    avoid_when: Not a game.
+
+  - id: untelegraphed-punishment
+    family: gameplay
+    lens: Find failure the player could not have seen coming.
+    look_for:
+      - damage/trap/death with no prior signal
+      - irreversible loss with no warning
+      - difficulty spikes with no escalation
+    evidence: The encounter, what the player could have known beforehand, and the foreshadowing added.
+    avoid_when: Not a game.
+
+  - id: reward-pacing
+    family: gameplay
+    lens: Measure whether the reward loop is too fast or too grindy.
+    look_for:
+      - progression time from session logs
+      - trivial or unreachable milestones
+      - dominant strategy that skips content
+    evidence: The measured pacing (turns/time to a milestone) and the tuning change with the new measurement.
+    avoid_when: Not a game.
+
+  - id: world-inconsistency
+    family: gameplay
+    lens: Find the world contradicting itself.
+    look_for:
+      - a place described as two different things
+      - an NPC in two locations, or dead and then present
+      - geography that does not connect
+      - time that does not pass consistently
+    evidence: Both contradicting passages quoted, and the reconciliation.
+    avoid_when: No persistent world state.
+
+  - id: inert-npc
+    family: gameplay
+    lens: Find actors that do not react to the obvious input.
+    look_for:
+      - an NPC present who ignores being addressed
+      - a quest-giver with no response to the quest topic
+      - a guard with no reaction to being attacked
+    evidence: The NPC, the input tried, the observed non-reaction, and the response added.
+    avoid_when: No characters or actors.
+
+  # ======================= F. INTERFACE =======================
+  - id: unactionable-error
+    family: interface
+    lens: Find errors the user cannot act on.
+    look_for:
+      - '"something went wrong" with no cause'
+      - stack traces shown raw to a user
+      - failures with no next step
+      - the same generic message for distinct causes
+    evidence: Each message quoted, its cause, and the rewritten message naming cause + next action.
+    avoid_when: No user-facing surface.
+
+  - id: too-many-steps
+    family: interface
+    lens: Find a common intent that takes too many steps.
+    look_for:
+      - the 5-click path to a 1-click intent
+      - repeated form entry of the same data
+      - navigating away and back for a routine task
+    evidence: The intent, the exact step count, and a reduced path with the new count.
+    avoid_when: No user-facing surface.
+
+  - id: invisible-state
+    family: interface
+    lens: Find state the user cannot see.
+    look_for:
+      - long operations with no progress
+      - failure with no error surfaced
+      - stale data with no timestamp
+      - unsaved changes with no indicator
+    evidence: The state, the moment the user is misled, and the surfaced indicator.
+    avoid_when: No user-facing surface.
+
+  - id: unreadable-text
+    family: interface
+    lens: Find text the user struggles to read.
+    look_for:
+      - contrast below WCAG AA
+      - text clipped or truncated without a way to see it
+      - unexplained jargon or internal identifiers
+      - critical info in the smallest greyest font
+    evidence: The exact elements with measured contrast/size, and the corrected values.
+    avoid_when: No UI or rendered output.
+
+  - id: unsafe-destructive
+    family: interface
+    lens: Find destruction without a confirm or undo.
+    look_for:
+      - delete/overwrite/send with no confirmation
+      - no undo for reversible-by-design actions
+      - destructive action adjacent to a common one
+    evidence: Each action, what is lost, and the confirm/undo added.
+    avoid_when: No user-facing surface.
+
+  # ======================= G. COMPREHENSION =======================
+  - id: unsafe-to-modify
+    family: comprehension
+    lens: Find the function nobody can safely change.
+    look_for:
+      - very long functions with many branches
+      - high fan-in combined with no tests
+      - tangled responsibilities in one body
+    evidence: The function, its length/branch count/test coverage, and either a seam extracted with tests or a written risk note.
+    avoid_when: None.
+
+  - id: lying-comment
+    family: comprehension
+    lens: Find documentation that disagrees with the code.
+    look_for:
+      - docstrings describing parameters that do not exist
+      - comments describing the old behaviour
+      - a name/description that contradicts what it does
+    evidence: The comment quoted beside the code that contradicts it, and the correction.
+    avoid_when: No comments or docs.
+
+  - id: misleading-name
+    family: comprehension
+    lens: Find names that make the wrong thing look right.
+    look_for:
+      - get_ that mutates
+      - is_/has_ that returns a non-boolean
+      - a name asserting a guarantee the body does not provide
+      - singular/plural confusion
+    evidence: Each name, why it misleads, and the rename with call sites updated.
+    avoid_when: None.
+
+  - id: missing-architecture-note
+    family: comprehension
+    lens: Write the document that would have saved an hour.
+    look_for:
+      - how the pieces actually connect (data flow)
+      - the invariants a newcomer must not break
+      - the surprising decisions and why
+    evidence: An ARCHITECTURE.md section written from real reading, citing file:line. No invented structure.
+    avoid_when: The repo already has a current, accurate architecture doc.
+
+  # ======================= H. META / ADVERSARIAL =======================
+  - id: argue-for-deletion
+    family: meta
+    lens: Steelman the case that this codebase should be removed.
+    look_for:
+      - what it costs to maintain
+      - whether anything real depends on it
+      - what would replace it
+    evidence: The strongest honest argument for removal, and the honest counter-argument. If it should stay, say that plainly.
+    avoid_when: None — but it may conclude "keep it".
+
+  - id: generalise-last-fix
+    family: meta
+    lens: Apply the previous round's fix to the opposite case.
+    look_for:
+      - the class of bug just fixed, and its mirror image
+      - other call sites sharing the same flaw
+      - the sibling function that was not fixed
+    evidence: The previous fix restated, the mirror case found, and either the same fix applied or a written reason it does not transfer.
+    avoid_when: This is the first round.
+
+  - id: assumption-audit
+    family: meta
+    lens: List what this code assumes about its world and test each one.
+    look_for:
+      - filesystem layout, permissions, locale, timezone
+      - ordering guarantees, clock monotonicity
+      - '"the user will always..." / "this is always set"'
+    evidence: Each assumption listed with the file:line it is made, and a test or guard for the dangerous ones.
+    avoid_when: None.
+
+  - id: dependency-audit
+    family: meta
+    lens: Examine what this repo trusts from outside itself.
+    look_for:
+      - unpinned or wide version ranges
+      - abandoned or duplicated dependencies
+      - a dependency used for one trivial function
+      - transitive risk the code does not need
+    evidence: The dependency list with versions and last-release dates, and pins/removals applied.
+    avoid_when: Repo has no dependency manifest.

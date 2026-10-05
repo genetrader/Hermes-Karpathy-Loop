@@ -1,0 +1,141 @@
+<!doctype html><meta charset="utf-8">
+<meta http-equiv="refresh" content="30">
+<title>Project Improver — monitor</title>
+<style>
+ :root{--fg:#e8ecf7;--mut:#7d879f;--acc:#5b7cfa;--ok:#4ec9a0;--warn:#e0a94e;--bad:#e06c75;--bd:#262a38;--card:#171a24}
+ body{background:#12141c;color:var(--fg);font:13px/1.55 -apple-system,Segoe UI,sans-serif;margin:0;padding:22px}
+ h1{font-size:19px;margin:0} h2{font-size:13px;text-transform:uppercase;letter-spacing:.07em;color:#9db1ff;margin:26px 0 8px}
+ .sub{color:var(--mut);margin:4px 0 16px;font-size:12px}
+ .grid{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:6px}
+ .kpi{background:var(--card);border:1px solid var(--bd);border-radius:9px;padding:10px 14px;min-width:120px}
+ .kpi .v{font-size:19px;font-weight:700} .kpi .k{color:var(--mut);font-size:11px;text-transform:uppercase;letter-spacing:.05em}
+ table{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--bd);border-radius:9px;overflow:hidden}
+ th{text-align:left;color:var(--mut);font-size:11px;text-transform:uppercase;letter-spacing:.05em;padding:9px 11px;border-bottom:1px solid var(--bd)}
+ td{padding:9px 11px;border-bottom:1px solid #1e2230;vertical-align:top}
+ tr:last-child td{border-bottom:0}
+ .pa{color:var(--mut);font-size:11px;font-family:ui-monospace,Consolas,monospace}
+ .num{text-align:right;font-variant-numeric:tabular-nums}
+ .run{color:var(--acc);font-weight:600} .mut{color:var(--mut)} .warn{color:var(--warn)}
+ .alert{background:#2a1d1d;border:1px solid #6b3535;border-left:4px solid var(--bad);border-radius:9px;padding:13px 15px;margin:14px 0}
+ .alert-h{color:#ffb3b3;font-weight:700;margin-bottom:7px}
+ .alert-b{font-size:15px;line-height:1.5;margin-bottom:6px}
+ .alert-p{color:var(--mut);font-size:11px}
+ .ok{background:#16241d;border:1px solid #2c5a45;border-left:4px solid var(--ok);border-radius:9px;padding:11px 15px;margin:14px 0;color:#a8e6cf}
+ .lg{font-family:ui-monospace,Consolas,monospace;font-size:11px;color:#c3cadb;padding:3px 0;border-bottom:1px solid #1b1f2b}
+ code{background:#0d0f16;padding:1px 5px;border-radius:4px}
+</style>
+<h1>Project Improver</h1>
+<div class="sub">rotation monitor · refreshed 2026-10-05 16:43:39 · auto-reload 30s</div>
+
+<div class="grid">
+  <div class="kpi"><div class="v">4</div><div class="k">enabled</div></div>
+    <div class="kpi"><div class="v run" id="live-elapsed">17m</div><div class="k">current round · project-c r115</div></div>
+  <div class="kpi"><div class="v">282</div><div class="k">turns taken</div></div>
+  <div class="kpi"><div class="v">—</div><div class="k">open question</div></div>
+  <div class="kpi"><div class="v">1</div><div class="k">answered</div></div>
+  <div class="kpi"><div class="v">project-c</div><div class="k">next up</div></div>
+  <div class="kpi"><div class="v">5m × 25</div><div class="k">ping policy</div></div>
+</div>
+
+<div class="ok">No open question — the loop is unblocked.</div>
+
+<h2>Queue — rotation order</h2>
+<table><tr><th>Project</th><th>Gate</th><th>Loops</th><th>State</th><th>Round</th><th>Avg/round</th><th>Implementer</th><th>Reviewer</th></tr>
+<tr>
+  <td><b>project-a</b><div class="pa">D:/ZCODE/PROJECT A</div></td>
+  <td>✓</td>
+  <td class="num">1</td>
+  <td class="mut">idle — no round in flight</td>
+  <td class="num"><span class="mut" title="last round duration">51 · last 58m</span></td>
+  <td class="num mut">39m <span class="pa">(n27)</span></td>
+  <td class="pa">GLM-5.3-Flash-EXL3</td>
+  <td class="pa">deepseek-v4.1-flash</td>
+</tr><tr>
+  <td><b>project-b</b><div class="pa">C:/Users/gene/PROJECT B</div></td>
+  <td>✓</td>
+  <td class="num">1</td>
+  <td class="mut">idle — no round in flight</td>
+  <td class="num"><span class="mut" title="last round duration">58 · last 58m</span></td>
+  <td class="num mut">25m <span class="pa">(n30)</span></td>
+  <td class="pa">deepseek-v4.1-flash</td>
+  <td class="pa">GLM-5.3-Flash-EXL3</td>
+</tr><tr>
+  <td><b>hyperframes</b><div class="pa">D:/coding/hyperframes</div></td>
+  <td><span class="warn">none</span></td>
+  <td class="num">1</td>
+  <td class="mut">parked</td>
+  <td class="num"><span class="mut">0</span></td>
+  <td class="num mut"><span class="mut">—</span></td>
+  <td class="pa"></td>
+  <td class="pa"></td>
+</tr><tr>
+  <td><b>impeccable</b><div class="pa">D:/coding/impeccable</div></td>
+  <td><span class="warn">none</span></td>
+  <td class="num">1</td>
+  <td class="mut">parked</td>
+  <td class="num"><span class="mut">0</span></td>
+  <td class="num mut"><span class="mut">—</span></td>
+  <td class="pa"></td>
+  <td class="pa"></td>
+</tr><tr>
+  <td><b>video-use</b><div class="pa">D:/coding/video-use</div></td>
+  <td><span class="warn">none</span></td>
+  <td class="num">1</td>
+  <td class="mut">parked</td>
+  <td class="num"><span class="mut">0</span></td>
+  <td class="num mut"><span class="mut">—</span></td>
+  <td class="pa"></td>
+  <td class="pa"></td>
+</tr><tr>
+  <td><b>project-c</b><div class="pa">C:/Users/gene/Documents/Project C/Zip Crime Data V6</div></td>
+  <td>✓</td>
+  <td class="num">1</td>
+  <td class="mut">idle — no round in flight</td>
+  <td class="num"><span class="run" title="round in flight">115 · running 17m</span></td>
+  <td class="num mut">32m <span class="pa">(n30)</span></td>
+  <td class="pa"></td>
+  <td class="pa"></td>
+</tr><tr>
+  <td><b>project-d</b><div class="pa">C:/Users/gene/ai-consultancy</div></td>
+  <td>✓</td>
+  <td class="num">1</td>
+  <td class="bad">QUARANTINED — worktree removal ABORTED -- a deps junction could not be removed; manual inspect</td>
+  <td class="num"><span class="mut" title="last round duration">59 · last 1h10m</span></td>
+  <td class="num mut">29m <span class="pa">(n30)</span></td>
+  <td class="pa"></td>
+  <td class="pa"></td>
+</tr>
+</table>
+
+<h2>Turn history <span class="pa">(legacy kanban engine, pre-2026-09-23 — live rounds are in the queue table above)</span></h2>
+<table><tr><th>When</th><th>Project</th><th>Task</th><th>Loops</th></tr>
+<tr><td class='pa'>09-23 14:20</td><td>project-c</td><td class='pa'>t_930bc108</td><td class='num'>1</td></tr><tr><td class='pa'>09-23 14:08</td><td>project-a</td><td class='pa'>t_a43d244e</td><td class='num'>1</td></tr><tr><td class='pa'>09-23 13:04</td><td>project-c</td><td class='pa'>t_45a99b26</td><td class='num'>1</td></tr><tr><td class='pa'>09-23 12:33</td><td>project-c</td><td class='pa'>t_bf7911d2</td><td class='num'>1</td></tr><tr><td class='pa'>09-23 10:34</td><td>project-a</td><td class='pa'>t_8d66ba5d</td><td class='num'>1</td></tr><tr><td class='pa'>09-23 06:40</td><td>project-c</td><td class='pa'>t_527ec544</td><td class='num'>1</td></tr><tr><td class='pa'>09-23 04:46</td><td>project-c</td><td class='pa'>t_2f8542ba</td><td class='num'>1</td></tr><tr><td class='pa'>09-23 04:41</td><td>project-a</td><td class='pa'>t_421f5435</td><td class='num'>1</td></tr><tr><td class='pa'>09-23 03:40</td><td>project-c</td><td class='pa'>t_d5088969</td><td class='num'>1</td></tr><tr><td class='pa'>09-23 03:20</td><td>project-c</td><td class='pa'>t_85ce0d7f</td><td class='num'>1</td></tr><tr><td class='pa'>09-23 03:13</td><td>project-a</td><td class='pa'>t_0abe0f3b</td><td class='num'>1</td></tr><tr><td class='pa'>09-23 03:00</td><td>project-c</td><td class='pa'>t_7d7b9173</td><td class='num'>1</td></tr>
+</table>
+
+<h2>Recent activity</h2>
+<div style="background:var(--card);border:1px solid var(--bd);border-radius:9px;padding:11px 13px;max-height:300px;overflow:auto">
+<div class="lg">2026-10-05 16:25:04 project-c: prompt network-failure.3 consumed (cycle 1, 91/168 used)</div><div class="lg">2026-10-05 16:25:04 project-c: worktree junction node_modules -&gt; C:\Users\gene\Documents\Project C\Zip Crime Data V6\node_modules</div><div class="lg">2026-10-05 16:25:04 project-c: worktree junction admin/node_modules -&gt; C:\Users\gene\Documents\Project C\Zip Crime Data V6\admin\node_modules</div><div class="lg">2026-10-05 16:24:55 project-b round 58 rc=0 ckpt[SKIPPED (not published: gate failed)]</div><div class="lg">2026-10-05 16:24:55 project-b round 58: checkpoint NOT taken -- gate failed. A round that was not accepted, or whose state did not persist, must not publish a tag.</div><div class="lg">2026-10-05 16:24:55 project-b round 58: containment -&gt; worktree removed (C:\CODING\project-improver\state\worktrees\project-b\r58); branch kl/project-b/r58 deleted</div><div class="lg">2026-10-05 16:24:54 project-b: scope markers: 1 verdict(s), crossing=None</div><div class="lg">2026-10-05 15:26:28 project-b: prompt choice-that-doesnt-matter.1 consumed (cycle 1, 33/168 used)</div><div class="lg">2026-10-05 15:26:28 project-b: worktree junction server/.venv -&gt; C:\Users\gene\PROJECT B\server\.venv</div><div class="lg">2026-10-05 15:26:21 project-a round 51 rc=0 ckpt[SKIPPED (not published: gate failed)]</div><div class="lg">2026-10-05 15:26:21 project-a round 51: checkpoint NOT taken -- gate failed. A round that was not accepted, or whose state did not persist, must not publish a tag.</div><div class="lg">2026-10-05 15:26:21 project-a round 51: containment -&gt; worktree removed (C:\CODING\project-improver\state\worktrees\project-a\r51); branch kl/project-a/r51 deleted</div><div class="lg">2026-10-05 14:27:36 project-a: prompt invisible-state.2 consumed (cycle 1, 31/168 used)</div><div class="lg">2026-10-05 14:27:36 project-a: worktree junction .venv -&gt; D:\ZCODE\PROJECT A\.venv</div>
+</div>
+
+<script>
+// Client-side round timer: ticks every second from the embedded start
+// epoch so the elapsed time MOVES between page regenerations.
+(function() {
+  const live = {"now": 1791232940, "inflight": {"project": "project-c", "round": 115, "started": 1791231904}};
+  const fmt = (s) => {
+    if (s < 0) return '-';
+    if (s < 60) return s + 's';
+    if (s < 3600) return Math.floor(s / 60) + 'm';
+    const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60);
+    return h + 'h' + String(m).padStart(2, '0') + 'm';
+  };
+  const tick = () => {
+    if (!live.inflight) return;
+    const el = Math.max(0, Math.floor(Date.now() / 1000) - live.inflight.started);
+    const v = document.getElementById('live-elapsed');
+    if (v) v.textContent = fmt(el);
+  };
+  tick();
+  setInterval(tick, 1000);
+})();
+</script>
