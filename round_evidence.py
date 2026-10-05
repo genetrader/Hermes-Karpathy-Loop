@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """
 round_evidence.py -- Layer 2 of the Repo Brief / Round Evidence / See-It build
-(PLAN-repo-brief-evidence-seeit.md, locked by Gene 2026-09-28).
+(PLAN-repo-brief-evidence-seeit.md, locked by the operator 2026-09-28).
 
 Do NOT ask the model to describe its work -- DERIVE the round's facts:
 the commit and the gate output ARE the evidence; prose is a caption on top.

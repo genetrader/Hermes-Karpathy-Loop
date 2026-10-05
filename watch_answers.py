@@ -4,7 +4,7 @@ project-improver / watch_answers.py
 
 Two jobs, run every minute by the watcher task:
   1. send the next reminder ping for an unanswered question (nag loop)
-  2. listen for Gene's reply in the improver channel and hand it to the worker
+  2. listen for the operator's reply in the improver channel and hand it to the worker
 
 Reply detection: reads messages posted in the improver channel AFTER the
 question was asked, from a non-bot author. The first such message is the answer.
@@ -71,7 +71,7 @@ def check_reply() -> str:
         text = (m.get("content") or "").strip()
         if not text:
             continue
-        who = (m.get("author") or {}).get("username", "gene")
+        who = (m.get("author") or {}).get("username", "operator")
         dn.answer(text, answered_by=who)
         # write the answer where the worker reads it
         (ROOT / "state" / "answer.json").write_text(

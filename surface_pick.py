@@ -8,7 +8,7 @@ sort on `last_nudge` (karpathy_runner.py:475) is untouched -- but WHERE inside t
 project this round looks is decided here (design: plans/2026-09-28_surfaces.md
 section 6.1).
 
-Rules (Gene, 2026-09-28 -- locked design):
+Rules (the operator, 2026-09-28 -- locked design):
   * ROUND-ROBIN, not least-visited. Surfaces are not symmetric (android-assistant
     has far more work than chrome-extension); least-visited lets a high-churn
     surface starve the others. Round-robin gives every surface a guaranteed turn.

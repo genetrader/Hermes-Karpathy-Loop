@@ -54,7 +54,7 @@ def _strip_scalar(v: str):
 
 
 def _apply_overrides(data: dict) -> dict:
-    """Overlay state/angle_overrides.yaml (Gene's widget edits) onto the base angles."""
+    """Overlay state/angle_overrides.yaml (the operator's widget edits) onto the base angles."""
     try:
         from angles_store import load_overrides  # local: angles_store imports this module
         ovr = load_overrides()
@@ -224,7 +224,7 @@ def is_applicable(angle: dict, facts: dict) -> bool:
 # --------------------------------------------------------------------------
 # the pick
 # --------------------------------------------------------------------------
-# PROMPT LAYER (Gene, 2026-09-27 -- locked design).
+# PROMPT LAYER (the operator, 2026-09-27 -- locked design).
 #
 # An angle alone is a lens, not a work order. Each angle now carries 4 PROMPTS
 # (angle_prompts.yaml), and a round consumes ONE angle + ONE unused prompt.

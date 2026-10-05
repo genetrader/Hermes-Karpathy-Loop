@@ -17,7 +17,7 @@ import sys
 sys.path.insert(0, r"C:/CODING/project-improver")
 import threads as T  # noqa: E402
 
-DB = r"C:/Users/gene/AppData/Local/hermes/state.db"
+DB = r"os.environ.get("LOCALAPPDATA", "\\\?\\unknown") + "\\hermes"/state.db"
 REG = r"C:/CODING/project-improver/state/threads.json"
 
 reg = json.load(open(REG, encoding="utf-8"))

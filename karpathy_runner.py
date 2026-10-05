@@ -2,7 +2,7 @@
 """
 karpathy_runner.py -- the continuous round runner (Start/Pause model).
 
-Gene's model (2026-09-23, verbatim intent): "It starts when I start it and it
+the operator's model (2026-09-23, verbatim intent): "It starts when I start it and it
 runs until it reaches a certain threshold... then saving a GitHub checkpoint...
 ends the run with the updated checkpoint... goes to another project or does
 another round... It's either running or it's not running."
@@ -39,7 +39,7 @@ import improver as I               # noqa: E402
 import scope                       # noqa: E402
 import discord_notify as dn        # noqa: E402
 
-HERMES_HOME = Path(r"C:\Users\gene\AppData\Local\hermes")
+HERMES_HOME = Path(r"<LOCALAPPDATA>\..\AppData\Local\hermes")
 HERMES_PY = HERMES_HOME / "hermes-agent" / "venv" / "Scripts" / "python.exe"
 
 # --- model seats -----------------------------------------------------------------
@@ -574,7 +574,7 @@ def _cleanup_junctions(wt: Path) -> list:
                 # npm/uv sometimes REPLACES our junction with a real
                 # directory (it removes node_modules and reinstalls).
                 # That dir is worktree-local disposable data -- delete it
-                # so containment can finish (Gene, r14 quarantine case).
+                # so containment can finish (the operator, r14 quarantine case).
                 import shutil as _sh
                 try:
                     _sh.rmtree(p)
@@ -922,7 +922,7 @@ def checkpoint(project: str, workdir: str, round_no: int) -> str:
         out.append("tag already at this sha")
     # NEVER let git open a credential dialog. This runs headless, so a missing
     # credential must FAIL FAST rather than pop Windows Git's `helper-selector`
-    # GUI and block a round on a prompt nobody is watching (Gene saw that dialog
+    # GUI and block a round on a prompt nobody is watching (the operator saw that dialog
     # and reasonably asked whether it was ours).
     # Belt AND braces. GIT_TERMINAL_PROMPT alone was NOT enough: with
     # credential.helper=helper-selector configured, git still invoked the helper
@@ -1203,7 +1203,7 @@ def run_round(proj: dict, entry: dict) -> int:
     for _n in _provision_worktree_deps(_workdir, wt):
         log("%s: worktree %s" % (name, _n))
 
-    # ---- SURFACE SCOPE (Gene, 2026-09-28) ---------------------------------
+    # ---- SURFACE SCOPE (the operator, 2026-09-28) ---------------------------------
     # A surface is a sub-category of a repo that can be worked on independently.
     # Surfaces ROUND-ROBIN inside a project, so the project still counts as one
     # visit: `last_nudge` below is untouched and a surface is never a rotation
@@ -1249,7 +1249,7 @@ def run_round(proj: dict, entry: dict) -> int:
                                 canonical=_workdir, worktree_branch=_branch_for(name, round_no),
                                 human_answer=_answer_block(_ans, name))
 
-    # CONSUME THE PROMPT the moment it is issued (Gene, 2026-09-27 -- locked).
+    # CONSUME THE PROMPT the moment it is issued (the operator, 2026-09-27 -- locked).
     # `pick()` already selected an UNUSED prompt for this repo's cycle; recording
     # it here means it can never be re-issued, INCLUDING when the round comes back
     # not-applicable. That is deliberate: a dead prompt must not be retried forever
@@ -1362,7 +1362,7 @@ def run_round(proj: dict, entry: dict) -> int:
     entry["last_nudge"] = time.time()
     entry["last_rc"] = rc
     entry["last_angle"] = _aid
-    # Round-duration telemetry (Gene, 2026-10-01): how long THIS round
+    # Round-duration telemetry (the operator, 2026-10-01): how long THIS round
     # ran, plus a bounded per-repo history for the avg/round display.
     # The clock starts at the angle pick (current_angle.started) -- the
     # child's actual working window. Refusals return before the angle
@@ -1379,7 +1379,7 @@ def run_round(proj: dict, entry: dict) -> int:
     entry["session_id"] = sid
     entry["title"] = threads.title_for(name)
 
-    # ---- CAMPAIGN PROPOSAL (surfaces, Gene 2026-09-28) ---------------------
+    # ---- CAMPAIGN PROPOSAL (surfaces, the operator 2026-09-28) ---------------------
     # PURE. This block only computes what the campaign WOULD become; it changes
     # no state. (External review / Saul, 2026-09-29: the previous version mutated
     # campaign state HERE -- before the runner knew whether the round had passed

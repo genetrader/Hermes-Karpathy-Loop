@@ -194,7 +194,7 @@ def thread_cot(session_id: str | None, max_steps: int = 40) -> dict:
 
     The old path (worker_log + card_session) is kanban-card-based and dead: with
     no cards, `live_task` is None and cot.steps stayed empty -- the widget showed
-    "no chain of thought" while rounds were actually executing (Gene, 21:xx).
+    "no chain of thought" while rounds were actually executing (the operator, 21:xx).
     """
     out: list[dict] = []
     if not session_id or not SESSIONS_DB.exists():
@@ -460,7 +460,7 @@ def _tasks(board: str) -> list[dict]:
     This used to shell `hermes kanban list --json` per project: a full Hermes CLI
     boot (~6-8s) per board, x3 boards, made activity.py take ~29s -- past the
     widget's 30s bridge timeout, which is why every panel request timed out
-    (Gene, 2026-09-23). The boards are local sqlite; reading them takes ~0ms.
+    (the operator, 2026-09-23). The boards are local sqlite; reading them takes ~0ms.
     Card fields are legacy (thread era keeps boards empty) but still feed the
     STALLED row logic.
     """
@@ -514,7 +514,7 @@ def activities(max_steps: int = 40) -> dict:
     # "running" when a hermes process is actively driving its registered thread
     # (`--resume <thread_id>` in a live process command line). Card-based
     # derivation always yields False now (no cards exist) -- that is the bug that
-    # made Gene's widget show "all idle" while a round was mid-flight.
+    # made the operator's widget show "all idle" while a round was mid-flight.
     _live_sids: set[str] = set()
     try:
         _out = subprocess.run(
@@ -573,7 +573,7 @@ def activities(max_steps: int = 40) -> dict:
         except Exception:
             _chain_ids = [thread_id]
         thread_running = any(s and s in _live_sids for s in _chain_ids)
-        # F-U (2026-10-05, Gene: "loop shows running but no repo in
+        # F-U (2026-10-05, the operator: "loop shows running but no repo in
         # rotation"): between a round's child exiting and the next Popen there
         # is a multi-minute window (gate run, checkpoint, containment, worktree
         # teardown/setup) where NO live --resume python exists -- the widget
@@ -591,7 +591,7 @@ def activities(max_steps: int = 40) -> dict:
             pass
         # Round-in-flight elapsed time: measure from THIS round's actual start.
         #
-        # BUG FIX (Gene, 2026-10-01: "no elapsed time / how long has it been on
+        # BUG FIX (the operator, 2026-10-01: "no elapsed time / how long has it been on
         # the same repo"): the old proxy used `last_nudge` -- the PREVIOUS
         # round's END -- so a round 4 minutes old showed "2.1h" (start + idle
         # gap), and any poll where liveness detection missed showed NOTHING.
@@ -655,7 +655,7 @@ def activities(max_steps: int = 40) -> dict:
             "active_status": status,
             # The widget's task cell reads `active_task` (and render_text below);
             # shipping only `active_status` rendered an empty/undefined cell.
-            # BUG FIX (Gene, 2026-10-01, "something under the word card"):
+            # BUG FIX (the operator, 2026-10-01, "something under the word card"):
             # active_task came ONLY from the retired kanban-card path, so it was
             # None for every row -- the Card column showed a bare em-dash even
             # while a round was live, and the CoT card's task line showed
@@ -712,7 +712,7 @@ def activities(max_steps: int = 40) -> dict:
     # card log. Pick the best candidate: thread_running rows first (an actual
     # hermes process is driving that thread right now), else the project with the
     # richest recent thread. This replaces the dead worker_log/card_session path
-    # that left the widget's CoT empty while rounds ran (Gene, 2026-09-23).
+    # that left the widget's CoT empty while rounds ran (the operator, 2026-09-23).
     if rows:
         cands = [r for r in rows if r.get("thread_id")]
         if cands:
@@ -930,7 +930,7 @@ def compact_payload(d: dict) -> str:
     # free-text ones. The widget only needs name/running/rounds/never_rotated/
     # active_task; everything else is decoration. Never emit >3400 B: a
     # clipped payload makes the widget's JSON.parse throw and blanks the panel.
-    # F-R (2026-10-05, Gene: "the elapsed time at the very top doesn't work"):
+    # F-R (2026-10-05, the operator: "the elapsed time at the very top doesn't work"):
     # `elapsed` was in ROW_OPTIONAL and got dropped whenever the payload popped
     # over budget -- while every row still carried a ~326-byte `see` block.
     # Reorder the sacrifice: shrink `see` (the "See it" column only needs

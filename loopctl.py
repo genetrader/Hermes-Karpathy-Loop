@@ -26,9 +26,12 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
+import settings as _S  # noqa: E402  settings.py is the single source for machine config
+
 # Mirror of karpathy_runner.ROUND_TIMEOUT (seconds). Used only to decide when a
-# RUNNING flag has gone stale. Keep the two in step.
-ROUND_TIMEOUT_S = int(os.environ.get("KL_ROUND_TIMEOUT", "4200"))
+# RUNNING flag has gone stale. Keep the two in step -- both read it from
+# settings (runtime.round_timeout, env KL_ROUND_TIMEOUT overrides).
+ROUND_TIMEOUT_S = _S.round_timeout()
 STATE = ROOT / "state"
 LOOP = STATE / "loop.json"
 ROTATION = STATE / "rotation.json"
@@ -229,7 +232,7 @@ def _pid_alive(pid) -> bool:
 def _avg_round_secs(entry: dict):
     """Average of the repo's recent round durations, or None.
 
-    Telemetry helper (Gene, 2026-10-01): entry["round_seconds_hist"] is a
+    Telemetry helper (the operator, 2026-10-01): entry["round_seconds_hist"] is a
     bounded list the runner stamps at each round's end. Garbage values are
     filtered, never trusted."""
     if not isinstance(entry, dict):
@@ -343,7 +346,7 @@ def cmd_status(a) -> int:
     if live.get("last_round_age_min") is not None:
         print(f"  last round  : {live['last_round_age_min']:.0f} min ago")
 
-    # Per-repo round timing (Gene, 2026-10-01): avg runtime per repo and
+    # Per-repo round timing (the operator, 2026-10-01): avg runtime per repo and
     # a live timer for the round in flight.
     _rows = _timing_rows()
     if _rows:
@@ -393,7 +396,7 @@ def cmd_start(a) -> int:
     save(cfg)
     _sync_rotation(cfg)
     # Start = work starts NOW. Spawn the continuous runner if not already alive
-    # (Gene, 2026-09-23: "It's either running or it's not running.")
+    # (the operator, 2026-09-23: "It's either running or it's not running.")
     import subprocess
     try:
         import karpathy_runner
@@ -404,7 +407,7 @@ def cmd_start(a) -> int:
             do_spawn = False
         if do_spawn:
             subprocess.Popen(
-                [r"C:\Users\gene\AppData\Local\hermes\hermes-agent\venv\Scripts\python.exe",
+                [r"<LOCALAPPDATA>\..\AppData\Local\hermes\hermes-agent\venv\Scripts\python.exe",
                  r"C:\CODING\project-improver\karpathy_runner.py"],
                 cwd=r"C:\CODING\project-improver",
                 creationflags=0x00000008,  # DETACHED_PROCESS
@@ -572,7 +575,7 @@ def _kill_inflight_round() -> int:
     """
     HARD-STOP: kill the loop's OWN in-flight hermes round process tree.
 
-    Gene, 2026-09-23: "It's either running or it's not running." Waiting ~40 min
+    the operator, 2026-09-23: "It's either running or it's not running." Waiting ~40 min
     for an in-flight round after Pause reads as 'pause is broken'. The work in a
     round lives in the round's disposable worktree (F3), so killing mid-round
     loses nothing -- containment deletes the worktree at the next sweep.
@@ -600,7 +603,7 @@ def cmd_pause(a) -> int:
     cfg["running"] = False
     cfg["paused_reason"] = a.reason or "paused by user"
     cfg["paused_at"] = _now()
-    # drain semantics (Gene, 2026-09-24: "we should let it finish always"): pause stops NEW
+    # drain semantics (the operator, 2026-09-24: "we should let it finish always"): pause stops NEW
     # rounds; the in-flight round runs to its commit/checkpoint. --now keeps the old hard-stop
     # for the rare case something must die immediately.
     if getattr(a, "now", False):

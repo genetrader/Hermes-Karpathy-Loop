@@ -174,7 +174,7 @@ def _port_hints(root: Path, manifests: dict) -> list[str]:
 def _multi_surface(root: Path, top_dirs: dict) -> list[str]:
     """Detect repos that ship MORE THAN ONE deliverable (Project B: server/ +
     android/ + chrome-extension/). This is why a round can improve one surface
-    while another sits untouched -- and Gene needs to SEE that."""
+    while another sits untouched -- and the operator needs to SEE that."""
     known = ("server", "android", "chrome-extension", "web", "app", "client",
              "backend", "frontend", "mobile", "extension", "api")
     return [d for d in known if d in top_dirs and top_dirs[d] > 0]

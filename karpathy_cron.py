@@ -19,7 +19,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 ROOT = Path(r"C:\CODING\project-improver")
-PY = Path(r"C:\Users\gene\AppData\Local\hermes\hermes-agent\venv\Scripts\python.exe")
+PY = Path(r"<LOCALAPPDATA>\..\AppData\Local\hermes\hermes-agent\venv\Scripts\python.exe")
 
 
 def run(script: str, *args, timeout=600):

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """scope.py -- read the scope markers a round emits, and advance a campaign.
 
-Gene, 2026-09-28: surfaces can be worked one at a time, but when a change has to
+the operator, 2026-09-28: surfaces can be worked one at a time, but when a change has to
 land on SEVERAL surfaces "they need to be done at that time... so that things
 stay parallel with each other". That is a campaign.
 

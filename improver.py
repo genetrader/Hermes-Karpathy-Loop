@@ -35,9 +35,9 @@ MANIFEST = ROOT / "improve.yaml"
 # Where kanban boards live. Each board dir holds board.json (slug, name,
 # default_workdir) next to its kanban.db. A card created on a board with no
 # default_workdir can never start -- see board_workdir().
-BOARD_HOME = Path(r"C:\Users\gene\AppData\Local\hermes\kanban\boards")
-HERMES_PY = Path(r"C:\Users\gene\AppData\Local\hermes\hermes-agent\venv\Scripts\python.exe")
-HERMES_MAIN = Path(r"C:\Users\gene\AppData\Local\hermes\hermes-agent\hermes_cli\main.py")
+BOARD_HOME = Path(r"<LOCALAPPDATA>\..\AppData\Local\hermes\kanban\boards")
+HERMES_PY = Path(r"<LOCALAPPDATA>\..\AppData\Local\hermes\hermes-agent\venv\Scripts\python.exe")
+HERMES_MAIN = Path(r"<LOCALAPPDATA>\..\AppData\Local\hermes\hermes-agent\hermes_cli\main.py")
 
 
 # ---------------------------------------------------------------- manifest
@@ -265,7 +265,7 @@ def stuck_card(board: str) -> dict | None:
     finish on its own and is holding the rotation hostage.
 
     The rotator cannot clear it automatically (a needs_input block may be waiting
-    on Gene), but it must not let it stall everyone else either. Callers use this
+    on the operator), but it must not let it stall everyone else either. Callers use this
     to report the stall and move on.
     """
     for t in list_tasks(board):
@@ -383,7 +383,7 @@ WRAP-UP (mandatory, and it comes BEFORE the budget runs out):
   The previous card hit its cap mid-round, exited rc=1, and left the rotation
   frozen -- do not repeat that. Always leave the branch consistent and the gate
   green before you finish, even if that means reporting fewer rounds than asked.
-- If you hit a decision only Gene can make, STOP and post ONE question
+- If you hit a decision only the operator can make, STOP and post ONE question
   (one question at a time, never two) via: python C:\\CODING\\project-improver\\discord_notify.py ask "{proj['name']}" "<question>"
   then call kanban_block with kind=needs_input. Resume when unblocked.
 - Report each round with:
@@ -415,7 +415,7 @@ Loop contract:
   fails, repair and retry; if it passes, commit a checkpoint.
 - ONE backlog item per loop. Do not batch multiple items into one unverified commit.
 - Commit EVERY passing round as its own commit on this task's branch.
-- If you hit a decision only Gene can make, STOP and post ONE question
+- If you hit a decision only the operator can make, STOP and post ONE question
   (one question at a time, never two) via: python C:\\CODING\\project-improver\\discord_notify.py ask "{proj['name']}" "<question>"
   then call kanban_block with kind=needs_input. Resume when unblocked.
 - Report each round with:
@@ -504,7 +504,7 @@ def repo_facts(proj: dict) -> dict:
 
 def surfaces_for(proj: dict) -> list[str]:
     """
-    Canonical surface slugs for a project, from the manifest (Gene, 2026-09-28:
+    Canonical surface slugs for a project, from the manifest (the operator, 2026-09-28:
     the manifest is authoritative -- anything the rotation consumes must live in
     improve.yaml or it breaks "the runner reads improve.yaml only").
 
@@ -552,7 +552,7 @@ def surface_see_for(proj: dict) -> dict:
     """
     Per-surface viewability, from the manifest's `see.surface_see` map.
 
-    Gene, 2026-09-28: "each surface can be looked at." The surfaces of one repo
+    the operator, 2026-09-28: "each surface can be looked at." The surfaces of one repo
     are NOT equally viewable -- project-b's web server answers on :8823, its
     web app is a page INSIDE that server, its Chrome extension is not
     URL-addressable at all, and its two Android apps are device installs. One
@@ -756,7 +756,7 @@ def _run_locked(m, s, projs):
     # rather than silent. This is the fix for the starvation that left
     # project-c and project-b on 0 rounds for hours.
     # A BLOCKED card means a HUMAN is needed. Skipping it silently and looping
-    # forever is the bug Gene reported: Discord got the same "skipping stuck
+    # forever is the bug the operator reported: Discord got the same "skipping stuck
     # board(s)" line over and over and NOTHING ever asked him the actual
     # question. `discord_notify.ask()` exists and pages him until answered --
     # use it. Ask ONCE per stuck card (tracked in state/asked.json), then keep
@@ -810,7 +810,7 @@ def _run_locked(m, s, projs):
             pass
 
     if question_sent:
-        print("asked Gene about: " + ", ".join(question_sent))
+        print("asked the operator about: " + ", ".join(question_sent))
 
     # A project with a LIVE card is busy, not stuck. The rotator used to `return`
     # on the FIRST busy project, which meant one running round froze the whole
@@ -851,7 +851,7 @@ def _run_locked(m, s, projs):
             p, idx = picked
 
         # --- the 2-round rule -------------------------------------------
-        # Gene's standing rule: at most TWO rounds on a project before rotating
+        # the operator's standing rule: at most TWO rounds on a project before rotating
         # on. `loops` in improve.yaml is a turn ceiling, NOT the rotation rule --
         # conflating them is what let T&T take three rounds inside one card.
         #
@@ -935,7 +935,7 @@ def _run_locked(m, s, projs):
         # --- CHECKPOINT ENGINE (wired) ---
         # Before an agent touches a byte: guarantee a SAFE push target and lay
         # down a START checkpoint. Rollback target = kp/<project>/r<NN>-start.
-        # Locked policy (Gene 2026-09-22):
+        # Locked policy (the operator 2026-09-22):
         #   public upstream -> fork to the user's account, never push upstream
         #   no remote       -> create a PRIVATE repo and push
         #   private own     -> use it

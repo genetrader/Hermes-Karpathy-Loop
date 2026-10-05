@@ -21,7 +21,7 @@ VIEW_TEMPLATE = """<!doctype html>
 <html><head><meta charset="utf-8"><title>Karpathy angle library</title>
 <style>
   /* OPAQUE by design: this page runs in an iframe and paints nothing behind itself,
-     so translucency made it unreadable (Gene: "blending in with the background").
+     so translucency made it unreadable (the operator: "blending in with the background").
      Palette matches the picker page so both modals look like one system. */
   :root {
     color-scheme: dark;

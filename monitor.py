@@ -99,7 +99,7 @@ def build() -> str:
         return e.get("last_nudge") or 0
     quar = {n for n, e in reg.items() if isinstance(e, dict) and e.get("quarantined")}
 
-    # Round timing (Gene, 2026-10-01): live elapsed for the round in flight
+    # Round timing (the operator, 2026-10-01): live elapsed for the round in flight
     # (heartbeat project + the round's angle-start stamp) and the per-repo
     # average the runner logs into round_seconds_hist at each round end.
     try:
@@ -168,7 +168,7 @@ def build() -> str:
     # Live-data payload: the page re-fetches every 30s but the TIMER ticks
     # client-side every second from the embedded start epoch (the file only
     # changes when monitor.py regenerates it -- a static reload can never
-    # move a timer). Gene, 2026-10-01: "elapsed time didn't move".
+    # move a timer). the operator, 2026-10-01: "elapsed time didn't move".
     _live = {"now": int(_now),
              "inflight": ({"project": infl_proj,
                            "round": infl_round,

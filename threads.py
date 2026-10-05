@@ -25,7 +25,7 @@ STATE = ROOT / "state" / "threads.json"
 # Every loop thread is titled with this prefix so they are easy to find in the
 # desktop sidebar and in `sessions` queries.
 #
-# The leading yellow square is a deliberate VISUAL marker (Gene, 2026-09-26):
+# The leading yellow square is a deliberate VISUAL marker (the operator, 2026-09-26):
 # the sidebar highlight he wanted is native desktop UI with no plugin hook, so
 # the marker rides in the title instead -- scannable in the pinned list, zero
 # app-rebuild risk, and it survives restarts because it is real persisted data.

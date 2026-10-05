@@ -478,7 +478,7 @@ function useQuestions(host2, route, tick) {
 }
 
 
-// F-X (2026-10-05, Gene: "status unavailable / 90s timeout"): shell.exec calls
+// F-X (2026-10-05, the operator: "status unavailable / 90s timeout"): shell.exec calls
 // share the profile agent's single tool queue with the human's own agent
 // sessions. When that queue is busy, a poll times out -- and the old code
 // blanked the panel on ONE failed poll. These wrappers keep the LAST GOOD
@@ -491,7 +491,7 @@ function lastGood(key, value) {
 }
 
 
-// F-Y (2026-10-05, Gene: "stays loading forever"): shell.exec polls share the
+// F-Y (2026-10-05, the operator: "stays loading forever"): shell.exec polls share the
 // profile agent's shell queue, and every agent spawn pays a 13-70s MCP
 // connect storm -- under load the polls starved and the page never loaded.
 // The loop now runs a local status server (scripts/status_server.py,
@@ -968,7 +968,7 @@ function safeUrl(u) {
 
 /** What this repo IS, and how to look at it.
  *
- *  Gene, 2026-09-28: "whatever repos we select for iteration, is there a way when
+ *  the operator, 2026-09-28: "whatever repos we select for iteration, is there a way when
  *  the AI gives a description, it's looking at all the code and gives a
  *  description of what that project is and what it's supposed to do. Can we also
  *  have a clickable URL to see the project."
@@ -1109,7 +1109,7 @@ function agoFromTs(ts) {
   return ago(Math.max(0, Math.round((Date.now() - t) / 1000)));
 }
 
-// How many transcript lines the CoT panel shows. Gene asked for "just a few
+// How many transcript lines the CoT panel shows. the operator asked for "just a few
 // lines ... the last maybe five or so" -- a small fixed window that scrolls
 // off, NOT an ever-growing transcript.
 var FEED_VISIBLE = 5;
@@ -1526,7 +1526,7 @@ function KarpathyLoop(props) {
   // Report the ACTUAL reason instead of a blanket "unavailable" -- an opaque
   // badge is what made this look like a dead widget while it was really a
   // route/permission problem.
-  // Pause is DRAIN semantics (Gene, 2026-09-24: "we should let it finish always"): no NEW
+  // Pause is DRAIN semantics (the operator, 2026-09-24: "we should let it finish always"): no NEW
   // rounds start, but a round already in flight runs to its commit/checkpoint. While that
   // happens the loop is paused AND working -- show FINISHING, not a bare PAUSED, so the
   // badge never contradicts visible activity.
@@ -1740,7 +1740,7 @@ function KarpathyLoop(props) {
                     })() }, i + "see"),
                     jsx("td", { style: S.td, children: jsx(Button, {
                       // Two-click remove from rotation, right in the table --
-                      // no picker needed (Gene, 2026-09-26: "add an easy way to
+                      // no picker needed (the operator, 2026-09-26: "add an easy way to
                       // do this so I don't have to go in the project picker").
                       onClick: function () {
                         if (armRemove !== p.name) { setArmRemove(p.name); return; }
@@ -1891,7 +1891,7 @@ function KarpathyLoop(props) {
                             jsx("span", { style: S.ckMeta,
                               children: String(r.created || "").slice(0, 16).replace("T", " ") }, "m"),
                           ] }, "r"),
-                          /* F-S: plain-language line FIRST (Gene: "explain
+                          /* F-S: plain-language line FIRST (the operator: "explain
                              like I'm in fifth grade"); the technical line
                              follows smaller/dimmer for the engineer read. */
                           /* F-S2: FULL plain text, never clamped. */

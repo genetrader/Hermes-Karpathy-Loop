@@ -16,7 +16,7 @@ So each angle gets 4 PROMPTS. A prompt is a full, prescriptive work order:
   evidence      -- the exact artifact the round must produce
   not_applicable-- the clean exit (consume the prompt, invent nothing)
 
-Cycle semantics (Gene, 2026-09-27 -- locked):
+Cycle semantics (the operator, 2026-09-27 -- locked):
   * PER-REPO cycle. Each repo walks its own pass over angle x prompt.
   * CONSUME ON ATTEMPT. A prompt is spent when it is issued, including when the
     round comes back not-applicable. A dead prompt must not be re-issued forever

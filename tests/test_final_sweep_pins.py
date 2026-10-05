@@ -264,7 +264,7 @@ def test_fresh_round_started_heartbeat_overrides_round_stale_wedge():
             alive = loopctl._liveness(cfg)
             assert alive["wedged"] is False, (
                 "a fresh live round-started heartbeat must NOT read wedged "
-                "(this is the false banner Gene saw after restart)")
+                "(this is the false banner the operator saw after restart)")
             sp.run = probe(False)
             dead = loopctl._liveness(cfg)
             assert dead["wedged"] is True and dead["wedge_why"], (
@@ -341,7 +341,7 @@ def test_checkpoints_carry_plain_summaries():
     explanation) per row, cached in state/plain_summaries.json."""
     import subprocess, json as _j
     out = subprocess.run(
-        ["C:/Users/gene/AppData/Local/hermes/hermes-agent/venv/Scripts/python.exe",
+        ["os.environ.get("LOCALAPPDATA", "\\\?\\unknown") + "\\hermes"/hermes-agent/venv/Scripts/python.exe",
          "checkpoint.py", "all"],
         cwd="C:/CODING/project-improver", capture_output=True, text=True,
         timeout=300).stdout
@@ -396,7 +396,7 @@ def test_current_work_verb_emits_plain():
     fifth-grade explanation of what the loop is working on."""
     import subprocess, json as _j
     out = subprocess.run(
-        ["C:/Users/gene/AppData/Local/hermes/hermes-agent/venv/Scripts/python.exe",
+        ["os.environ.get("LOCALAPPDATA", "\\\?\\unknown") + "\\hermes"/hermes-agent/venv/Scripts/python.exe",
          "checkpoint.py", "current"],
         cwd="C:/CODING/project-improver", capture_output=True, text=True,
         timeout=120).stdout

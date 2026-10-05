@@ -2,7 +2,7 @@
 """
 ask_policy.py -- how long a question waits before the loop proceeds alone.
 
-Gene's spec (2026-09-23): ping Discord every 5 minutes, up to ~25 times. If he
+the operator's spec (2026-09-23): ping Discord every 5 minutes, up to ~25 times. If he
 has not answered by then, the loop takes the BEST ASSUMPTION, records it, tells
 him what it assumed, and keeps working. An unanswered question must never
 deadlock the loop.

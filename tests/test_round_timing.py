@@ -1,4 +1,4 @@
-"""Round-duration telemetry (Gene, 2026-10-01).
+"""Round-duration telemetry (the operator, 2026-10-01).
 
 The runner stamps entry["last_round_seconds"] and appends to
 entry["round_seconds_hist"] when a round finishes; loopctl/monitor display

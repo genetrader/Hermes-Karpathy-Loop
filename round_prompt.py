@@ -136,7 +136,7 @@ def build(project: str, angle: dict, gate: str, round_no: int, prior: dict,
     `chrome-extension`). Surfaces round-robin inside a project, so the project
     still counts as ONE visit; surface is a frontier, not a rotation slot.
 
-    `campaign` is the CROSS-CUTTING case (Gene, 2026-09-28): when one change has
+    `campaign` is the CROSS-CUTTING case (the operator, 2026-09-28): when one change has
     to land on several surfaces, the surfaces are worked as CONSECUTIVE rounds
     sharing one checklist rather than one giant round. That is deliberate -- a
     single child doing all surfaces would run 250-300 min against a 70 min

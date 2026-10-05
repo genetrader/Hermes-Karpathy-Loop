@@ -2,7 +2,7 @@
 """
 repo_brief.py -- ONE-TIME per-repo description, generated from a bounded survey.
 
-Gene's decision (2026-09-28): the description is a **one-time pass per repo**, not
+the operator's decision (2026-09-28): the description is a **one-time pass per repo**, not
 refreshed per round. Refreshing it every round would spend a quarter of the round
 budget re-describing a project that has not changed.
 
@@ -39,7 +39,7 @@ def _py() -> str:
 
 
 def _hermes_py() -> Path:
-    return Path(r"C:\Users\gene\AppData\Local\hermes\hermes-agent\venv\Scripts\python.exe")
+    return Path(r"<LOCALAPPDATA>\..\AppData\Local\hermes\hermes-agent\venv\Scripts\python.exe")
 
 
 # One-time briefs use the coordinator-class model: this is analysis over a
@@ -144,7 +144,7 @@ def _ask_model(facts: str) -> dict | None:
         r = subprocess.run(
             [str(hp), "-m", "hermes_cli.main", "-p", PROFILE,
              "--model", BRIEF_MODEL, "-z", PROMPT + facts],
-            cwd=str(Path(r"C:\Users\gene\AppData\Local\hermes\hermes-agent")),
+            cwd=str(Path(r"<LOCALAPPDATA>\..\AppData\Local\hermes\hermes-agent")),
             capture_output=True, text=True, timeout=900, errors="replace",
             creationflags=0x08000000)
     except Exception:

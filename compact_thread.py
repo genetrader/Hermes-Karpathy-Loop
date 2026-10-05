@@ -16,8 +16,8 @@ from __future__ import annotations
 import subprocess
 from pathlib import Path
 
-HERMES_PY = Path(r"C:\Users\gene\AppData\Local\hermes\hermes-agent\venv\Scripts\python.exe")
-HERMES_CWD = Path(r"C:\Users\gene\AppData\Local\hermes\hermes-agent")
+HERMES_PY = Path(r"<LOCALAPPDATA>\..\AppData\Local\hermes\hermes-agent\venv\Scripts\python.exe")
+HERMES_CWD = Path(r"<LOCALAPPDATA>\..\AppData\Local\hermes\hermes-agent")
 
 
 def compact(session_id: str, profile: str = "default") -> int:

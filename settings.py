@@ -1,0 +1,670 @@
+#!/usr/bin/env python3
+"""
+settings.py -- the ONE place the Karpathy Loop decides anything machine-specific.
+
+Before this module existed, the loop carried the author's machine in its code:
+a Discord .env at one hard-coded path, the author's hermes home, gh CLI remotes,
+fleet model names. Anything that is not a *decision* about the loop itself now
+lives here, and every module reads it through this file.
+
+Three layers, later wins (deep-merged per leaf):
+
+    built-in defaults        safe: GitHub OFF, notifications OFF
+    settings.yaml            tracked; team-shared, NO secrets allowed
+    settings.local.yaml      gitignored; your machine, secrets allowed here
+    environment variables    final override, highest priority
+
+Secrets rule (hard, not style): a token VALUE may only come from the
+environment or from settings.local.yaml. A token value found in the tracked
+settings.yaml is rejected by validation and dropped from the merge. The
+tracked file may only name an ENV VAR (github.token_env, e.g. "GITHUB_TOKEN").
+
+Env overrides (all optional; "1/true/yes/on" enable, "0/false/no/off" disable):
+    KL_SETTINGS_FILE      alternate path for the tracked settings file
+    KL_GITHUB_ENABLED     master GitHub switch
+    KL_NOTIFY_ENABLED     master notifications switch
+    GITHUB_TOKEN          token value the github.token_env default points at
+    GH_TOKEN              honoured by gh itself; we forward our token to it
+    HERMES_HOME           where Hermes lives
+    KL_HERMES_PYTHON      interpreter that launches hermes CLI children
+    KL_BUILDER_MODEL      implementer-seat fallback
+    KL_BRIEF_MODEL / KL_BRIEF_PROFILE      one-shot repo-brief model
+    DISCORD_BOT_TOKEN / IMPROVER_CHANNEL_ID / IMPROVER_PING_USER_ID
+                          (the historical Discord env names still work)
+
+Validation is explicit and human-readable: loopctl.py settings validate prints
+every problem with the exact dotted key and the exact fix. Safe defaults mean
+a fresh clone runs (locally, silently) with zero configuration.
+"""
+from __future__ import annotations
+
+import copy
+import os
+import re
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent
+
+SETTINGS_FILE = ROOT / "settings.yaml"
+SETTINGS_LOCAL = ROOT / "settings.local.yaml"
+
+# Keys whose VALUES are secrets. They are rejected in the tracked file and
+# accepted only from settings.local.yaml or the environment.
+SECRET_LEAVES = {"github.token", "notifications.bot_token"}
+
+# ---------------------------------------------------------------- schema
+# name -> (type, env-var-override, default). type is bool/int/str.
+# This doubles as the validation contract and the CLI's coercion table.
+SCHEMA: dict[str, tuple[str, str, object]] = {
+    "github.enabled":            ("bool", "KL_GITHUB_ENABLED", False),
+    "github.owner":              ("str",  "KL_GITHUB_OWNER", ""),
+    "github.token_env":          ("str",  "", "GITHUB_TOKEN"),
+    "github.token":              ("str",  "GITHUB_TOKEN", ""),
+    "github.require_repo":       ("bool", "", False),
+    "github.gh_cli":             ("str",  "KL_GH_CLI", "gh"),
+    "github.push_branches":      ("bool", "", True),
+
+    "notifications.enabled":     ("bool", "KL_NOTIFY_ENABLED", False),
+    "notifications.backend":     ("str",  "KL_NOTIFY_BACKEND", "discord"),
+    "notifications.bot_token_env": ("str", "", "DISCORD_BOT_TOKEN"),
+    "notifications.bot_token":   ("str",  "DISCORD_BOT_TOKEN", ""),
+    "notifications.channel_id":  ("str",  "IMPROVER_CHANNEL_ID", ""),
+    "notifications.ping_user_id": ("str", "IMPROVER_PING_USER_ID", ""),
+    "notifications.ping_on_stuck": ("bool", "IMPROVER_PING_ON_STUCK", False),
+    "notifications.env_file":    ("str",  "KL_NOTIFY_ENV_FILE", ""),
+
+    "hermes.home":               ("str",  "HERMES_HOME", ""),
+    "hermes.python":             ("str",  "KL_HERMES_PYTHON", ""),
+    "hermes.profile":            ("str",  "KL_HERMES_PROFILE", ""),
+    "hermes.config_file":        ("str",  "KL_HERMES_CONFIG", ""),
+
+    "models.implementer":        ("str",  "", ""),
+    "models.reviewer":           ("str",  "", ""),
+    "models.builder_fallback":   ("str",  "KL_BUILDER_MODEL", ""),
+    "models.brief_model":        ("str",  "KL_BRIEF_MODEL", ""),
+    "models.brief_profile":      ("str",  "KL_BRIEF_PROFILE", ""),
+
+    "projects.manifest":         ("str",  "KL_MANIFEST", ""),
+    "projects.index_rows":       ("str",  "KL_INDEX_ROWS", ""),
+
+    "runtime.round_timeout":     ("int",  "KL_ROUND_TIMEOUT", 4200),
+    "runtime.worktree_abandon_secs": ("int", "KL_WT_ABANDON_SECS", 21600),
+    "runtime.gate_timeout":      ("int",  "KL_GATE_TIMEOUT", 900),
+}
+
+_TRUTHY = {"1", "true", "yes", "on"}
+_FALSY = {"0", "false", "no", "off", ""}
+_SEAT_RE = re.compile(r"^[A-Za-z0-9._-]+(:[A-Za-z0-9._-]+){1,2}$")
+
+_ISSUES: list = []           # issues from the most recent load (for `validate`)
+_SOURCES: dict = {}          # dotted key -> "env"/"local"/"file"/"default"
+_CACHE: dict | None = None
+_CACHE_STAMP: tuple | None = None
+
+
+class Issue:
+    def __init__(self, level: str, key: str, message: str, fix: str = ""):
+        self.level = level          # "error" | "warn"
+        self.key = key
+        self.message = message
+        self.fix = fix
+
+    def __repr__(self):
+        fix = ("  fix: " + self.fix) if self.fix else ""
+        return "%s [%s] %s%s" % (self.level.upper(), self.key, self.message, fix)
+
+
+def _coerce(kind: str, raw, key: str):
+    """String/env value -> schema type. Returns (value, issue|None)."""
+    if isinstance(raw, bool) and kind == "bool":
+        return raw, None
+    if kind == "bool":
+        s = str(raw).strip().lower()
+        if s in _TRUTHY:
+            return True, None
+        if s in _FALSY:
+            return False, None
+        return None, Issue("error", key, "expected true/false, got %r" % (raw,),
+                           "set %s to true or false" % key)
+    if kind == "int":
+        try:
+            return int(str(raw).strip()), None
+        except (TypeError, ValueError):
+            return None, Issue("error", key, "expected a whole number, got %r" % (raw,),
+                               "set %s to an integer (seconds)" % key)
+    return str(raw), None
+
+
+def _layer_from_yaml(path: Path, tracked: bool) -> tuple[dict, list]:
+    """Read one settings file. tracked=True rejects secret VALUES outright."""
+    issues: list = []
+    if not path.exists():
+        return {}, issues
+    try:
+        import yaml  # lazy: the loop runs fine without PyYAML when no files exist
+        doc = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    except Exception as e:
+        return {}, [Issue("error", path.name, "cannot be parsed: %s" % e,
+                          "fix the YAML syntax (a validator or `loopctl settings validate` shows the line)")]
+    if not isinstance(doc, dict):
+        return {}, [Issue("error", path.name, "top level must be a mapping of sections",
+                          "write `section:` / `  key: value` pairs")]
+    flat: dict = {}
+    for section, kv in doc.items():
+        if not isinstance(kv, dict):
+            issues.append(Issue("error", str(section),
+                                "section must contain key: value pairs",
+                                "move `%s` under a section" % section))
+            continue
+        for k, v in kv.items():
+            key = "%s.%s" % (section, k)
+            if key in SECRET_LEAVES and tracked and v not in (None, ""):
+                issues.append(Issue(
+                    "error", key,
+                    "%s holds a secret and cannot be set in the TRACKED %s "
+                    "(it would be committed to git)" % (key, path.name),
+                    "put the value in %s, or only name an env var: "
+                    "%s: <ENV_VAR_NAME>" % (SETTINGS_LOCAL.name, key.replace(".token", ".token_env")
+                                            if key == "github.token" else
+                                            key.replace(".bot_token", ".bot_token_env"))))
+                continue
+            if key not in SCHEMA:
+                issues.append(Issue("warn", key,
+                                    "unknown setting in %s (ignored)" % path.name,
+                                    "check the spelling; `loopctl settings show` lists every key"))
+                continue
+            flat[key] = v
+    return flat, issues
+
+
+def _layer_from_env() -> dict:
+    flat: dict = {}
+    for key, (_kind, env, _dflt) in SCHEMA.items():
+        if not env:
+            continue
+        if key in SECRET_LEAVES and key not in ("github.token",):
+            pass  # bot_token's env name itself lives in notifications.bot_token_env
+        if env in os.environ:
+            flat[key] = os.environ[env]
+    # the historical env names win when they are present at all
+    if os.environ.get("IMPROVER_PING_ON_STUCK"):
+        flat["notifications.ping_on_stuck"] = os.environ["IMPROVER_PING_ON_STUCK"]
+    return flat
+
+
+def _hermes_default_home() -> Path:
+    """Portable Hermes home when nothing is configured."""
+    if os.environ.get("HERMES_HOME"):
+        return Path(os.environ["HERMES_HOME"])
+    if sys.platform == "win32":
+        return Path.home() / "AppData" / "Local" / "hermes"
+    return Path.home() / ".hermes"
+
+
+def load_settings(refresh: bool = False) -> dict:
+    """Merged settings as a nested dict. Reads cache unless files changed."""
+    global _CACHE, _CACHE_STAMP, _ISSUES, _SOURCES
+    main = Path(os.environ.get("KL_SETTINGS_FILE") or SETTINGS_FILE)
+    stamp = tuple(
+        (p.stat().st_mtime_ns, p.stat().st_size) if p.exists() else None
+        for p in (main, SETTINGS_LOCAL))
+    if _CACHE is not None and stamp == _CACHE_STAMP and not refresh:
+        return copy.deepcopy(_CACHE)
+
+    cfg: dict = {}
+    sources: dict = {}
+    issues: list = []
+
+    layers: list[tuple[str, dict]] = [("default", {k: d for k, (_t, _e, d) in SCHEMA.items()})]
+    file_flat, iss = _layer_from_yaml(main, tracked=True)
+    issues += iss
+    layers.append(("file", file_flat))
+    local_flat, iss = _layer_from_yaml(SETTINGS_LOCAL, tracked=False)
+    issues += iss
+    layers.append(("local", local_flat))
+    layers.append(("env", _layer_from_env()))
+
+    flat: dict = {}
+    for name, layer in layers:
+        for key, raw in layer.items():
+            if raw is None or raw == "":
+                if name == "default":
+                    flat[key] = raw
+                    sources[key] = name
+                continue  # an empty override does not clobber a lower layer
+            kind, _env, _d = SCHEMA[key]
+            val, issue = _coerce(kind, raw, key)
+            if issue:
+                issues.append(issue)
+                continue
+            flat[key] = val
+            sources[key] = name
+
+    # environment fallback for secret env-var NAMES: github.token_env may
+    # name an arbitrary variable -- if that variable is set, it is the token.
+    te = (flat.get("github.token_env") or "").strip()
+    if te and te in os.environ and sources.get("github.token") != "local":
+        flat["github.token"] = os.environ[te]
+        sources["github.token"] = "env(%s)" % te
+    be = (flat.get("notifications.bot_token_env") or "").strip()
+    if be and be in os.environ and sources.get("notifications.bot_token") != "local":
+        flat["notifications.bot_token"] = os.environ[be]
+        sources["notifications.bot_token"] = "env(%s)" % be
+
+    # portable defaults filled only when unset anywhere
+    if not (flat.get("hermes.home") or "").strip():
+        flat["hermes.home"] = str(_hermes_default_home())
+        sources.setdefault("hermes.home", "default")
+    if not (flat.get("hermes.python") or "").strip():
+        home = Path(flat["hermes.home"])
+        rel = ("hermes-agent/venv/Scripts/python.exe" if sys.platform == "win32"
+               else "hermes-agent/venv/bin/python")
+        flat["hermes.python"] = str(home / rel)
+        sources.setdefault("hermes.python", "default")
+    if not (flat.get("hermes.config_file") or "").strip():
+        flat["hermes.config_file"] = str(Path(flat["hermes.home"]) / "config.yaml")
+        sources.setdefault("hermes.config_file", "default")
+    if not (flat.get("hermes.profile") or "").strip():
+        flat["hermes.profile"] = "default"
+    if not (flat.get("projects.manifest") or "").strip():
+        flat["projects.manifest"] = str(ROOT / "improve.yaml")
+
+    issues += _validate_semantics(flat, sources)
+
+    for key, val in flat.items():
+        section, leaf = key.split(".", 1)
+        cfg.setdefault(section, {})[leaf] = val
+
+    _CACHE, _CACHE_STAMP, _ISSUES, _SOURCES = cfg, stamp, issues, sources
+    return copy.deepcopy(cfg)
+
+
+def _validate_semantics(flat: dict, sources: dict) -> list:
+    issues: list = []
+    for key in ("runtime.round_timeout", "runtime.worktree_abandon_secs",
+                "runtime.gate_timeout"):
+        v = flat.get(key)
+        if isinstance(v, int) and v <= 0:
+            issues.append(Issue("error", key, "must be > 0 (got %s)" % v,
+                                "set %s to a positive number of seconds" % key))
+    if flat.get("notifications.backend") not in ("discord", "none", ""):
+        issues.append(Issue("error", "notifications.backend",
+                            "unknown backend %r" % flat.get("notifications.backend"),
+                            "use discord or none"))
+
+    impl = (flat.get("models.implementer") or "").strip()
+    rev = (flat.get("models.reviewer") or "").strip()
+    for key, seat in (("models.implementer", impl), ("models.reviewer", rev)):
+        if seat and not _SEAT_RE.match(seat):
+            issues.append(Issue(
+                "error", key,
+                "model seat %r is not provider:model (or custom:slug:model) "
+                "form" % seat,
+                'e.g. "openrouter:anthropic/claude-sonnet-4" or '
+                '"custom:mybox:mymodel" -- a bare model name mis-parses to a cloud provider'))
+    if impl and rev and impl == rev:
+        issues.append(Issue("error", "models.reviewer",
+                            "implementer and reviewer are the same model -- "
+                            "a model cannot review its own work",
+                            "point models.reviewer at a different model"))
+
+    if flat.get("github.enabled"):
+        tok = (flat.get("github.token") or "").strip()
+        owner = (flat.get("github.owner") or "").strip()
+        gh_cli = (flat.get("github.gh_cli") or "gh").strip()
+        if not tok and gh_cli in ("gh", Path(gh_cli).name):
+            issues.append(Issue(
+                "warn", "github.token",
+                "GitHub is enabled but no token is available (no %s, no %s "
+                "in %s, and gh may or may not be logged in)"
+                % (flat.get("github.token_env") or "GITHUB_TOKEN",
+                   "token", SETTINGS_LOCAL.name),
+                "run `gh auth login`, or export GITHUB_TOKEN, or set token in "
+                + SETTINGS_LOCAL.name))
+        if flat.get("github.require_repo") and not owner:
+            issues.append(Issue("warn", "github.owner",
+                                "require_repo is on but no owner is set -- "
+                                "auto-creating repos needs to know whose account",
+                                "set github.owner in settings.yaml"))
+    if flat.get("notifications.enabled") and flat.get("notifications.backend") == "discord":
+        if not (flat.get("notifications.bot_token") or "").strip():
+            issues.append(Issue("error", "notifications.bot_token",
+                                "notifications are enabled but no Discord bot "
+                                "token resolves from env or %s" % SETTINGS_LOCAL.name,
+                                "export DISCORD_BOT_TOKEN, set bot_token in %s, "
+                                "or turn notifications off" % SETTINGS_LOCAL.name))
+        if not (flat.get("notifications.channel_id") or "").strip():
+            issues.append(Issue("error", "notifications.channel_id",
+                                "notifications are enabled but no channel is "
+                                "configured",
+                                "set notifications.channel_id or "
+                                "IMPROVER_CHANNEL_ID (or write state/channel_id.txt)"))
+    return issues
+
+
+# ---------------------------------------------------------------- accessors
+
+def issues() -> list:
+    load_settings()
+    return list(_ISSUES)
+
+
+def source_of(key: str) -> str:
+    load_settings()
+    return _SOURCES.get(key, "default")
+
+
+def setting(key: str, default=None):
+    section, leaf = key.split(".", 1)
+    return load_settings().get(section, {}).get(leaf, default)
+
+
+# ---- GitHub ---------------------------------------------------------------
+
+def github_enabled() -> bool:
+    return bool(setting("github.enabled"))
+
+
+def github_token() -> str | None:
+    if not github_enabled():
+        return None
+    tok = (setting("github.token") or "").strip()
+    return tok or None
+
+
+def github_owner() -> str:
+    return (setting("github.owner") or "").strip()
+
+
+def gh_cli() -> str:
+    return (setting("github.gh_cli") or "gh").strip() or "gh"
+
+
+def require_repo() -> bool:
+    return bool(setting("github.require_repo"))
+
+
+def push_branches() -> bool:
+    return bool(setting("github.push_branches"))
+
+
+def push_enabled(loop_cfg: dict | None = None) -> bool:
+    """Effective push decision: settings master switch AND the runtime
+    loop.json toggle (loopctl config --push-github false)."""
+    if not github_enabled():
+        return False
+    if loop_cfg is not None and not loop_cfg.get("pushed_to_github", True):
+        return False
+    return True
+
+
+def push_env(base: dict | None = None, token: str | None = None) -> dict:
+    """Env for a git push that must authenticate WITHOUT any interactive
+    prompt. With a token, hands git (and gh) a non-interactive bearer
+    header; without one, keeps the fail-fast empty-credential hardening."""
+    env = dict(base if base is not None else os.environ)
+    tok = token if token is not None else github_token()
+    if tok:
+        env.pop("GIT_ASKPASS", None)
+        env["GIT_TERMINAL_PROMPT"] = "0"
+        env["GIT_CONFIG_COUNT"] = "1"
+        env["GIT_CONFIG_KEY_0"] = "http.extraHeader"
+        env["GIT_CONFIG_VALUE_0"] = "Authorization: Bearer " + tok
+        env["GH_TOKEN"] = tok
+        env.pop("GITHUB_TOKEN", None)
+        env["GITHUB_TOKEN"] = tok
+    else:
+        env.update({
+            "GIT_TERMINAL_PROMPT": "0",
+            "GCM_INTERACTIVE": "never",
+            "GIT_ASKPASS": "true",
+            "SSH_ASKPASS": "true",
+            "GIT_CONFIG_COUNT": "2",
+            "GIT_CONFIG_KEY_0": "credential.helper",
+            "GIT_CONFIG_VALUE_0": "",
+            "GIT_CONFIG_KEY_1": "core.askpass",
+            "GIT_CONFIG_VALUE_1": "",
+        })
+    return env
+
+
+# ---- notifications ----------------------------------------------------------
+
+def notify_enabled() -> bool:
+    return bool(setting("notifications.enabled"))
+
+
+def notify_token() -> str | None:
+    tok = (setting("notifications.bot_token") or "").strip()
+    return tok or None
+
+
+def notify_channel() -> str:
+    return (setting("notifications.channel_id") or "").strip()
+
+
+def notify_ping_user() -> str:
+    return (setting("notifications.ping_user_id") or "").strip()
+
+
+def notify_ping_on_stuck() -> bool:
+    return bool(setting("notifications.ping_on_stuck"))
+
+
+def notify_env_file() -> str:
+    return (setting("notifications.env_file") or "").strip()
+
+
+# ---- hermes / models / projects / runtime -----------------------------------
+
+def hermes_home() -> Path:
+    return Path(setting("hermes.home") or _hermes_default_home())
+
+
+def hermes_python() -> Path:
+    return Path(setting("hermes.python"))
+
+
+def hermes_config_file() -> Path:
+    return Path(setting("hermes.config_file"))
+
+
+def hermes_profile() -> str:
+    return (setting("hermes.profile") or "default")
+
+
+def builder_fallback() -> str:
+    for key in ("models.builder_fallback", "models.implementer"):
+        v = (setting(key) or "").strip()
+        if v:
+            return v
+    return ""
+
+
+def brief_model() -> str:
+    return (setting("models.brief_model") or "").strip()
+
+
+def brief_profile() -> str:
+    return (setting("models.brief_profile") or hermes_profile() or "default")
+
+
+def manifest_path() -> Path:
+    return Path(setting("projects.manifest") or (ROOT / "improve.yaml"))
+
+
+def index_rows_path() -> Path | None:
+    v = (setting("projects.index_rows") or "").strip()
+    return Path(v) if v else None
+
+
+def seat_defaults() -> tuple[str, str]:
+    return ((setting("models.implementer") or "").strip(),
+            (setting("models.reviewer") or "").strip())
+
+
+def round_timeout() -> int:
+    return int(setting("runtime.round_timeout") or 4200)
+
+
+def worktree_abandon_secs() -> int:
+    return int(setting("runtime.worktree_abandon_secs") or 21600)
+
+
+def gate_timeout_default() -> int:
+    return int(setting("runtime.gate_timeout") or 900)
+
+
+def reset_cache() -> None:
+    """Test hook: force the next load_settings() to re-read disk + env."""
+    global _CACHE, _CACHE_STAMP, _ISSUES, _SOURCES
+    _CACHE, _CACHE_STAMP, _ISSUES, _SOURCES = None, None, [], {}
+
+
+# ---------------------------------------------------------------- CLI plumbing
+# loopctl.py settings <verb> delegates here; kept in settings.py so the
+# settings layer owns its own file format.
+
+EXAMPLE_KEYS = list(SCHEMA.keys())
+
+
+def write_setting(key: str, raw_value: str, tracked: bool = False) -> None:
+    """Set one dotted key in settings.local.yaml (default) or settings.yaml.
+    Validates against the schema BEFORE writing; refuses secrets in tracked."""
+    if key not in SCHEMA:
+        raise SystemExit("unknown setting %r -- `loopctl settings show` lists every key" % key)
+    if key in SECRET_LEAVES and tracked:
+        raise SystemExit("refusing to write %s into the TRACKED settings.yaml "
+                         "(it would be committed). Drop --tracked to write "
+                         "settings.local.yaml instead (gitignored), or name "
+                         "an env var with the *_env key instead." % key)
+    kind = SCHEMA[key][0]
+    val, issue = _coerce(kind, raw_value, key)
+    if issue:
+        raise SystemExit(str(issue))
+    path = SETTINGS_FILE if tracked else SETTINGS_LOCAL
+    doc: dict = {}
+    if path.exists():
+        try:
+            import yaml
+            doc = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+        except Exception as e:
+            raise SystemExit("cannot parse %s: %s" % (path.name, e))
+    section, leaf = key.split(".", 1)
+    doc.setdefault(section, {})[leaf] = val
+    try:
+        import yaml
+    except ImportError:
+        raise SystemExit("PyYAML is required for `settings set`")
+    tmp = path.with_suffix(path.suffix + ".tmp")
+    tmp.write_text(yaml.safe_dump(doc, sort_keys=False, width=100), encoding="utf-8")
+    os.replace(tmp, path)
+
+
+def unset_setting(key: str, tracked: bool = False) -> None:
+    if key not in SCHEMA:
+        raise SystemExit("unknown setting %r" % key)
+    path = SETTINGS_FILE if tracked else SETTINGS_LOCAL
+    if not path.exists():
+        return
+    import yaml
+    doc = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    section, leaf = key.split(".", 1)
+    if isinstance(doc.get(section), dict) and leaf in doc[section]:
+        del doc[section][leaf]
+        if not doc[section]:
+            del doc[section]
+        tmp = path.with_suffix(path.suffix + ".tmp")
+        tmp.write_text(yaml.safe_dump(doc, sort_keys=False, width=100), encoding="utf-8")
+        os.replace(tmp, path)
+
+
+def redacted_view() -> dict:
+    """Effective settings with secrets masked -- safe to print."""
+    cfg = load_settings()
+    out = {}
+    for section, kv in cfg.items():
+        out[section] = {}
+        for leaf, v in kv.items():
+            key = "%s.%s" % (section, leaf)
+            if key in SECRET_LEAVES:
+                src = _SOURCES.get(key, "default")
+                out[section][leaf] = ("<set via %s>" % src) if v else "<unset>"
+            else:
+                out[section][leaf] = v
+    return out
+
+
+def _example_yaml_text() -> str:
+    lines = [
+        "# settings.yaml -- Karpathy Loop configuration for THIS deployment.",
+        "# Everything here is optional; these are the safe built-in defaults.",
+        "# Machine-specific values and SECRETS belong in settings.local.yaml",
+        "# (gitignored). A token in this tracked file is rejected by validation.",
+        "",
+        "github:",
+        "  enabled: false            # master switch: false = tags stay local, no pushes",
+        "  owner: \"\"                 # your GitHub username (for repo creation hints)",
+        "  token_env: GITHUB_TOKEN   # NAME of the env var holding your token",
+        "  require_repo: false       # true = refuse rounds on repos with no remote",
+        "  gh_cli: gh                # path to the gh binary if it is not on PATH",
+        "  push_branches: true       # push the working branch each round (not just tags)",
+        "",
+        "notifications:",
+        "  enabled: false            # master switch for Discord progress/stuck/ask pings",
+        "  backend: discord          # discord | none",
+        "  bot_token_env: DISCORD_BOT_TOKEN",
+        "  channel_id: \"\"            # the channel the loop posts into",
+        "  ping_user_id: \"\"          # Discord user id that gets @mentioned on questions",
+        "  ping_on_stuck: false      # also @mention when the loop reports STUCK",
+        "  env_file: \"\"              # optional KEY=VALUE file (e.g. Hermes' .env) for the above",
+        "",
+        "hermes:",
+        "  home: \"\"                  # Hermes home dir (default: ~/.hermes or %LOCALAPPDATA%\\hermes)",
+        "  python: \"\"                # interpreter that launches hermes CLI children",
+        "  profile: default          # Hermes profile the loop threads run under",
+        "  config_file: \"\"           # hermes config.yaml (validated against model seats)",
+        "",
+        "models:",
+        "  implementer: \"\"           # provider:model seat writing the change",
+        "  reviewer: \"\"              # provider:model seat reading the diff (MUST differ)",
+        "  builder_fallback: \"\"      # seat used when loop.json has no implementer yet",
+        "  brief_model: \"\"           # model for the one-shot repo briefs",
+        "  brief_profile: \"\"",
+        "",
+        "projects:",
+        "  manifest: \"\"              # improve.yaml path (default: alongside the loop)",
+        "  index_rows: \"\"            # optional rows.json seed for project discovery",
+        "",
+        "runtime:",
+        "  round_timeout: 4200       # hard ceiling per round (seconds)",
+        "  worktree_abandon_secs: 21600",
+        "  gate_timeout: 900         # default gate command timeout (seconds)",
+        "",
+    ]
+    return "\n".join(lines)
+
+
+def write_example(dest: Path | None = None) -> Path:
+    dest = dest or SETTINGS_FILE
+    dest.write_text(_example_yaml_text(), encoding="utf-8")
+    return dest
+
+
+if __name__ == "__main__":
+    import json as _json
+    cmd = sys.argv[1] if len(sys.argv) > 1 else "show"
+    if cmd == "show":
+        print(_json.dumps(redacted_view(), indent=2))
+    elif cmd == "validate":
+        load_settings(refresh=True)
+        bad = 0
+        for i in issues():
+            print(i)
+            bad += (i.level == "error")
+        raise SystemExit(1 if bad else 0)
+    elif cmd == "example":
+        print(_example_yaml_text())
+    else:
+        raise SystemExit("usage: settings.py show|validate|example")

@@ -2,10 +2,10 @@
 """
 project-improver / discord_notify.py
 
-The single point of contact between the improver fleet and Gene's phone/desktop.
+The single point of contact between the improver fleet and the operator's phone/desktop.
 Uses the ALREADY-LIVE Discord bot (Bastion) in a dedicated channel.
 
-Three message classes, deliberately different so Gene can tell them apart by sound:
+Three message classes, deliberately different so the operator can tell them apart by sound:
   progress -> plain post, no mention, NO ping        (quiet)
   stuck    -> plain post prefixed [STUCK], no ping   (quiet-ish)
   question -> @mention ping, REPEATED until answered (loud)
@@ -29,7 +29,7 @@ STATE.mkdir(exist_ok=True)
 LOG = ROOT / "logs" / "notify.log"
 LOG.parent.mkdir(exist_ok=True)
 
-ENV_PATH = Path(r"C:\Users\gene\AppData\Local\hermes\.env")
+ENV_PATH = Path(r"<LOCALAPPDATA>\..\AppData\Local\hermes\.env")
 API = "https://discord.com/api/v10"
 
 
@@ -201,7 +201,7 @@ def remind() -> str:
     if st["reminders"] >= st["max_repeat"]:
         # Budget spent: record the loop's BEST-REASONED ASSUMPTION and keep
         # working. An unanswered question must never deadlock the loop
-        # (Gene, 2026-09-23: "then you can make the best assumption and use
+        # (the operator, 2026-09-23: "then you can make the best assumption and use
         # those assumptions"). The assumption file is where the next round
         # prompt reads it from.
         assumption = st.get("assumption") or (
@@ -239,7 +239,7 @@ def remind() -> str:
     return f"reminded #{st['reminders']}"
 
 
-def answer(text: str, *, answered_by: str = "gene") -> str:
+def answer(text: str, *, answered_by: str = "operator") -> str:
     """Record an answer, clear the pending question, mark it answered."""
     qfile = ROOT / "questions" / "pending.json"
     if not qfile.exists():

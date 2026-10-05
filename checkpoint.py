@@ -6,7 +6,7 @@ round can be rolled back in one command -- the thing the loop promised in
 prose and never actually did (no `git tag` was ever executed; `git tag -l`
 was empty on a repo that had been "checkpointed" twice).
 
-Design (locked by Gene 2026-09-22):
+Design (locked by the operator 2026-09-22):
   * PUBLIC repo   -> fork to the user's account, work on the fork, never
                      touch upstream; a PR upstream only on explicit approval.
   * no remote / not a repo -> create a PRIVATE repo automatically and push.
@@ -585,7 +585,7 @@ def cmd_status(a):
 
 
 # ---------------------------------------------------------------- plain talk
-# F-S (2026-10-05, Gene: "explain what was done as if I'm in fifth grade"):
+# F-S (2026-10-05, the operator: "explain what was done as if I'm in fifth grade"):
 # every checkpoint's git subject is engineer-speak. This translates each tag's
 # subject into 1-2 plain sentences, ONCE per tag, cached on disk -- the panel
 # polls every 30s and must never pay for (or wait on) an LLM call per render.
@@ -663,7 +663,7 @@ def _plain_for(tag: str, subject: str, project: str) -> str:
 
 
 def cmd_current(a):
-    """F-V (2026-10-05, Gene: fifth-grade summary of what the loop is working
+    """F-V (2026-10-05, the operator: fifth-grade summary of what the loop is working
     on RIGHT NOW). Emits the in-flight round as plain English: repo, angle,
     round, and what it's trying to build/prove/fix. Cached per
     <project>/<angle>/<round> so the 2.5s widget poll never pays an LLM call

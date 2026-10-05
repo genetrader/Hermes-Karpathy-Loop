@@ -2,7 +2,7 @@
 """
 angles_store.py -- read/write access to the 42 loop angles, for the widget settings UI.
 
-The base definitions live in angles.yaml (committed, 8 families). Gene's edits are
+The base definitions live in angles.yaml (committed, 8 families). the operator's edits are
 stored SEPARATELY in state/angle_overrides.yaml and merged on read, so:
   - the shipped defaults are never destroyed,
   - every edit is reviewable/diffable in one small file,
@@ -63,7 +63,7 @@ def _scalar(v: str):
 def _dump_overrides(angles: list[dict]) -> str:
     """JSON inside a YAML fence: zero escaping ambiguity, still a plain text file."""
     clean = [{k: a[k] for k in FIELDS if k in a} for a in angles]
-    return ("# Gene's edits to the Karpathy Loop angles.\n"
+    return ("# the operator's edits to the Karpathy Loop angles.\n"
             "# Only ids listed here override angles.yaml; all else uses the default.\n"
             "# Written by the widget settings panel.\n"
             "# JSON-PAYLOAD-BELOW\n"
@@ -109,7 +109,7 @@ def merged() -> list[dict]:
 
 
 def save_edits(edits: list[dict]) -> dict:
-    """Merge Gene's edits into state/angle_overrides.yaml. Returns a summary."""
+    """Merge the operator's edits into state/angle_overrides.yaml. Returns a summary."""
     base = {a["id"]: a for a in load_base()}
     cur = load_overrides()
     changed, skipped = [], []

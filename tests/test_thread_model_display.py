@@ -53,7 +53,7 @@ def test_maintained_stamps_tip_model_from_seat(tmp_path, monkeypatch):
 def test_maintained_model_stamp_follows_config_change(tmp_path, monkeypatch):
     db = _mk_world(tmp_path, monkeypatch)
     threads.maintained()
-    # Gene changes the seat via loopctl config -> loop.json changes:
+    # the operator changes the seat via loopctl config -> loop.json changes:
     st = tmp_path / "state"
     cfg = json.loads((st / "loop.json").read_text(encoding="utf-8"))
     cfg["implementer"] = "custom:other-provider:SomeNextModel"
