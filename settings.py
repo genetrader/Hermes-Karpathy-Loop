@@ -113,6 +113,15 @@ HELP = {
     "projects.index_rows": "Rows kept in the discovery index.",
     "projects.sweep_roots": "Roots scanned by project discovery.",
     "runtime.round_timeout": "Seconds before a round child is killed (rc=124).",
+    "notifications.bot_token_env": "Env var holding the Discord bot token (alternative to pasting it).",
+    "runtime.gate_timeout": "Seconds the acceptance gate (your test command) may run before it counts as failed.",
+    "runtime.angles_per_visit": "Rounds per project before rotating to the next one.",
+    "runtime.sweep_minutes": "How often the watchdog sweeps (minutes).",
+    "runtime.max_rounds": "Stop after this many total rounds (0 = unlimited).",
+    "runtime.max_hours": "Stop after this many hours (0 = unlimited).",
+    "git.author_name": "Name on checkpoint commits and tags.",
+    "git.author_email": "Email on checkpoint commits and tags.",
+    "widget.status_port": "Port of the local status server feeding the dashboard.",
     "runtime.worktree_abandon_secs": "Seconds before an unclaimed worktree is considered abandoned.",
 }
 
