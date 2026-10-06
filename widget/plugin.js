@@ -31,6 +31,12 @@ import {
   SIDEBAR_NAV_AREA,
   PALETTE_AREA,
 } from "@hermes/plugin-sdk";
+// The model catalog menu is the REAL Hermes picker (searchable,
+// provider-grouped -- the composer's own). It exists in newer SDK builds;
+// import defensively so older installs still load the card (the seat falls
+// back to a typed provider:model string).
+import * as HermesSDK from "@hermes/plugin-sdk";
+const ModelCatalogMenu = HermesSDK.ModelCatalogMenu || null;
 
 var ID = "karpathy-loop";
 
@@ -976,6 +982,12 @@ const S = {
   modalScroll: { overflowY: "auto", maxHeight: "calc(88vh - 64px)", paddingRight: 4 },
 
   /* settings card */
+  helpDot: { display: "inline-flex", alignItems: "center", justifyContent: "center",
+             width: 15, height: 15, marginLeft: 5, borderRadius: "50%",
+             border: "1px solid var(--border)", fontSize: 9.5, fontWeight: 700,
+             color: "var(--muted-foreground)", cursor: "help", flexShrink: 0,
+             background: "var(--card)", userSelect: "none" },
+
   setSection: { marginTop: 14 },
   setSecHead: { display: "flex", alignItems: "baseline", gap: 8, marginBottom: 6 },
   setSecTitle: { fontSize: 11.5, fontWeight: 700, letterSpacing: ".06em",
@@ -1538,7 +1550,16 @@ function settingsField(props) {
 
   const kind = sItem ? sItem.type : "str";
   const secret = sItem ? sItem.secret : false;
+  const help = sItem ? (sItem.help || "") : "";
+  const isPath = !!(sItem && sItem.path);
+  const isSeat = !!(sItem && sItem.model_seat);
   const cur = dirty ? draft : (val == null ? "" : val);
+
+  // "?" hover help: a tiny circled question mark carrying the setting's
+  // impact in its tooltip.
+  const helpDot = help
+    ? jsx("span", { style: S.helpDot, title: help, children: "?" }, "hd")
+    : null;
 
   let control;
   if (kind === "bool") {
@@ -1554,57 +1575,83 @@ function settingsField(props) {
         return jsx("option", { value: o, children: o }, o);
       }),
     }, "sel");
+  } else if (isSeat) {
+    // Model seat: the REAL Hermes model catalog menu (same searchable,
+    // provider-grouped picker the composer uses). Selecting writes
+    // "provider:model" into the setting.
+    control = jsxs("div", { style: { display: "flex", gap: 6, alignItems: "center" }, children: [
+      jsx("input", {
+        type: "text", style: S.setInput,
+        value: String(cur || ""), placeholder: "provider:model \u2014 or pick from the menu",
+        onChange: function (ev) { props.onEdit(key, ev.target.value); },
+      }, "seat"),
+      jsx(Button, {
+        onClick: function () { props.onPickModel && props.onPickModel(key); },
+        children: "Browse models\u2026",
+      }, "mb"),
+    ] }, "seatw");
   } else if (secret) {
     const set = isSecretVal(val);
-    control = jsxs("div", { style: { display: "flex", gap: 6, alignItems: "center" },
-      children: [
+    control = jsxs("div", { style: { display: "flex", gap: 6, alignItems: "center" }, children: [
         jsx("input", {
           type: "password", style: S.setInput, autoComplete: "off",
           placeholder: set
             ? "\u2022\u2022\u2022\u2022\u2022 already stored (type to replace)"
-            : "paste token — saved to settings.local.yaml only",
+            : "paste token \u2014 saved to settings.local.yaml only",
           value: dirty ? String(draft) : "",
           onChange: function (ev) { props.onEdit(key, ev.target.value); },
         }, "sec"),
         set && !dirty
           ? jsx("span", { style: S.setSecretSet, children: String(val) }, "ok")
           : null,
-        jsx(Button, { onClick: function () { props.onSaveSecret(key); },
-                      disabled: !dirty || props.saving }, "s"),
-        set
-          ? jsx(Button, { onClick: function () { props.onClearSecret(key); },
-                          disabled: !!props.saving }, "c")
-          : null,
-      ] }, "secw");
-  } else if (key === "projects.sweep_roots") {
-    control = jsx("textarea", {
-      style: Object.assign({}, S.angText, dirty ? S.setInputDirty : null,
-                           error ? S.setInputErr : null),
-      rows: 2, value: String(cur || ""),
-      placeholder: "one folder per line — where discovery looks for codebases",
-      onChange: function (ev) { props.onEdit(key, ev.target.value); },
-    }, "ta");
+      ].filter(Boolean) }, "secw");
+  } else if (isPath) {
+    // Filesystem setting: text input + Browse (native picker; directory
+    // mode for dir-typed paths).
+    const isDir = sItem.path === "dir";
+    control = jsxs("div", { style: { display: "flex", gap: 6, alignItems: "center" }, children: [
+      jsx("input", {
+        type: "text", style: S.setInput, value: String(cur || ""),
+        placeholder: isDir ? "C:\\path\\to\\folder" : "C:\\path\\to\\file",
+        onChange: function (ev) { props.onEdit(key, ev.target.value); },
+      }, "pv"),
+      jsx(Button, {
+        onClick: function () {
+          const inp = document.createElement("input");
+          inp.type = "file";
+          if (isDir) { inp.webkitdirectory = true; }
+          inp.onchange = function () {
+            if (inp.files && inp.files.length) {
+              // dir pickers return a child file; take the first path segment
+              const rel = inp.files[0].webkitRelativePath || inp.files[0].name;
+              const top = isDir ? rel.split("/")[0] : rel;
+              const guessed = String(cur || ".").replace(/[\\/][^\\/]*$/, "");
+              props.onEdit(key, (guessed ? guessed + "/" : "") + top);
+            }
+          };
+          inp.click();
+        },
+        children: isDir ? "Browse\u2026" : "Pick file\u2026",
+      }, "pb"),
+    ] }, "pw");
   } else {
     control = jsx("input", {
-      type: "text",
-      style: Object.assign({}, S.setInput, dirty ? S.setInputDirty : null,
-                           error ? S.setInputErr : null),
-      value: String(cur == null ? "" : cur),
+      type: "text", style: S.setInput, value: String(cur == null ? "" : cur),
       onChange: function (ev) { props.onEdit(key, ev.target.value); },
-    }, "txt");
+    }, "t");
   }
 
-  return jsxs("div", { children: [
-    jsxs("div", { style: S.setRow, children: [
-      jsx("span", { style: S.setKey, title: key, children: labelFor(key) }, "k"),
-      jsx("div", { style: { minWidth: 0 }, children: control }, "c"),
-      jsx("span", { style: S.setSrc,
-                    title: "value answered by layer: " + (src || "default"),
-                    children: src || "default" }, "s"),
-    ] }, "row"),
-    error ? jsx("div", { style: Object.assign({}, S.setIssue, S.setIssueErr),
-                         children: error }, "e") : null,
-  ] }, key);
+  return jsxs("div", { style: S.setRow, children: [
+    jsxs("span", { style: S.setKey, children: [
+      labelFor(key),
+      helpDot,
+    ] }, "k"),
+    jsx("span", { style: { display: "flex", flexDirection: "column", minWidth: 0, flex: 1 }, children: [
+      control,
+      error ? jsx("span", { style: { color: "#c0392b", fontSize: 10.5, marginTop: 2 }, children: error }, "e") : null,
+      src ? jsx("span", { style: S.setSrc, children: src }, "s") : null,
+    ] }, "v"),
+  ] });
 }
 
 function settingsSection(props) {
@@ -1614,6 +1661,7 @@ function settingsSection(props) {
     const sItem = schemaFor(props.schema, key);
     return settingsField({
       key: key, schema: sItem || { type: "str", secret: false },
+      onPickModel: props.onPickModel,
       value: currentValue(doc, key),
       draft: props.drafts[key],
       source: props.sources && (key.indexOf("rot:") === 0
@@ -1648,6 +1696,7 @@ function settingsModal(props) {
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState("");
   const [baseDraft, setBaseDraft] = useState(SERVER_BASE);
+  const [pickKey, setPickKey] = useState("");   // seat being chosen, "" = closed
 
   const load = useCallback(async function (force) {
     setLoadErr("");
@@ -1729,6 +1778,33 @@ function settingsModal(props) {
     props.onChanged();
   };
 
+
+  function seatParts(seat) {
+    const s = String(seat || "");
+    const i = s.indexOf(":");
+    return i < 0 ? { provider: "", model: s } : { provider: s.slice(0, i), model: s.slice(i + 1) };
+  }
+  const onPickModel = function (key) { setPickKey(key); };
+
+  // The controller that commits a catalog pick into the seat setting. The
+  // menu is Hermes' own — we only decide what a selection MEANS here.
+  const seatController = (function () {
+    const parts = seatParts(drafts[pickKey] !== undefined ? drafts[pickKey]
+                             : (doc && doc.values && doc.values[pickKey]));
+    return {
+      current: { provider: parts.provider, model: parts.model,
+                 label: parts.model },
+      presetFor: function () { return {}; },
+      applyPreset: function () {},
+      select: async function (model, provider) {
+        const seat = provider + ":" + model;
+        onEdit(pickKey, seat);
+        setPickKey("");
+        return true;
+      },
+    };
+  })();
+
   const body = loadErr
     ? jsx("div", { style: S.err, children: loadErr }, "le")
     : (!doc
@@ -1738,7 +1814,7 @@ function settingsModal(props) {
               return settingsSection({
                 section: sec, doc: doc, schema: doc.schema || [],
                 sources: doc.sources || {}, drafts: drafts,
-                errorFor: issueFor, onEdit: onEdit,
+                errorFor: issueFor, onEdit: onEdit, onPickModel: onPickModel,
                 onSaveSecret: saveSecret, onClearSecret: clearSecret,
                 saving: saving,
               });
@@ -1770,6 +1846,24 @@ function settingsModal(props) {
   return jsxs("div", { style: S.modalBack, onClick: function (ev) {
       if (ev.target === ev.currentTarget) props.onClose();
     }, children: [
+    pickKey ? jsxs("div", { style: {
+        position: "fixed", top: 60, left: "50%", transform: "translateX(-50%)",
+        zIndex: 60, background: "#ffffff", color: "#111827",
+        border: "1px solid #d1d5db", borderRadius: 10, padding: 8,
+        maxHeight: "70vh", overflowY: "auto", width: "min(560px, 92%)",
+      }, children: [
+        jsxs("div", { style: { display: "flex", alignItems: "center", gap: 8,
+                               padding: "2px 6px 8px" }, children: [
+          jsx("span", { style: { fontWeight: 650, fontSize: 12.5 },
+            children: "Pick a model for " + pickKey }, "t"),
+          jsx(Button, { onClick: function () { setPickKey(""); },
+                        children: "Close" }, "c"),
+        ] }, "h"),
+        typeof ModelCatalogMenu === "function"
+          ? jsx(ModelCatalogMenu, { controller: seatController }, "mcm")
+          : jsx("div", { style: S.err,
+              children: "Model menu unavailable in this Hermes build \u2014 type provider:model manually." }, "nm"),
+      ] }, "mp") : null,
     jsxs("div", { style: Object.assign({}, S.modalCard,
                                         { flexDirection: "column" }), children: [
       jsxs("div", { style: S.panelHead, children: [

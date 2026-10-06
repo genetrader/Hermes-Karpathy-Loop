@@ -68,6 +68,54 @@ def _local_path() -> Path:
 # accepted only from settings.local.yaml or the environment.
 SECRET_LEAVES = {"github.token", "notifications.bot_token"}
 
+# Filesystem-like settings: the settings card offers a Browse picker for
+# these (files vs directories noted per key).
+PATH_KEYS = {
+    "github.gh_cli": "file",
+    "notifications.env_file": "file",
+    "hermes.home": "dir",
+    "hermes.python": "file",
+    "hermes.config_file": "file",
+    "projects.manifest": "file",
+}
+
+# Plain-language help for every setting, shown on the "?" hover in the card.
+HELP = {
+    "github.enabled": "Push accepted-round checkpoints to GitHub. OFF = local-only mode: tags and rollback still work, nothing ever leaves this machine.",
+    "github.owner": "Your GitHub username. Checkpoint repos are expected under this owner (or already set per-project by git remotes).",
+    "github.token": "A GitHub personal access token with repo scope. Pasted tokens are stored in settings.local.yaml (gitignored) — never displayed again, never committed.",
+    "github.token_env": "Name of the environment variable that holds the token, if you prefer env over a local file.",
+    "github.gh_cli": "Path to the gh CLI binary used for non-interactive pushes.",
+    "github.require_repo": "Refuse to run for a project whose git repo has no GitHub remote (instead of skipping pushes silently).",
+    "github.push_branches": "Also push the round branch; OFF pushes only the checkpoint tags.",
+    "models.implementer": "The model that writes code each round. Format provider:model. Must differ from the reviewer — one brain cannot review itself.",
+    "models.reviewer": "The model that reviews/falsifies the implementer's work each round. Format provider:model.",
+    "models.builder_fallback": "Seat used when the implementer is unreachable.",
+    "models.brief_model": "One-shot model used to write the repo briefs shown in the widget.",
+    "models.brief_profile": "Hermes profile to run brief generation in.",
+    "models.summary_url": "OpenAI-compatible /v1/chat/completions endpoint of the model that writes the plain-English round summaries.",
+    "models.summary_model": "Model name at the summary endpoint.",
+    "models.summary_url_2": "Fallback endpoint if the first is down.",
+    "models.summary_model_2": "Model name at the fallback endpoint.",
+    "notifications.enabled": "Master switch. OFF = the loop runs silently with zero network calls to any chat platform.",
+    "notifications.backend": "discord posts round progress, STUCK alarms and questions. none = silent.",
+    "notifications.channel_id": "Discord channel ID the loop posts to.",
+    "notifications.ping_user_id": "User ID pinged on STUCK alarms.",
+    "notifications.ping_on_stuck": "Ping you when a repo gets stuck/quarantined.",
+    "notifications.include_summaries": "Attach the plain-English 'what it is doing' summary to round messages.",
+    "notifications.bot_token": "Discord bot token. Stored in settings.local.yaml only.",
+    "notifications.env_file": "Optional .env file with DISCORD_BOT_TOKEN etc.",
+    "hermes.home": "Where Hermes lives (the folder containing hermes-agent).",
+    "hermes.python": "Interpreter that launches the round-worker children.",
+    "hermes.profile": "Hermes profile the round workers run under.",
+    "hermes.config_file": "Path to Hermes' own config.yaml.",
+    "projects.manifest": "improve.yaml path: which repos the loop works on, with their gate commands.",
+    "projects.index_rows": "Rows kept in the discovery index.",
+    "projects.sweep_roots": "Roots scanned by project discovery.",
+    "runtime.round_timeout": "Seconds before a round child is killed (rc=124).",
+    "runtime.worktree_abandon_secs": "Seconds before an unclaimed worktree is considered abandoned.",
+}
+
 # ---------------------------------------------------------------- schema
 # name -> (type, env-var-override, default). type is bool/int/str.
 # This doubles as the validation contract and the CLI's coercion table.
@@ -655,7 +703,11 @@ def schema_view() -> list:
         section, leaf = key.split(".", 1)
         out.append({"key": key, "section": section, "leaf": leaf,
                     "type": kind, "env": env, "default": dflt,
-                    "secret": key in SECRET_LEAVES})
+                    "secret": key in SECRET_LEAVES,
+                    "path": PATH_KEYS.get(key),
+                    "help": HELP.get(key, ""),
+                    "model_seat": leaf in ("implementer", "reviewer",
+                                           "builder_fallback", "brief_model")})
     return out
 
 
