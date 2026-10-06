@@ -37,6 +37,16 @@ autonomous loop is not "it does nothing" — it is "it confidently merges junk":
   heartbeat and live processes — a wedged loop reads as WEDGED, never as
   "running".
 
+## What it looks like
+
+| The dashboard: projects in rotation, live state, round counts | Live thread, loop settings, plain-English "working on right now" |
+|---|---|
+| ![Projects in rotation](screenshots/dashboard-projects.png) | ![Live thread and settings](screenshots/dashboard-live-settings.png) |
+
+| Project picker | Angles & prompts | Models | Discovery |
+|---|---|---|---|
+| ![Picker](screenshots/selector-screenshot.png) | ![Angles](screenshots/selector-angles.png) | ![Models](screenshots/selector-models.png) | ![Discovery](screenshots/selector-discovery.png) |
+
 ## What's in here
 
 | Path | What it is |
