@@ -36,7 +36,13 @@ import {
 // import defensively so older installs still load the card (the seat falls
 // back to a typed provider:model string).
 import * as HermesSDK from "@hermes/plugin-sdk";
+// The catalog menu renders MenuItems and MUST sit inside a DropdownMenu +
+// DropdownMenuContent (the same wrap core's composer and the kanban plugin
+// use); rendering it bare throws "'MenuItem' must be used within 'Menu'".
 const ModelCatalogMenu = HermesSDK.ModelCatalogMenu || null;
+const DropdownMenu = HermesSDK.DropdownMenu || null;
+const DropdownMenuTrigger = HermesSDK.DropdownMenuTrigger || null;
+const DropdownMenuContent = HermesSDK.DropdownMenuContent || null;
 
 var ID = "karpathy-loop";
 
@@ -983,10 +989,19 @@ const S = {
 
   /* settings card */
   helpDot: { display: "inline-flex", alignItems: "center", justifyContent: "center",
-             width: 15, height: 15, marginLeft: 5, borderRadius: "50%",
-             border: "1px solid var(--border)", fontSize: 9.5, fontWeight: 700,
-             color: "var(--muted-foreground)", cursor: "help", flexShrink: 0,
-             background: "var(--card)", userSelect: "none" },
+             width: 20, height: 20, marginLeft: 6, borderRadius: "50%",
+             border: "1px solid var(--border)", fontSize: 13, fontWeight: 700,
+             color: "var(--muted-foreground)", cursor: "pointer", flexShrink: 0,
+             background: "var(--card)", userSelect: "none", position: "relative" },
+  helpBubble: { position: "absolute", zIndex: 60, left: 0, top: "calc(100% + 6px)",
+                width: 340, background: "#ffffff", color: "#111827",
+                border: "1px solid #d1d5db", borderRadius: 10,
+                boxShadow: "0 8px 24px rgba(0,0,0,.18)", padding: "10px 12px",
+                fontSize: 12, lineHeight: 1.5, whiteSpace: "normal",
+                fontWeight: 400, textAlign: "left", cursor: "default" },
+  helpBubbleKey: { display: "block", fontSize: 10.5, fontWeight: 700,
+                   letterSpacing: ".04em", color: "#6b7280",
+                   textTransform: "uppercase", marginBottom: 3 },
 
   setSection: { marginTop: 14 },
   setSecHead: { display: "flex", alignItems: "baseline", gap: 8, marginBottom: 6 },
@@ -1539,6 +1554,29 @@ function secretKeyIn(schemaList, key) {
 
 /** One editable row. Draft edits are held locally until Save; the source
  *  chip tells the operator which layer currently answers for this key. */
+// The circled "?" on EVERY settings row. Click OR hover opens a plain-English
+// bubble: what the setting does, what to put there, required vs optional.
+// Native title tooltips are unreliable in the desktop renderer, so the card
+// draws its own. It is its own component because settingsField is a plain
+// helper — hooks only live here.
+function HelpDot(props) {
+  const [open, setOpen] = useState(false);
+  const text = String(props.text || "");
+  return jsxs("span", {
+    style: S.helpDot,
+    onMouseEnter: function () { setOpen(true); },
+    onMouseLeave: function () { setOpen(false); },
+    onClick: function (ev) { ev.preventDefault(); ev.stopPropagation();
+                            setOpen(function (v) { return !v; }); },
+    children: [
+      "?",
+      open ? jsxs("span", { style: S.helpBubble, children: [
+        props.settingKey ? jsx("span", { style: S.helpBubbleKey, children: props.settingKey }, "bk") : null,
+        text || "no help text for this setting",
+      ] }, "hb") : null,
+    ] }, "hd");
+}
+
 function settingsField(props) {
   const key = props.key;
   const sItem = props.schema;
@@ -1555,11 +1593,7 @@ function settingsField(props) {
   const isSeat = !!(sItem && sItem.model_seat);
   const cur = dirty ? draft : (val == null ? "" : val);
 
-  // "?" hover help: a tiny circled question mark carrying the setting's
-  // impact in its tooltip.
-  const helpDot = help
-    ? jsx("span", { style: S.helpDot, title: help, children: "?" }, "hd")
-    : null;
+  const helpDot = jsx(HelpDot, { text: help, settingKey: key });
 
   let control;
   if (kind === "bool") {
@@ -1859,8 +1893,18 @@ function settingsModal(props) {
           jsx(Button, { onClick: function () { setPickKey(""); },
                         children: "Close" }, "c"),
         ] }, "h"),
-        typeof ModelCatalogMenu === "function"
-          ? jsx(ModelCatalogMenu, { controller: seatController }, "mcm")
+        (ModelCatalogMenu && DropdownMenu && DropdownMenuContent)
+          ? jsx(DropdownMenu, { open: true, children: [
+              DropdownMenuTrigger
+                ? jsx(DropdownMenuTrigger, { asChild: true, children:
+                    jsx("span", { style: { display: "none" } }, "tr") }, "trg")
+                : null,
+              jsx(DropdownMenuContent, { align: "start",
+                  className: "w-72 p-0",
+                  style: { border: "1px solid #d1d5db", background: "#ffffff" },
+                  children: jsx(ModelCatalogMenu, { controller: seatController }, "mcm") },
+                "ctn"),
+            ].filter(Boolean) }, "dd")
           : jsx("div", { style: S.err,
               children: "Model menu unavailable in this Hermes build \u2014 type provider:model manually." }, "nm"),
       ] }, "mp") : null,
