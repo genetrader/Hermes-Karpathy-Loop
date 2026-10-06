@@ -53,6 +53,17 @@ CKPT_LOG = STATE / "checkpoints.json"
 TAG_RE = re.compile(r"^[A-Za-z0-9._/-]+$")
 
 
+def _git_author() -> tuple[str, str]:
+    """(name, email) for the loop's own commits/tags, from settings
+    (git.author_name / git.author_email). Falls back to the generic
+    defaults if the settings layer itself is unusable."""
+    try:
+        import settings as _S
+        return _S.git_author()
+    except Exception:
+        return ("Karpathy Loop", "loop@local")
+
+
 # --------------------------------------------------------------------------
 # shell helpers
 # --------------------------------------------------------------------------
@@ -253,11 +264,12 @@ def ensure_remote(repo: Path, project: str, owner_hint: str | None = None,
         return res
 
     name = re.sub(r"[^A-Za-z0-9._-]+", "-", project).strip("-") or "project"
+    _aname, _aemail = _git_author()
     # is this local repo already git-initialised with commits?
     rc, out = git(repo, "rev-parse", "HEAD")
     if rc != 0:
         git(repo, "add", "-A")
-        git(repo, "-c", "user.email=loop@local", "-c", "user.name=Karpathy Loop",
+        git(repo, "-c", "user.email=%s" % _aemail, "-c", "user.name=%s" % _aname,
             "commit", "-m", "chore: initial commit before Karpathy Loop")
         rc, out = git(repo, "rev-parse", "HEAD")
 
@@ -301,8 +313,9 @@ def make_checkpoint(repo: Path, tag: str, message: str, push: bool = True,
     if dry:
         return {"ok": True, "tag": tag, "detail": "dry-run"}
 
-    rc, out = git(repo, "-c", "user.email=loop@local",
-                  "-c", "user.name=Karpathy Loop",
+    _aname, _aemail = _git_author()
+    rc, out = git(repo, "-c", "user.email=%s" % _aemail,
+                  "-c", "user.name=%s" % _aname,
                   "tag", "-a", tag, "-m", message)
     if rc != 0:
         return {"ok": False, "tag": tag, "detail": out[:300]}
@@ -335,8 +348,9 @@ def commit_all(repo: Path, message: str) -> dict:
         return {"ok": True, "committed": False, "detail": "working tree clean"}
 
     git(repo, "add", "-A")
-    rc, out = git(repo, "-c", "user.email=loop@local",
-                  "-c", "user.name=Karpathy Loop", "commit", "-m", message)
+    _aname, _aemail = _git_author()
+    rc, out = git(repo, "-c", "user.email=%s" % _aemail,
+                  "-c", "user.name=%s" % _aname, "commit", "-m", message)
     if rc != 0:
         return {"ok": False, "committed": False, "detail": out[:300]}
     return {"ok": True, "committed": True, "sha": short_sha(repo)}

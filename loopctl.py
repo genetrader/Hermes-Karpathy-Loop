@@ -40,9 +40,12 @@ DEFAULTS = {
     "running": False,
     "paused_reason": None,
     "projects": [],
-    "angles_per_visit": 2,
-    "max_rounds": 0,        # 0 = forever
-    "max_hours": 0,         # 0 = forever
+    # Seeded from the settings layer (runtime.* keys); loop.json on disk
+    # always wins once it exists, and `loopctl config` / the widget's
+    # rotation card write it from then on.
+    "angles_per_visit": _S.angles_per_visit_default(),
+    "max_rounds": _S.max_rounds_default(),   # 0 = forever
+    "max_hours": _S.max_hours_default(),      # 0 = forever
     # Two model seats. They MUST differ: the implementer writes the change, the
     # reviewer reads the diff with a different brain. Same model in both seats
     # means the same blind spot twice.
@@ -55,7 +58,7 @@ DEFAULTS = {
     # loop on an empty or dead seat.
     "implementer": _S.implementer_seat(),
     "reviewer": _S.reviewer_seat(),
-    "sweep_minutes": 360,
+    "sweep_minutes": _S.sweep_minutes_default(),
     "rounds_done": 0,
     "pushed_to_github": True,
     "started_at": None,

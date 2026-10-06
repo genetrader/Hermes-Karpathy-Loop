@@ -43,9 +43,23 @@ models:
 projects:
   manifest: ""              # improve.yaml path (default: alongside the loop)
   index_rows: ""            # optional rows.json seed for project discovery
+  sweep_roots: ""           # discovery scan roots (comma-separated);
+                            #   empty = your home + standard code folders
 
 runtime:
   round_timeout: 4200       # hard ceiling per round (seconds)
   worktree_abandon_secs: 21600
   gate_timeout: 900         # default gate command timeout (seconds)
+  angles_per_visit: 2       # seed for a fresh rotation (loop.json wins)
+  sweep_minutes: 360        # rotation sweep cadence (seed)
+  max_rounds: 0             # autopause after N rounds (0 = forever)
+  max_hours: 0              # autopause after N hours (0 = forever)
+
+git:
+  author_name: Karpathy Loop    # identity on the loop's own commits/tags
+  author_email: loop@local
+
+widget:
+  status_port: 8765         # port scripts/status_server.py binds;
+                            #   the widget card talks to this server
 

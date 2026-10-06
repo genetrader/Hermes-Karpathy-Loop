@@ -7,10 +7,16 @@
 //     Run discovery / Refresh
 //   * embeds the project picker UI (selector.html) built by the Python side
 //
-// Data path: the same bridge the RSS plugin uses --
+// Data path: the loop's own localhost status server
+//   (scripts/status_server.py) answers GET /meta.json with {root, python,
+//   status_port}, so NOTHING about the operator's machine is baked into this
+//   file. The card edits the loop's settings through the same server
+//   (PUT /settings.json / POST /settings/secret). Shell fallback goes
+//   through the same bridge the RSS plugin uses --
 //   host.requestProfile(route, "shell.exec", { command })
-// -- so we shell out to the Python tools in C:\CODING\project-improver and read
-// their JSON. No new backend service is required.
+// -- so we shell out to the Python tools in the loop root and read their
+// JSON. If the server was never reachable on this machine, the page says so
+// with the exact fix; it never silently falls back to someone else's paths.
 //
 // NOTE: disk plugins load precompiled. No raw JSX here; build elements with
 // jsx()/jsxs() from react/jsx-runtime (see the hermes-rss plugin for the shape).
@@ -28,9 +34,83 @@ import {
 
 var ID = "karpathy-loop";
 
-const ROOT = "C:\\CODING\\project-improver";
-const PY = "C:\\Users\\you\\AppData\\Local\\hermes\\hermes-agent\\venv\\Scripts\\python.exe";
-const SEL_HTML = ROOT + "\\selector.html";
+// ---------------------------------------------------------------- server meta
+// The ONE place root/python/port come from: the loop's own status server
+// (GET /meta.json), cached in localStorage so a temporarily-down server
+// still lets the shell.exec fallback work with what we learned last time.
+// There is deliberately NO hardcoded author path below this line.
+
+function lsGet(k) { try { return window.localStorage.getItem(k); } catch (e) { return null; } }
+function lsSet(k, v) { try { window.localStorage.setItem(k, v); } catch (e) {} }
+
+var SERVER_BASE = lsGet("kl.server.base.v1") || "http://127.0.0.1:8765";
+var META = null;          // {root, python, status_port} once loaded
+var META_AT = 0;          // epoch-ms of last meta attempt (retry gate)
+
+function resetServerBase(base) {
+  SERVER_BASE = String(base || "").replace(/\/+$/, "") || "http://127.0.0.1:8765";
+  lsSet("kl.server.base.v1", SERVER_BASE);
+  META = null; META_AT = 0;
+  try { delete CACHE["settings"]; } catch (e) {}
+}
+
+/** GET/PUT/POST the loop server. Returns {ok, value, error} — never throws,
+ *  and the error text NAMES the fix (server down vs bad payload vs refused
+ *  origin), because an opaque failure is what makes a widget look dead. */
+async function httpJson(method, path, body, timeoutMs) {
+  let res;
+  try {
+    const ctl = new AbortController();
+    const t = setTimeout(() => ctl.abort(), timeoutMs || 20000);
+    const init = { method: method, signal: ctl.signal, headers: {} };
+    if (body !== undefined && body !== null) {
+      init.headers["Content-Type"] = "application/json";
+      init.body = JSON.stringify(body);
+    }
+    res = await fetch(SERVER_BASE + path, init);
+    clearTimeout(t);
+  } catch (e) {
+    return { ok: false, value: null, error:
+      "cannot reach the loop server at " + SERVER_BASE + " (" +
+      String((e && e.message) || e) + "). Fix: start it with  python scripts/status_server.py  "
+      + "(it runs under the loop's watcher)." };
+  }
+  let value = null;
+  const text = await res.text().catch(function () { return ""; });
+  try { value = JSON.parse(text); } catch (e) { value = null; }
+  if (!res.ok) {
+    const d = (value && (value.detail || value.error)) || text.slice(0, 200) || (res.status + " " + res.statusText);
+    return { ok: false, value: value, error: method + " " + path + " -> " + d };
+  }
+  return { ok: true, value: value, error: null };
+}
+
+/** Ensure we know where the loop lives on this machine (root + python). */
+async function ensureMeta(force) {
+  if (META && !force) return META;
+  const r = await httpJson("GET", "/meta.json", null, 15000);
+  if (r.ok && r.value && r.value.root && r.value.python) {
+    META = r.value; META_AT = pollNow();
+    lsSet("kl.loop.meta.v1", JSON.stringify(META));
+    return META;
+  }
+  const cached = lsGet("kl.loop.meta.v1");
+  if (cached) {
+    try {
+      const m = JSON.parse(cached);
+      if (m && m.root && m.python) { META = m; return m; }
+    } catch (e) {}
+  }
+  throw new Error(r.error || "the loop server never answered /meta.json");
+}
+
+/** Sync accessor for render-time (iframe urls etc.): null until learned. */
+function cachedMeta() {
+  if (META) return META;
+  const cached = lsGet("kl.loop.meta.v1");
+  if (cached) { try { const m = JSON.parse(cached); if (m && m.root) return m; } catch (e) {} }
+  return null;
+}
 
 // ---------------------------------------------------------------- bridge
 // Route resolution copied from the PROVEN hermes-rss plugin, which is bundled
@@ -143,6 +223,9 @@ function assertOwner(host2, route) {
 
 async function runPy(host2, route, args, timeoutMs) {
   assertOwner(host2, route);
+  // root + python come from the loop server's /meta.json (cached), never from
+  // a path baked into this file; if they were never learnable, fail loudly.
+  const meta = await ensureMeta(false);
   // shell.exec takes ONLY { command } -- the proven contract used by the bundled
   // hermes-rss plugin. Passing extra fields (cwd, timeout_ms) made the call
   // return without `stdout`, and the SDK's own `result.stdout.trim()` then threw
@@ -153,7 +236,9 @@ async function runPy(host2, route, args, timeoutMs) {
   //
   // cwd is folded into the command instead. Use `cd /d` so a drive change works
   // under cmd.exe, and backslash paths -- MSYS rewrites /c/... style arguments.
-  const command = 'cd /d "' + ROOT.replace(/\//g, "\\") + '" && "' + PY + '" ' + args;
+  const rootWin = String(meta.root).replace(/\//g, "\\");
+  const pyWin = String(meta.python).replace(/\//g, "\\");
+  const command = 'cd /d "' + rootWin + '" && "' + pyWin + '" ' + args;
   const result = await host2.requestProfile(
     route, "shell.exec", { command }, timeoutMs || 300000
   );
@@ -321,7 +406,9 @@ function anglesSettingsPanel(props) {
 
 // The modal shell: full-width overlay so long prompts are readable while editing.
 function anglesModal(props) {
-  const url = "file:///" + (ROOT + "\\state\\angles_view.html").replace(/\\/g, "/")
+  const m = cachedMeta();
+  if (!m) return null;   // root is unknown until the loop server answered once
+  const url = "file:///" + (m.root + "\\state\\angles_view.html").replace(/\\/g, "/")
     + "?v=" + (props.regen || 0);
   return jsx("div", { style: S.modalBack, onClick: function (ev) {
     if (ev.target === ev.currentTarget) props.onClose();
@@ -497,7 +584,6 @@ function lastGood(key, value) {
 // The loop now runs a local status server (scripts/status_server.py,
 // 127.0.0.1:8765) serving the SAME producers. Try fetch() FIRST (no agent,
 // no queue); fall back to shell.exec if the server is down.
-var HTTP_BASE = "http://127.0.0.1:8765";
 var httpDown = 0;   // epoch-ms of last failure; retry HTTP every 60s anyway
 
 async function fetchJson(path, timeoutMs) {
@@ -506,7 +592,7 @@ async function fetchJson(path, timeoutMs) {
   try {
     const ctl = new AbortController();
     const t = setTimeout(() => ctl.abort(), timeoutMs || 20000);
-    const res = await fetch(HTTP_BASE + path, { signal: ctl.signal });
+    const res = await fetch(SERVER_BASE + path, { signal: ctl.signal });
     clearTimeout(t);
     if (!res.ok) return null;
     return await res.json();
@@ -886,6 +972,42 @@ const S = {
                zIndex: 50, padding: 24 },
   modalCard: { width: "min(860px, 94%)", maxHeight: "88vh", display: "flex" },
   modalScroll: { overflowY: "auto", maxHeight: "calc(88vh - 64px)", paddingRight: 4 },
+
+  /* settings card */
+  setSection: { marginTop: 14 },
+  setSecHead: { display: "flex", alignItems: "baseline", gap: 8, marginBottom: 6 },
+  setSecTitle: { fontSize: 11.5, fontWeight: 700, letterSpacing: ".06em",
+                 textTransform: "uppercase", color: "var(--foreground)" },
+  setSecNote: { fontSize: 11, color: "var(--muted-foreground)" },
+  setRow: { display: "grid", gridTemplateColumns: "200px 1fr auto",
+            gap: 10, alignItems: "center", padding: "4px 0",
+            borderBottom: "1px solid color-mix(in srgb, var(--border) 45%, transparent)" },
+  setKey: { fontSize: 12, color: "var(--muted-foreground)", minWidth: 0,
+            overflow: "hidden", textOverflow: "ellipsis" },
+  setInput: { width: "100%", boxSizing: "border-box", fontSize: 12.5,
+              padding: "5px 8px", borderRadius: 6, border: "1px solid var(--border)",
+              background: "var(--card)", color: "var(--foreground)",
+              fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace" },
+  setInputDirty: { border: "1px solid var(--accent)" },
+  setInputErr: { border: "1px solid #c0392b" },
+  setSelect: { fontSize: 12.5, padding: "5px 8px", borderRadius: 6,
+               border: "1px solid var(--border)", background: "var(--card)",
+               color: "var(--foreground)" },
+  setSrc: { fontSize: 10, color: "var(--muted-foreground)", whiteSpace: "nowrap",
+            padding: "1px 6px", borderRadius: 999, border: "1px solid var(--border)" },
+  setSecretSet: { fontSize: 11, color: "#3fb950", whiteSpace: "nowrap" },
+  setIssue: { marginTop: 6, padding: "6px 9px", borderRadius: 7, fontSize: 11.5,
+              whiteSpace: "pre-wrap", wordBreak: "break-word" },
+  setIssueErr: { background: "rgba(200,60,60,0.12)",
+                 border: "1px solid rgba(200,60,60,0.35)" },
+  setIssueWarn: { background: "rgba(240,180,41,0.10)",
+                  border: "1px solid rgba(240,180,41,0.40)",
+                  color: "var(--muted-foreground)" },
+  setNote: { fontSize: 11.5, color: "var(--muted-foreground)", lineHeight: 1.45,
+             marginTop: 6, padding: "8px 10px", borderRadius: 8,
+             background: "color-mix(in srgb, var(--accent) 7%, transparent)",
+             border: "1px solid var(--border)" },
+  setSaved: { marginTop: 10, fontSize: 12, color: "#3fb950" },
 };
 
 /** key/value rows for the Discovery panel (parsed, not a JSON dump). */
@@ -1293,6 +1415,388 @@ function questionBanner(props) {
   ] });
 }
 
+// ================================================================ SETTINGS CARD
+// Configure the loop from THIS page — GitHub, models, messaging, projects,
+// runtime — without touching Hermes' own settings or hand-editing YAML.
+//
+// Data contract (scripts/status_server.py):
+//   GET  /settings.json  -> {schema, values(redacted), sources, issues, rotation, meta}
+//   PUT  /settings.json  -> validate + write settings.local.yaml ONLY
+//   POST /settings/secret | /settings/secret/unset -> local-only secret store
+//   POST /rotation.json  -> loop.json (angles/visit, cadence, caps, seats)
+// The card renders FROM the server schema, so the UI and settings.py can
+// never drift apart, and secret values only ever flow outbound as
+// "<set via …>" — the raw token never comes back from the server at all.
+
+const SETTING_SECTIONS = [                                                                 
+  { id: "github", title: "GitHub",
+    note: "checkpoints and rollback work WITHOUT GitHub — tags are local git "
+        + "objects. Turning GitHub off = local-only mode: nothing is ever pushed.",
+    keys: ["github.enabled", "github.owner", "github.token", "github.token_env",
+           "github.gh_cli", "github.require_repo", "github.push_branches"] },
+  { id: "models", title: "Models",
+    note: "seats are provider:model (e.g. openrouter:anthropic/claude-sonnet-4 or "
+        + "custom:mybox:mymodel) — a bare name mis-parses to a cloud provider. "
+        + "Implementer and reviewer MUST differ: one brain cannot review itself.",
+    keys: ["models.implementer", "models.reviewer", "models.builder_fallback",
+           "models.brief_model", "models.brief_profile",
+           "models.summary_url", "models.summary_model",
+           "models.summary_url_2", "models.summary_model_2"] },
+  { id: "notifications", title: "Messaging",
+    note: "backend none = silent (safe default). discord posts round progress, "
+        + "STUCK alarms and questions; the token is stored locally, never shown.",
+    keys: ["notifications.enabled", "notifications.backend",
+           "notifications.channel_id", "notifications.ping_user_id",
+           "notifications.ping_on_stuck", "notifications.include_summaries",
+           "notifications.bot_token", "notifications.env_file"] },
+  { id: "projects", title: "Projects & rotation",
+    note: "paths live in files on THIS machine — set them here, not in code. "
+        + "Rotation values below write the live loop.json immediately.",
+    keys: ["projects.manifest", "projects.index_rows", "projects.sweep_roots",
+           "rot:angles_per_visit", "rot:sweep_minutes", "rot:max_rounds",
+           "rot:max_hours", "rot:implementer", "rot:reviewer"] },
+  { id: "runtime", title: "Runtime & machine",
+    note: "timeouts are seconds. The loop's git identity is what authors its "
+        + "checkpoint commits/tags.",
+    keys: ["runtime.round_timeout", "runtime.worktree_abandon_secs",
+           "runtime.gate_timeout", "git.author_name", "git.author_email",
+           "widget.status_port"] },
+];
+
+// Field labels that need more than capitalising the leaf name.
+const SETTING_LABELS = {
+  "github.enabled": "Use GitHub",
+  "github.token": "GitHub token (paste)",
+  "github.token_env": "Token env var NAME",
+  "github.gh_cli": "gh CLI path",
+  "github.require_repo": "Require a remote repo",
+  "github.push_branches": "Push branch each round",
+  "notifications.enabled": "Send notifications",
+  "notifications.backend": "Backend",
+  "notifications.channel_id": "Channel id",
+  "notifications.ping_user_id": "Ping user id (questions)",
+  "notifications.ping_on_stuck": "Also ping on STUCK",
+  "notifications.include_summaries": "Plain-English round summaries",
+  "notifications.bot_token": "Discord bot token (paste)",
+  "notifications.env_file": "Fallback env file path",
+  "projects.sweep_roots": "Discovery sweep roots",
+  "models.summary_url": "Summary LLM endpoint",
+  "models.summary_url_2": "Fallback endpoint",
+  "runtime.round_timeout": "Round timeout (s)",
+  "runtime.worktree_abandon_secs": "Abandon worktree after (s)",
+  "runtime.gate_timeout": "Gate timeout (s)",
+  "widget.status_port": "Status server port",
+};
+
+function labelFor(key) {
+  if (SETTING_LABELS[key]) return SETTING_LABELS[key];
+  const leaf = key.split(".")[1] || key;
+  return leaf.replace(/_/g, " ");
+}
+
+function schemaFor(schemaList, key) {
+  const bare = key.indexOf("rot:") === 0 ? null : key;
+  if (bare) {
+    for (const f of schemaList) if (f.key === bare) return f;
+  }
+  return null;
+}
+
+/** Effective value for one key: redacted values, or the rotation block. */
+function currentValue(doc, key) {
+  if (key.indexOf("rot:") === 0) {
+    return doc && doc.rotation ? doc.rotation[key.slice(4)] : null;
+  }
+  const parts = key.split(".");
+  if (!doc || !doc.values) return null;
+  const sec = doc.values[parts[0]];
+  return sec ? sec[parts[1]] : null;
+}
+
+function isSecretVal(v) {
+  return typeof v === "string" && v.indexOf("<set") === 0;
+}
+
+/** Is this dotted key declared secret in the server schema? */
+function secretKeyIn(schemaList, key) {
+  const f = schemaFor(schemaList, key);
+  return !!(f && f.secret);
+}
+
+/** One editable row. Draft edits are held locally until Save; the source
+ *  chip tells the operator which layer currently answers for this key. */
+function settingsField(props) {
+  const key = props.key;
+  const sItem = props.schema;
+  const val = props.value;
+  const draft = props.draft;              // undefined when untouched
+  const src = props.source;
+  const error = props.error;              // current validation issue text
+  const dirty = draft !== undefined;
+
+  const kind = sItem ? sItem.type : "str";
+  const secret = sItem ? sItem.secret : false;
+  const cur = dirty ? draft : (val == null ? "" : val);
+
+  let control;
+  if (kind === "bool") {
+    control = jsx("input", {
+      type: "checkbox", checked: !!cur,
+      onChange: function (ev) { props.onEdit(key, ev.target.checked); },
+    }, "cb");
+  } else if (key === "notifications.backend") {
+    control = jsx("select", {
+      style: S.setSelect, value: String(cur || "none"),
+      onChange: function (ev) { props.onEdit(key, ev.target.value); },
+      children: ["none", "discord"].map(function (o) {
+        return jsx("option", { value: o, children: o }, o);
+      }),
+    }, "sel");
+  } else if (secret) {
+    const set = isSecretVal(val);
+    control = jsxs("div", { style: { display: "flex", gap: 6, alignItems: "center" },
+      children: [
+        jsx("input", {
+          type: "password", style: S.setInput, autoComplete: "off",
+          placeholder: set
+            ? "\u2022\u2022\u2022\u2022\u2022 already stored (type to replace)"
+            : "paste token — saved to settings.local.yaml only",
+          value: dirty ? String(draft) : "",
+          onChange: function (ev) { props.onEdit(key, ev.target.value); },
+        }, "sec"),
+        set && !dirty
+          ? jsx("span", { style: S.setSecretSet, children: String(val) }, "ok")
+          : null,
+        jsx(Button, { onClick: function () { props.onSaveSecret(key); },
+                      disabled: !dirty || props.saving }, "s"),
+        set
+          ? jsx(Button, { onClick: function () { props.onClearSecret(key); },
+                          disabled: !!props.saving }, "c")
+          : null,
+      ] }, "secw");
+  } else if (key === "projects.sweep_roots") {
+    control = jsx("textarea", {
+      style: Object.assign({}, S.angText, dirty ? S.setInputDirty : null,
+                           error ? S.setInputErr : null),
+      rows: 2, value: String(cur || ""),
+      placeholder: "one folder per line — where discovery looks for codebases",
+      onChange: function (ev) { props.onEdit(key, ev.target.value); },
+    }, "ta");
+  } else {
+    control = jsx("input", {
+      type: "text",
+      style: Object.assign({}, S.setInput, dirty ? S.setInputDirty : null,
+                           error ? S.setInputErr : null),
+      value: String(cur == null ? "" : cur),
+      onChange: function (ev) { props.onEdit(key, ev.target.value); },
+    }, "txt");
+  }
+
+  return jsxs("div", { children: [
+    jsxs("div", { style: S.setRow, children: [
+      jsx("span", { style: S.setKey, title: key, children: labelFor(key) }, "k"),
+      jsx("div", { style: { minWidth: 0 }, children: control }, "c"),
+      jsx("span", { style: S.setSrc,
+                    title: "value answered by layer: " + (src || "default"),
+                    children: src || "default" }, "s"),
+    ] }, "row"),
+    error ? jsx("div", { style: Object.assign({}, S.setIssue, S.setIssueErr),
+                         children: error }, "e") : null,
+  ] }, key);
+}
+
+function settingsSection(props) {
+  const sec = props.section;
+  const doc = props.doc;
+  const rows = sec.keys.map(function (key) {
+    const sItem = schemaFor(props.schema, key);
+    return settingsField({
+      key: key, schema: sItem || { type: "str", secret: false },
+      value: currentValue(doc, key),
+      draft: props.drafts[key],
+      source: props.sources && (key.indexOf("rot:") === 0
+        ? "loop.json" : props.sources[key]),
+      error: props.errorFor(key),
+      onEdit: props.onEdit, onSaveSecret: props.onSaveSecret,
+      onClearSecret: props.onClearSecret, saving: props.saving,
+    });
+  });
+  return jsx("div", { style: S.setSection, children: jsxs("div", { children: [
+    jsxs("div", { style: S.setSecHead, children: [
+      jsx("span", { style: S.setSecTitle, children: sec.title }, "t"),
+      jsx("span", { style: S.setSecNote, children: sec.note }, "n"),
+    ] }, "h"),
+    rows,
+    // The one promise the card must make explicit where GitHub is concerned:
+    sec.id === "github" && !(currentValue(doc, "github.enabled"))
+      ? jsx("div", { style: S.setNote, children:
+          "Local-only mode is fully supported: every round still gets its "
+          + "kp/<project>/rNN tags and the Checkpoints panel's rollback works "
+          + "exactly the same — tags are local git objects; GitHub only adds "
+          + "off-machine backup." } , "note")
+      : null,
+  ] }, "sec") }, sec.id);
+}
+
+function settingsModal(props) {
+  const [doc, setDoc] = useState(props.doc || null);
+  const [loadErr, setLoadErr] = useState(props.loadError || "");
+  const [drafts, setDrafts] = useState({});
+  const [issues, setIssues] = useState((props.doc && props.doc.issues) || []);
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState("");
+  const [baseDraft, setBaseDraft] = useState(SERVER_BASE);
+
+  const load = useCallback(async function (force) {
+    setLoadErr("");
+    const r = await httpJson("GET", "/settings.json", null, 20000);
+    if (!r.ok) { setLoadErr(r.error); return; }
+    setDoc(r.value);
+    setIssues((r.value && r.value.issues) || []);
+  }, []);
+
+  useEffect(function () { load(false); }, [load]);
+
+  const onEdit = function (key, v) {
+    setDrafts(function (d0) { const n = Object.assign({}, d0); n[key] = v; return n; });
+    setMsg("");
+  };
+
+  const issueFor = function (key) {
+    for (const i of issues) if (i.level === "error" && i.key === key)
+      return i.message + (i.fix ? " — " + i.fix : "");
+    return null;
+  };
+
+  const save = async function () {
+    setSaving(true); setMsg("");
+    const settingsVals = {};
+    const rotVals = {};
+    Object.keys(drafts).forEach(function (key) {
+      if (key.indexOf("rot:") === 0) rotVals[key.slice(4)] = drafts[key];
+      else if (!isSecretKey(key)) settingsVals[key] = drafts[key];
+    });
+    try {
+      if (Object.keys(settingsVals).length) {
+        const r = await httpJson("PUT", "/settings.json",
+                                 { values: settingsVals }, 30000);
+        setIssues((r.value && r.value.issues) || []);
+        if (!r.ok) { setMsg(r.error || "save rejected"); return; }
+      }
+      if (Object.keys(rotVals).length) {
+        const r = await httpJson("POST", "/rotation.json", rotVals, 30000);
+        if (!r.ok) {
+          setMsg(r.error || "rotation rejected");
+          return;
+        }
+      }
+      setDrafts({});
+      await load(true);
+      setMsg("Saved \u2713  (settings go to settings.local.yaml; secrets never "
+             + "leave this machine's gitignored file)");
+      props.onChanged();
+    } finally { setSaving(false); }
+  };
+
+  const isSecretKey = function (key) {
+    const f = schemaFor((doc && doc.schema) || [], key);
+    return !!(f && f.secret);
+  };
+
+  const saveSecret = async function (key) {
+    const v = drafts[key];
+    if (v == null || !String(v).trim()) { setMsg("type the token first"); return; }
+    setSaving(true); setMsg("");
+    const r = await httpJson("POST", "/settings/secret",
+                             { key: key, value: String(v) }, 30000);
+    setSaving(false);
+    if (!r.ok) { setMsg(r.error || "secret save failed"); return; }
+    const n = Object.assign({}, drafts); delete n[key]; setDrafts(n);
+    if (r.value && r.value.values) setDoc(Object.assign({}, doc, { values: r.value.values }));
+    setMsg("Token saved to settings.local.yaml \u2713 (never shown again, never committed)");
+    props.onChanged();
+  };
+
+  const clearSecret = async function (key) {
+    setSaving(true); setMsg("");
+    const r = await httpJson("POST", "/settings/secret/unset", { key: key }, 30000);
+    setSaving(false);
+    if (!r.ok) { setMsg(r.error || "clear failed"); return; }
+    if (r.value && r.value.values) setDoc(Object.assign({}, doc, { values: r.value.values }));
+    setMsg("Token cleared \u2713");
+    props.onChanged();
+  };
+
+  const body = loadErr
+    ? jsx("div", { style: S.err, children: loadErr }, "le")
+    : (!doc
+        ? jsx("div", { style: S.kvEmpty, children: "loading settings\u2026" }, "ld")
+        : jsxs("div", { children: [
+            SETTING_SECTIONS.map(function (sec) {
+              return settingsSection({
+                section: sec, doc: doc, schema: doc.schema || [],
+                sources: doc.sources || {}, drafts: drafts,
+                errorFor: issueFor, onEdit: onEdit,
+                onSaveSecret: saveSecret, onClearSecret: clearSecret,
+                saving: saving,
+              });
+            }),
+            // Server location (this machine only) — honest escape hatch when
+            // the loop's server runs on a non-default port.
+            jsxs("div", { style: S.setSection, children: [
+              jsxs("div", { style: S.setSecHead, children: [
+                jsx("span", { style: S.setSecTitle, children: "Loop server" }, "t"),
+                jsx("span", { style: S.setSecNote, children:
+                  "where THIS widget talks to the loop (browser-local, not saved to the loop)" }, "n"),
+              ] }, "h"),
+              jsxs("div", { style: S.setRow, children: [
+                jsx("span", { style: S.setKey, children: "server base URL" }, "k"),
+                jsxs("div", { style: { display: "flex", gap: 6, alignItems: "center" }, children: [
+                  jsx("input", { type: "text", style: S.setInput,
+                    defaultValue: SERVER_BASE,
+                    onChange: function (ev) { setBaseDraft(ev.target.value); } }, "u"),
+                  jsx(Button, { onClick: function () {
+                    resetServerBase(baseDraft); load(true);
+                  }, children: "Apply" }, "a"),
+                ] }, "c"),
+                jsx("span", { style: S.setSrc, children: "browser" }, "s"),
+              ] }, "row"),
+            ] }, "server"),
+          ] })
+        );
+
+  return jsxs("div", { style: S.modalBack, onClick: function (ev) {
+      if (ev.target === ev.currentTarget) props.onClose();
+    }, children: [
+    jsxs("div", { style: Object.assign({}, S.modalCard,
+                                        { flexDirection: "column" }), children: [
+      jsxs("div", { style: S.panelHead, children: [
+        jsx("h3", { style: S.panelTitle, children: "Loop settings" }, "t"),
+        jsx("span", { style: S.panelNote,
+          children: "writes settings.local.yaml \u00b7 secrets stay masked" }, "n"),
+        jsx("span", { style: { marginLeft: "auto", display: "flex", gap: 8 } }, "sp"),
+        jsx(Button, { onClick: function () { load(true); }, disabled: saving,
+                      children: "Reload" }, "r"),
+        jsx(Button, { onClick: save,
+                      disabled: saving || !doc || !Object.keys(drafts).length,
+                      children: saving ? "Saving\u2026"
+                        : ("Save" + (Object.keys(drafts).length
+                            ? " " + Object.keys(drafts).length + " change(s)" : "")) }, "sv"),
+        jsx(Button, { onClick: props.onClose, children: "Close" }, "c"),
+      ] }, "h"),
+      jsx("div", { style: Object.assign({}, S.panelBody, S.modalScroll), children: jsxs("div", { children: [
+        body,
+        issues.filter(function (i) { return i.level === "warn"; }).map(function (i, j) {
+          return jsx("div", { style: Object.assign({}, S.setIssue, S.setIssueWarn),
+            children: "WARN [" + i.key + "] " + i.message + (i.fix ? " — " + i.fix : "") },
+            "w" + j);
+        }),
+        msg ? jsx("div", { style: S.setSaved, children: msg }, "m") : null,
+      ] }) }, "b"),
+    ] }, "card"),
+  ] }, "settings-modal");
+}
+
 function KarpathyLoop(props) {
   const ctx = props.ctx;
   const host2 = ctx.host || host;
@@ -1384,6 +1888,7 @@ function KarpathyLoop(props) {
 
     const [showAngles, setShowAngles] = useState(false);
   const anglesData = useAngles(host2, route, tick, showAngles);
+  const [showSettings, setShowSettings] = useState(false);
 
   const act = useCallback(async (label, args, cb) => {
     setBusy(label); setMsg("");
@@ -1612,6 +2117,8 @@ function KarpathyLoop(props) {
                       : (busy === "Discovery (retry)" ? "Scanning (retry)\u2026" : "Run discovery") }, "3"),
       jsx(Button, { onClick: function () { setShowPicker(function (v) { return !v; }); },
                     children: showPicker ? "Hide picker" : "Open project picker" }, "4"),
+      jsx(Button, { onClick: function () { setShowSettings(true); },
+                    children: "Settings\u2026" }, "6"),
       jsx(Button, { onClick: function () { setTick(function (t) { return t + 1; }); },
                     disabled: !!busy, children: "Refresh" }, "5"),
     ] }),
@@ -1783,8 +2290,12 @@ function KarpathyLoop(props) {
     jsx("div", { style: { height: 16 } }),
     jsxs("div", { style: S.grid, children: [
       jsx(Panel, { title: "Loop settings",
-                   right: jsx(Button, { onClick: function () { setShowAngles(true); },
-                     children: "Angles & prompts\u2026" }),
+                   right: jsxs(Fragment, { children: [
+                     jsx(Button, { onClick: function () { setShowSettings(true); },
+                       children: "Edit settings\u2026" }, "e"),
+                     jsx(Button, { onClick: function () { setShowAngles(true); },
+                       children: "Angles & prompts\u2026" }, "a"),
+                   ] }),
                    children: settingsRows(status, act0) }, "a"),
       jsx(Panel, { title: "Discovery",
                    children: discoRows(disc) }, "b"),
@@ -1794,15 +2305,27 @@ function KarpathyLoop(props) {
     showAngles ? jsx(anglesModal, { regen: anglesData.regen,
       onClose: function () { setShowAngles(false); anglesData.refresh(); } }) : null,
 
+    /* ── 3c. THE SETTINGS CARD (configure the loop from this page) ──── */
+    showSettings ? jsx(settingsModal, {
+      onClose: function () { setShowSettings(false); },
+      onChanged: function () { setTick(function (t) { return t + 1; }); },
+    }) : null,
+
     /* ── 4. PICKER ──────────────────────────────────────────────────── */
     showPicker ? jsxs("div", { style: { marginTop: 16 }, children: [
       jsx(Panel, { title: "Project picker",
         note: "tick repos, choose models and angles, then Save rotation",
-        children: jsx("iframe", {
-          src: "file:///" + SEL_HTML.replace(/\\/g, "/"),
-          style: S.iframe,
-          title: "Karpathy Loop project picker",
-        }) }),
+        children: (cachedMeta()
+          ? jsx("iframe", {
+              src: "file:///" + String(cachedMeta().root).replace(/\\/g, "/") + "/selector.html",
+              style: S.iframe,
+              title: "Karpathy Loop project picker",
+            })
+          : jsx("div", { style: S.empty, children:
+              "The picker page lives in the loop folder, which the widget learns "
+              + "from the loop server — and the server has not answered yet. "
+              + "Start it:  python scripts/status_server.py" })),
+      }),
     ] }) : null,
 
     /* ── 4b. WORKING ON RIGHT NOW, in plain words (F-V) ─────────────── */
@@ -1942,5 +2465,8 @@ var plugin_default = {
 };
 
 export default plugin_default;
-export { anglesSettingsPanel, anglesModal, angleEditor, KarpathyLoop };
+export { anglesSettingsPanel, anglesModal, angleEditor, KarpathyLoop,
+         settingsModal, settingsSection, settingsField, SETTING_SECTIONS,
+         schemaFor, currentValue, isSecretVal, secretKeyIn, labelFor,
+         httpJson, ensureMeta, cachedMeta, resetServerBase };
 

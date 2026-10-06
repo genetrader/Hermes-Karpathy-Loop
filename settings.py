@@ -110,10 +110,30 @@ SCHEMA: dict[str, tuple[str, str, object]] = {
 
     "projects.manifest":         ("str",  "KL_MANIFEST", ""),
     "projects.index_rows":       ("str",  "KL_INDEX_ROWS", ""),
+    # Extra roots discovery sweeps for new codebases (comma-separated list).
+    # Empty = the portable home-folder defaults in discover.py.
+    "projects.sweep_roots":      ("str",  "KL_SWEEP_ROOTS", ""),
 
     "runtime.round_timeout":     ("int",  "KL_ROUND_TIMEOUT", 4200),
     "runtime.worktree_abandon_secs": ("int", "KL_WT_ABANDON_SECS", 21600),
     "runtime.gate_timeout":      ("int",  "KL_GATE_TIMEOUT", 900),
+    # Rotation seeds for a FRESH deployment. loop.json (set from the widget's
+    # rotation card / `loopctl config`) still wins at runtime; these are what a
+    # new checkout seeds loop.json from -- no hardcoded numbers in loopctl.
+    "runtime.angles_per_visit":  ("int",  "KL_ANGLES_PER_VISIT", 2),
+    "runtime.sweep_minutes":     ("int",  "KL_SWEEP_MINUTES", 360),
+    "runtime.max_rounds":        ("int",  "KL_MAX_ROUNDS", 0),   # 0 = forever
+    "runtime.max_hours":         ("int",  "KL_MAX_HOURS", 0),    # 0 = forever
+
+    # The loop's git identity for its own commits/tags (checkpoints, initial
+    # commits). Generic defaults; put your own name in if you prefer attribution.
+    "git.author_name":           ("str",  "KL_GIT_AUTHOR_NAME", "Karpathy Loop"),
+    "git.author_email":          ("str",  "KL_GIT_AUTHOR_EMAIL", "loop@local"),
+
+    # The status server the widget talks to (scripts/status_server.py). The
+    # server binds this port; the widget's shell-fallback and settings card
+    # discover it from the server's own /meta.json.
+    "widget.status_port":        ("int",  "KL_STATUS_PORT", 8765),
 }
 
 _TRUTHY = {"1", "true", "yes", "on"}
@@ -574,10 +594,179 @@ def gate_timeout_default() -> int:
     return int(setting("runtime.gate_timeout") or 900)
 
 
+def angles_per_visit_default() -> int:
+    """Seed for a fresh loop.json (loop.json itself wins once it exists)."""
+    return max(1, int(setting("runtime.angles_per_visit") or 2))
+
+
+def sweep_minutes_default() -> int:
+    return int(setting("runtime.sweep_minutes") or 360)
+
+
+def max_rounds_default() -> int:
+    return int(setting("runtime.max_rounds") or 0)
+
+
+def max_hours_default() -> int:
+    return int(setting("runtime.max_hours") or 0)
+
+
+def git_author() -> tuple[str, str]:
+    """(name, email) the loop uses for its OWN commits/tags."""
+    return ((setting("git.author_name") or "Karpathy Loop").strip(),
+            (setting("git.author_email") or "loop@local").strip())
+
+
+def status_port() -> int:
+    try:
+        p = int(setting("widget.status_port") or 8765)
+    except (TypeError, ValueError):
+        p = 8765
+    return p if 1024 <= p <= 65535 else 8765
+
+
+def sweep_roots() -> list:
+    """Discovery sweep roots: projects.sweep_roots (comma/os.pathsep list)
+    when set, else the portable home-folder defaults. Nothing ships with
+    anyone's drive letters."""
+    v = (setting("projects.sweep_roots") or "").strip()
+    if v:
+        return [p.strip() for p in re.split(r"[,;]", v.replace(os.pathsep, ";"))
+                if p.strip()]
+    return []
+
+
 def reset_cache() -> None:
     """Test hook: force the next load_settings() to re-read disk + env."""
     global _CACHE, _CACHE_STAMP, _ISSUES, _SOURCES
     _CACHE, _CACHE_STAMP, _ISSUES, _SOURCES = None, None, [], {}
+
+
+# ---------------------------------------------------------------- UI-facing
+# The widget's settings card talks to the status server, which calls ONLY the
+# functions below. They live here so the validation contract stays in ONE
+# place: the card and the CLI validate through the identical code path.
+
+def schema_view() -> list:
+    """Machine-readable schema for the settings card: the card renders its
+    form FROM THIS, so the UI and SCHEMA can never drift apart."""
+    out = []
+    for key, (kind, env, dflt) in SCHEMA.items():
+        section, leaf = key.split(".", 1)
+        out.append({"key": key, "section": section, "leaf": leaf,
+                    "type": kind, "env": env, "default": dflt,
+                    "secret": key in SECRET_LEAVES})
+    return out
+
+
+def _effective_flat_with(overlay: dict) -> tuple[dict, dict]:
+    """Effective flat settings with `overlay` (already-coerced values) applied
+    on top of the last load -- what the world WOULD look like if we saved."""
+    cfg = load_settings(refresh=True)
+    flat: dict = {}
+    for section, kv in cfg.items():
+        for leaf, v in kv.items():
+            flat["%s.%s" % (section, leaf)] = v
+    sources = dict(_SOURCES)
+    for key, val in overlay.items():
+        flat[key] = val
+        sources[key] = "local"
+    return flat, sources
+
+
+def _write_local(updates: dict, removals: list) -> None:
+    """One atomic write of several dotted keys into settings.local.yaml.
+    updates may hold real values (already coerced); removals drops keys.
+    This is the ONLY file-path the UI write endpoints touch."""
+    import yaml
+    path = _local_path()
+    doc: dict = {}
+    if path.exists():
+        doc = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+        if not isinstance(doc, dict):
+            raise ValueError("%s top level must be a mapping" % path.name)
+    for key in removals:
+        section, leaf = key.split(".", 1)
+        if isinstance(doc.get(section), dict) and leaf in doc[section]:
+            del doc[section][leaf]
+            if not doc[section]:
+                del doc[section]
+    for key, val in updates.items():
+        section, leaf = key.split(".", 1)
+        if not isinstance(doc.get(section), dict):
+            doc[section] = {}
+        doc[section][leaf] = val
+    tmp = path.with_suffix(path.suffix + ".tmp")
+    tmp.write_text(yaml.safe_dump(doc, sort_keys=False, width=100), encoding="utf-8")
+    os.replace(tmp, path)
+
+
+def apply_ui_updates(values: dict) -> tuple[list, dict]:
+    """Bulk write from the settings card (non-secret keys).
+
+    values: {dotted_key: raw}. NOTHING is written unless every key coerces
+    and the resulting config is free of ERRORS (warnings pass through).
+    Returns (issues, redacted_view). Secret keys are refused here -- they
+    have their own put/clear endpoints so their values never ride a bulk
+    payload where they could be logged."""
+    issues: list = []
+    coerced: dict = {}
+    for key, raw in (values or {}).items():
+        if key in SECRET_LEAVES:
+            issues.append(Issue("error", key,
+                                "secrets are not set through the bulk save "
+                                "(use the secret field's own Save button)",
+                                "use POST /settings/secret for this key"))
+            continue
+        if key not in SCHEMA:
+            issues.append(Issue("warn", key, "unknown setting (ignored)",
+                                "check the spelling; the card lists every key"))
+            continue
+        kind = SCHEMA[key][0]
+        if raw == "" or raw is None:
+            # Clearing = REMOVE the key from settings.local.yaml (writing ""
+            # would not clear: an empty override never clobbers a lower layer).
+            coerced[key] = None
+            continue
+        val, issue = _coerce(kind, raw, key)
+        if issue:
+            issues.append(issue)
+            continue
+        coerced[key] = val
+    errs = [i for i in issues if i.level == "error"]
+    if errs:
+        return issues, redacted_view()
+
+    overlay = {k: v for k, v in coerced.items() if v is not None}
+    flat, sources = _effective_flat_with(overlay)
+    sem = _validate_semantics(flat, sources)
+    if [i for i in sem if i.level == "error"]:
+        return sem + issues, redacted_view()
+
+    updates = {k: v for k, v in coerced.items() if v is not None}
+    removals = [k for k, v in coerced.items() if v is None]
+    if updates or removals:
+        _write_local(updates, removals)
+    load_settings(refresh=True)
+    return list(_ISSUES), redacted_view()
+
+
+def put_secret(key: str, value: str) -> None:
+    """Store one secret into settings.local.yaml ONLY. Never writes the
+    tracked file, never logs or returns the value."""
+    if key not in SECRET_LEAVES:
+        raise ValueError("%s is not a secret setting (known: %s)"
+                         % (key, ", ".join(sorted(SECRET_LEAVES))))
+    v = str(value or "").strip()
+    if not v:
+        raise ValueError("empty value: use the clear action to unset")
+    _write_local({key: v}, [])
+
+
+def clear_secret(key: str) -> None:
+    if key not in SECRET_LEAVES:
+        raise ValueError("%s is not a secret setting" % key)
+    _write_local({}, [key])
 
 
 # ---------------------------------------------------------------- CLI plumbing
@@ -701,11 +890,25 @@ def _example_yaml_text() -> str:
         "projects:",
         "  manifest: \"\"              # improve.yaml path (default: alongside the loop)",
         "  index_rows: \"\"            # optional rows.json seed for project discovery",
+        "  sweep_roots: \"\"           # discovery scan roots (comma-separated);",
+        "                            #   empty = your home + standard code folders",
         "",
         "runtime:",
         "  round_timeout: 4200       # hard ceiling per round (seconds)",
         "  worktree_abandon_secs: 21600",
         "  gate_timeout: 900         # default gate command timeout (seconds)",
+        "  angles_per_visit: 2       # seed for a fresh rotation (loop.json wins)",
+        "  sweep_minutes: 360        # rotation sweep cadence (seed)",
+        "  max_rounds: 0             # autopause after N rounds (0 = forever)",
+        "  max_hours: 0              # autopause after N hours (0 = forever)",
+        "",
+        "git:",
+        "  author_name: Karpathy Loop    # identity on the loop's own commits/tags",
+        "  author_email: loop@local",
+        "",
+        "widget:",
+        "  status_port: 8765         # port scripts/status_server.py binds;",
+        "                            #   the widget card talks to this server",
         "",
     ]
     return "\n".join(lines)

@@ -13,11 +13,14 @@ Design notes (why this is safe):
 import json
 import sqlite3
 import sys
+from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import threads as T  # noqa: E402
 
-DB = r"os.environ.get("LOCALAPPDATA", "\\\?\\unknown") + "\\hermes"/state.db"
+# The Hermes sessions DB, resolved through the settings layer (hermes.home)
+# -- never a personal absolute path in tracked code.
+DB = str(T.STATE_DB)
 REG = str(Path(__file__).resolve().parent / "state" / "threads.json")
 
 reg = json.load(open(REG, encoding="utf-8"))

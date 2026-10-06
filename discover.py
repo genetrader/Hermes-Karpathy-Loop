@@ -60,6 +60,16 @@ SWEEP_ROOTS = [
 _extra = os.environ.get("KL_SWEEP_ROOTS")
 if _extra:
     SWEEP_ROOTS = [Path(p) for p in _extra.split(os.pathsep) if p.strip()]
+# The settings layer (projects.sweep_roots in settings.yaml / local / env)
+# wins over the historical env-only path above, so discovery roots are a
+# SETTING now, not an export someone has to remember.
+try:
+    import settings as _S
+    _sr = _S.sweep_roots()
+    if _sr:
+        SWEEP_ROOTS = [Path(p) for p in _sr]
+except Exception:
+    pass
 
 PROJECT_MARKERS = ("requirements.txt", "package.json", "pyproject.toml", "go.mod",
                    "Cargo.toml", "composer.json", "Gemfile", "pom.xml", "build.gradle")
