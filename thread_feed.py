@@ -20,7 +20,11 @@ import json
 import sqlite3
 from pathlib import Path
 
-HERMES_HOME = Path(r"<LOCALAPPDATA>\..\AppData\Local\hermes")
+import sys as _sys
+_sys.path.insert(0, str(Path(__file__).resolve().parent))
+import settings as _S
+
+HERMES_HOME = _S.hermes_home()
 SESSIONS_DB = HERMES_HOME / "state.db"
 
 # Keep previews short: the panel shows a chat log, not full tool payloads.

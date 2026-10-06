@@ -403,7 +403,13 @@ def test_show_campaign_is_read_only_and_legacy_safe(tmp_path, monkeypatch):
     import loopctl as _loopctl
     real = ROOT / "state" / "threads.json"
     dst = tmp_path / "threads.json"
-    shutil.copy(real, dst)
+    if real.exists():
+        shutil.copy(real, dst)
+    else:
+        # fresh clone: state/ is gitignored -- seed a minimal registry so the
+        # read-only guarantee is still exercised
+        dst.write_text('{"zip": {"rounds": 3, "campaign": {"state": "open",'
+                       ' "surfaces": ["a"], "verdicts": {}}}}', encoding="utf-8")
     before = hashlib.md5(dst.read_bytes()).hexdigest()
     monkeypatch.setattr(_threads, "STATE", dst)
     rc = _loopctl.cmd_show_campaign(type("A", (), {"json": False})())

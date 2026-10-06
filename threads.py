@@ -37,11 +37,12 @@ PREFIX = "\U0001F7E8 KL :: "
 # instead of producing "\U0001F7E8 KL :: \U0001F7E8 KL :: <name>".
 _LEGACY_PREFIXES = ("\U0001F7E8 KL :: ", "KL :: ")
 
-HERMES_HOME = Path(os.environ.get("HERMES_HOME")
-                   or (Path.home() / "AppData" / "Local" / "hermes"))
+import settings as _S   # noqa: E402  machine config: settings.py is the source
+
+HERMES_HOME = _S.hermes_home()
 STATE_DB = HERMES_HOME / "state.db"
-HERMES_PY = HERMES_HOME / "hermes-agent" / "venv" / "Scripts" / "python.exe"
-PROFILE = "default"
+HERMES_PY = _S.hermes_python()
+PROFILE = _S.hermes_profile() or "default"
 
 
 def _seat_model_name() -> str:

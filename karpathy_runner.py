@@ -39,8 +39,13 @@ import improver as I               # noqa: E402
 import scope                       # noqa: E402
 import discord_notify as dn        # noqa: E402
 
-HERMES_HOME = Path(r"<LOCALAPPDATA>\..\AppData\Local\hermes")
-HERMES_PY = HERMES_HOME / "hermes-agent" / "venv" / "Scripts" / "python.exe"
+import settings as _S            # noqa: E402  machine config: the ONE place
+
+# Everything machine-specific comes from settings.py (defaults -> settings.yaml
+# -> settings.local.yaml -> env). Nothing here may hardcode a home dir, an
+# interpreter path, a model seat, or a server.
+HERMES_HOME = _S.hermes_home()
+HERMES_PY = _S.hermes_python()
 
 # --- model seats -----------------------------------------------------------------
 # F3.7 / T2-3 (2026-09-30): seats are NOT module constants anymore. The implementer
@@ -51,8 +56,8 @@ HERMES_PY = HERMES_HOME / "hermes-agent" / "venv" / "Scripts" / "python.exe"
 # children against a dead endpoint for hours because nothing validated the seat.
 # main() now validates both seats at startup (_validate_seats) and refuses to run
 # the loop on a dead or malformed one.
-BUILDER_FALLBACK = os.environ.get(
-    "KL_BUILDER_MODEL", "custom:glm53-flash-4x-spark-tp4:GLM-5.3-Flash-FP8")
+BUILDER_FALLBACK = (os.environ.get("KL_BUILDER_MODEL")
+                    or _S.builder_fallback())
 # Test isolation (2026-10-01): tests that drive run_round() must NOT pollute the
 # LIVE runner.log -- 367 "t round 1" junk lines from a test run leaked into the
 # monitor's Recent activity feed. Any process can point the log elsewhere with
@@ -61,7 +66,7 @@ LOG = Path(os.environ.get("KL_RUNNER_LOG", str(ROOT / "logs" / "runner.log")))
 # Per-round wall-clock ceiling. Rounds normally take 50-60 min; this is generous
 # but bounded so a single hung child cannot stall the rotation for hours (it was
 # 7200s with no kill).
-ROUND_TIMEOUT = int(os.environ.get("KL_ROUND_TIMEOUT", "4200"))
+ROUND_TIMEOUT = _S.round_timeout()
 # Written at the START and END of every round. `activity.py` and the widget read
 # this to tell a HEALTHY loop from one whose status flag says running while
 # nothing is actually happening (the 2026-09-28 wedge: flag said RUNNING, no
@@ -306,7 +311,7 @@ def _is_dirty(workdir: str) -> bool | None:
 # survives only as the post-merge gate-disagreement restore and as a reject-path
 # safety net that must be a no-op when the isolation held).
 # ---------------------------------------------------------------------------
-WT_ABANDON_SECS = int(os.environ.get("KL_WT_ABANDON_SECS", str(6 * 3600)))
+WT_ABANDON_SECS = _S.worktree_abandon_secs()
 _WT_DEP_DIRS = (".venv", "venv", "node_modules")
 _CREATE_NO_WINDOW = 0x08000000
 
@@ -882,15 +887,61 @@ def _validate_seats(cfg: dict, config_path: Path | None = None) -> None:
 
 def checkpoint(project: str, workdir: str, round_no: int) -> str:
     """
-    End-of-round checkpoint: tag locally, push branch + tag to GitHub.
+    End-of-round checkpoint: tag locally; push branch + tag to GitHub ONLY
+    when settings allow it.
 
-    Checkpoint policy (user-locked): push branches + tags every round. Public
-    repos must already be your own fork; pushing a tag never creates a PR.
-    Returns a short status string, never raises.
+    github.enabled=false (the shipped default) = LOCAL TAGS ONLY: the tag is
+    the checkpoint and the rollback anchor, the push is skipped silently --
+    it is a supported mode, not a config error, so it must not log warnings
+    or fail the round. github.push_branches=false still pushes the tag but
+    leaves the working branch local. The runtime loopctl toggle
+    (loopctl config --push-github false) is honoured on top of the settings
+    master switch.
+
+    Checkpoint policy when pushing (user-locked): push branches + tags every
+    round. Public repos must already be your own fork; pushing a tag never
+    creates a PR. Returns a short status string, never raises.
     """
     tag = "kp/%s/r%02d" % (project, round_no)
     out = []
     env = dict(os.environ)   # hardening block below; needed by the tag check too
+    # ---- settings gate: WHAT may leave this machine -------------------------
+    try:
+        _lc_ckpt = loopctl.load()
+    except Exception:
+        _lc_ckpt = {}
+    _push_ok = _S.push_enabled(_lc_ckpt)
+    _push_branches = _S.push_branches()
+    if not _S.github_enabled():
+        # GitHub is OFF: tag locally and stop. The F1-6 authorship guard still
+        # applies -- a tag that exists at a DIFFERENT sha is someone else's
+        # and is never moved, even locally. One quiet note in the status,
+        # never a warning, never a retry, never a network call.
+        _intended_off = _head_full_sha(workdir)
+        try:
+            _t = subprocess.run(
+                ["git", "-c", "credential.helper=", "-C", workdir,
+                 "rev-parse", "refs/tags/%s" % tag],
+                capture_output=True, text=True, timeout=60,
+                errors="replace", creationflags=0x08000000, env=env)
+        except Exception as e:
+            return "failed: tag check could not run: %s" % e
+        _existing_off = (_t.stdout or "").strip() if _t.returncode == 0 else ""
+        if _existing_off:
+            if not (_intended_off and _existing_off == _intended_off):
+                return ("failed: tag %s already exists at %s (HEAD is %s) -- "
+                        "refusing to move a tag the runner did not create"
+                        % (tag, (_existing_off or "?")[:8],
+                           (_intended_off or "?")[:8]))
+            return ("published: tag already at this sha; "
+                    "push skipped (github disabled)")
+        r = subprocess.run(["git", "-c", "credential.helper=", "-C", workdir,
+                            "tag", tag],
+                           capture_output=True, text=True, timeout=300,
+                           errors="replace", creationflags=0x08000000, env=env)
+        if r.returncode != 0:
+            return "failed at tag: %s" % ((r.stderr or r.stdout or "").strip()[:200])
+        return "published: tag rc=0; push skipped (github disabled)"
     # F1-6 AUTHORSHIP (2026-09-30): the runner is the only author of checkpoint
     # tags. Before touching anything, read the tag's CURRENT sha. A tag that
     # already exists is either (a) this round's earlier publish attempt -- its
@@ -955,9 +1006,24 @@ def checkpoint(project: str, workdir: str, round_no: int) -> str:
         has_remote = bool((rp.stdout or "").strip())
     except Exception:
         pass
+    # With a token in settings (env / settings.local.yaml), hand git and gh a
+    # NON-interactive bearer header instead of relying on any stored
+    # credential; without one the fail-fast hardening above stands.
+    if _push_ok and has_remote:
+        try:
+            if _S.github_token():
+                env.update(_S.push_env(env))
+        except Exception:
+            pass
     steps = [["tag", tag]] if _need_tag else []
-    if has_remote:
-        steps.append(["push", "origin", "HEAD", tag])
+    if has_remote and _push_ok:
+        # branch + tag when github.push_branches (default); tag only otherwise
+        if _push_branches:
+            steps.append(["push", "origin", "HEAD", tag])
+        else:
+            steps.append(["push", "origin", tag])
+    elif has_remote:
+        out.append("push skipped (github disabled)")
     else:
         out.append("push skipped (no git remote)")
     _failed_step = None
@@ -1012,7 +1078,7 @@ def _run_gate(proj: dict) -> dict | None:
     if not gate_cmd:
         return None
     workdir = proj.get("path") or ""
-    timeout = int(proj.get("gate_timeout") or 900)
+    timeout = int(proj.get("gate_timeout") or _S.gate_timeout_default())
     env = dict(os.environ)
     env.update({
         "GIT_TERMINAL_PROMPT": "0",
@@ -1129,8 +1195,12 @@ def run_round(proj: dict, entry: dict) -> int:
     # MODEL SEATS (F3.7): the implementer seat comes from loop.json, validated
     # at startup by _validate_seats(); the reviewer seat rides to the prompt.
     _lc = loopctl.load()
-    _builder = (_lc.get("implementer") or "").strip() or BUILDER_FALLBACK
-    _seats = {"reviewer": (_lc.get("reviewer") or "").strip()}
+    # Priority: loopctl config (loopctl config --implementer) > settings.yaml /
+    # settings.local.yaml / env (models.implementer) > BUILDER_FALLBACK.
+    _builder = ((_lc.get("implementer") or "").strip()
+                or _S.implementer_seat() or _S.builder_fallback())
+    _seats = {"reviewer": ((_lc.get("reviewer") or "").strip()
+                           or _S.reviewer_seat())}
 
     # Record the repo's HEAD BEFORE the child touches anything, so the end of the
     # round can prove a commit actually appeared. Without this the "did the round
@@ -1309,7 +1379,7 @@ def run_round(proj: dict, entry: dict) -> int:
             % (name, type(_e).__name__, _e))
 
     cmd = [str(HERMES_PY), "-m", "hermes_cli.main",
-           "-p", threads.PROFILE, "--model", _builder,
+           "-p", _S.hermes_profile() or threads.PROFILE, "--model", _builder,
            "-z", prompt, "--resume", sid]
     # Popen (not subprocess.run) so a TIMEOUT gives us the child's PID to kill.
     # With subprocess.run the handle is discarded and `_kill_tree(None)` was a

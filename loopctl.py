@@ -46,13 +46,15 @@ DEFAULTS = {
     # Two model seats. They MUST differ: the implementer writes the change, the
     # reviewer reads the diff with a different brain. Same model in both seats
     # means the same blind spot twice.
-    # F3.7 (2026-09-30): the previous defaults named providers HIDDEN on
-    # 2026-09-30 (glm53-2x EXL3, deepseek-v41-3x) -- the loop then launched
-    # children against dead endpoints. These are the LIVE fleet seats:
-    # implementer -> the GLM-5.3-Flash-FP8 TP4 bottle, reviewer -> qwen3.8
-    # on d754 (different family AND different box).
-    "implementer": "custom:glm53-flash-4x-spark-tp4:GLM-5.3-Flash-FP8",
-    "reviewer": "custom:d754-mia-flashnext:qwen3.8-flash-next",
+    # F3.7 (2026-09-30): the previous defaults named providers that were later
+    # HIDDEN -- the loop launched children against dead endpoints because
+    # nothing validated the seat. The defaults therefore carry NO model names
+    # at all: seats come from settings (models.implementer / models.reviewer,
+    # env KL_BUILDER_MODEL_SEAT / KL_REVIEWER_MODEL_SEAT) or from
+    # `loopctl config --implementer/--reviewer`, and main() refuses to run a
+    # loop on an empty or dead seat.
+    "implementer": _S.implementer_seat(),
+    "reviewer": _S.reviewer_seat(),
     "sweep_minutes": 360,
     "rounds_done": 0,
     "pushed_to_github": True,
@@ -407,9 +409,8 @@ def cmd_start(a) -> int:
             do_spawn = False
         if do_spawn:
             subprocess.Popen(
-                [r"<LOCALAPPDATA>\..\AppData\Local\hermes\hermes-agent\venv\Scripts\python.exe",
-                 r"C:\CODING\project-improver\karpathy_runner.py"],
-                cwd=r"C:\CODING\project-improver",
+                [str(_S.hermes_python()), str(ROOT / "karpathy_runner.py")],
+                cwd=str(ROOT),
                 creationflags=0x00000008,  # DETACHED_PROCESS
                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             print("runner spawned -- first round starts immediately")
@@ -746,6 +747,47 @@ def cmd_config(a) -> int:
     return 0
 
 
+def cmd_settings(a) -> int:
+    """Thin delegation to settings.py -- the settings layer owns its format."""
+    import settings as S
+    if a.verb == "show":
+        import json as _j
+        print(_j.dumps(S.redacted_view(), indent=2))
+        for i in S.issues():
+            print(str(i), file=sys.stderr)
+        return 0
+    if a.verb == "validate":
+        S.load_settings(refresh=True)
+        bad = 0
+        for i in S.issues():
+            print(str(i))
+            bad += (i.level == "error")
+        return 1 if bad else 0
+    if a.verb == "set":
+        if not a.key:
+            print("usage: loopctl settings set <key> <value> [--tracked]")
+            return 2
+        S.write_setting(a.key, a.value or "", tracked=a.tracked)
+        S.reset_cache()
+        print("set %s = %s in %s" % (a.key, a.value,
+                                     "settings.yaml" if a.tracked
+                                     else "settings.local.yaml"))
+        return 0
+    if a.verb == "unset":
+        if not a.key:
+            print("usage: loopctl settings unset <key> [--tracked]")
+            return 2
+        S.unset_setting(a.key, tracked=a.tracked)
+        S.reset_cache()
+        print("unset %s" % a.key)
+        return 0
+    if a.verb == "example":
+        # print, never overwrite: the repo ships a tracked settings.yaml.
+        print(S._example_yaml_text())
+        return 0
+    return 2
+
+
 def cmd_should_run(a) -> int:
     """Exit 0 = go. Exit 1 = do not start a round (and why)."""
     cfg = load()
@@ -861,6 +903,14 @@ def main(argv=None) -> int:
     s.add_argument("--reviewer")
     s.add_argument("--sweep-minutes", type=int, dest="sweep_minutes")
     s.set_defaults(fn=cmd_config)
+    s = sub.add_parser("settings", help="inspect/edit settings.yaml / settings.local.yaml")
+    s.add_argument("verb", choices=["show", "validate", "set", "unset", "example"],
+                   nargs="?", default="show")
+    s.add_argument("key", nargs="?", default=None)
+    s.add_argument("value", nargs="?", default=None)
+    s.add_argument("--tracked", action="store_true",
+                   help="write the tracked settings.yaml (never for secrets)")
+    s.set_defaults(fn=cmd_settings)
     s = sub.add_parser("should-run"); s.add_argument("--autopause", action="store_true"); s.set_defaults(fn=cmd_should_run)
     s = sub.add_parser("bump"); s.set_defaults(fn=cmd_bump)
     s = sub.add_parser("show-campaign"); s.set_defaults(fn=cmd_show_campaign)  # read-only

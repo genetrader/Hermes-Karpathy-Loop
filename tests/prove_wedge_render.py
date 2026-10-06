@@ -5,7 +5,7 @@ import json
 import subprocess
 from pathlib import Path
 
-ROOT = Path(r"C:\CODING\project-improver")
+ROOT = Path(__file__).resolve().parents[1]
 PLUG = ROOT / "review" / "plugin.js"
 src = PLUG.read_text(encoding="utf-8")
 

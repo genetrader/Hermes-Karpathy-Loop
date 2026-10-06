@@ -1,18 +1,36 @@
 #!/usr/bin/env python
 """
-project-improver / discord_notify.py
+discord_notify.py -- the loop's notification facade + the Discord backend.
 
-The single point of contact between the improver fleet and the operator's phone/desktop.
-Uses the ALREADY-LIVE Discord bot (Bastion) in a dedicated channel.
+TWO roles in one file, deliberately:
+
+  1. THE FACADE the rest of the loop calls: progress() / stuck() / ask() /
+     remind() / answer(). Every one dispatches through
+     notify_senders.current_sender(): with notifications disabled (the safe
+     default) or backend "none", sends are silent no-ops -- no token lookup,
+     no network, no spam. Callers never read notification settings themselves.
+
+  2. THE DISCORD IMPLEMENTATION (this file), registered as the "discord"
+     backend. Other platforms (slack, telegram, ...) live in their own module
+     next to a @notify_senders.register("<name>") class -- same facade, zero
+     call-site changes.
 
 Three message classes, deliberately different so the operator can tell them apart by sound:
   progress -> plain post, no mention, NO ping        (quiet)
-  stuck    -> plain post prefixed [STUCK], no ping   (quiet-ish)
+             round messages also carry the plain-English (fifth-grade)
+             summary of what the round is doing/did, when
+             notifications.include_summaries is on and a summary LLM is set.
+  stuck    -> plain post prefixed [STUCK]; pings only when
+              notifications.ping_on_stuck is on.
   question -> @mention ping, REPEATED until answered (loud)
 
 The repeat logic edits ONE message's content, then re-pings with a fresh
 short message every `repeat_min`. Discord has no "re-ping" primitive, so a
 repeated ping requires a new message containing the mention.
+
+Config lives in settings.py (notifications.*): bot token, channel, ping user,
+env_file. The historical DISCORD_BOT_TOKEN / IMPROVER_* env names and the
+Hermes .env still work -- settings.py folds them in.
 """
 from __future__ import annotations
 
@@ -29,16 +47,31 @@ STATE.mkdir(exist_ok=True)
 LOG = ROOT / "logs" / "notify.log"
 LOG.parent.mkdir(exist_ok=True)
 
-ENV_PATH = Path(r"<LOCALAPPDATA>\..\AppData\Local\hermes\.env")
 API = "https://discord.com/api/v10"
 
 
-# ---------------------------------------------------------------- env
+# ---------------------------------------------------------------- env file
+
+def _env_file() -> Path | None:
+    """The KEY=VALUE file to fall back to: notifications.env_file, else the
+    Hermes home .env. Nothing here is hardcoded to one machine."""
+    try:
+        import settings as _S
+        p = _S.notify_env_file()
+        if p:
+            return Path(p)
+        return _S.hermes_home() / ".env"
+    except Exception:
+        return None
+
 
 def _env(key: str) -> str | None:
-    """Read a key from the live Hermes .env, handling quoted/exported forms."""
+    """Read a key from the configured env file, handling quoted/exported forms."""
+    p = _env_file()
+    if p is None:
+        return None
     try:
-        raw = ENV_PATH.read_text(encoding="utf-8", errors="replace")
+        raw = p.read_text(encoding="utf-8", errors="replace")
     except OSError:
         return None
     m = re.search(rf"^\s*(?:export\s+)?{re.escape(key)}\s*=\s*(.+?)\s*$", raw, re.M)
@@ -49,32 +82,57 @@ def _env(key: str) -> str | None:
 
 
 def token() -> str:
-    t = os.environ.get("DISCORD_BOT_TOKEN") or _env("DISCORD_BOT_TOKEN")
+    """The Discord bot token: settings (env / settings.local.yaml) first, the
+    env file last. Raises SystemExit when nothing resolves -- the runner
+    catches that and skips the notification rather than failing a round."""
+    try:
+        import settings as _S
+        t = _S.notify_token()
+    except Exception:
+        t = None
     if not t:
-        raise SystemExit("DISCORD_BOT_TOKEN not found (env or .env)")
+        t = os.environ.get("DISCORD_BOT_TOKEN") or _env("DISCORD_BOT_TOKEN")
+    if not t:
+        raise SystemExit("DISCORD_BOT_TOKEN not found (settings, env, or env_file)")
     return t
 
 
 def channel_id() -> str:
-    """Improver channel, falling back to the configured home channel."""
+    """Improver channel: state file > settings (channel_id / env) > the env
+    file's DISCORD_HOME_CHANNEL."""
     p = STATE / "channel_id.txt"
     if p.exists():
         v = p.read_text(encoding="utf-8").strip()
         if v:
             return v
-    v = os.environ.get("IMPROVER_CHANNEL_ID") or _env("IMPROVER_CHANNEL_ID")
+    try:
+        import settings as _S
+        v = _S.notify_channel()
+    except Exception:
+        v = ""
+    if not v:
+        v = (os.environ.get("IMPROVER_CHANNEL_ID")
+             or _env("IMPROVER_CHANNEL_ID") or "").strip()
     if v:
-        return v.strip()
+        return v
     hc = _env("DISCORD_HOME_CHANNEL")
     if not hc:
-        raise SystemExit("no channel id: set state/channel_id.txt or DISCORD_HOME_CHANNEL")
+        raise SystemExit("no channel id: set notifications.channel_id "
+                         "(or state/channel_id.txt / DISCORD_HOME_CHANNEL)")
     return hc.strip()
 
 
 def ping_user_id() -> str | None:
-    v = os.environ.get("IMPROVER_PING_USER_ID") or _env("IMPROVER_PING_USER_ID")
+    try:
+        import settings as _S
+        v = _S.notify_ping_user()
+    except Exception:
+        v = ""
+    if not v:
+        v = (os.environ.get("IMPROVER_PING_USER_ID")
+             or _env("IMPROVER_PING_USER_ID") or "").strip()
     if v:
-        return v.strip()
+        return v
     p = STATE / "ping_user_id.txt"
     if p.exists():
         return p.read_text(encoding="utf-8").strip() or None
@@ -91,7 +149,7 @@ def _req(method: str, path: str, payload: dict | None = None):
     data = json.dumps(payload).encode() if payload is not None else None
     r = urllib.request.Request(url, data=data, method=method)
     r.add_header("Authorization", "Bot " + token())
-    r.add_header("User-Agent", "hermes-improver/1.0")
+    r.add_header("User-Agent", "hermes-karpathy-loop/1.0")
     if data:
         r.add_header("Content-Type", "application/json")
     try:
@@ -110,10 +168,10 @@ def _log(msg: str) -> None:
         f.write(f"[{ts}] {msg}\n")
 
 
-# ---------------------------------------------------------------- send
+# ---------------------------------------------------------------- send (discord)
 
 def send(channel: str, content: str, *, mention: bool = False, embed: dict | None = None):
-    """Post a message. If mention=True, prepend the user ping (this is what makes sound)."""
+    """Post to Discord. If mention=True, prepend the user ping (what makes sound)."""
     text = content
     uid = ping_user_id()
     if mention and uid:
@@ -130,21 +188,85 @@ def edit(channel: str, message_id: str, content: str):
     return _req("PATCH", f"/channels/{channel}/messages/{message_id}", {"content": content[:1900]})
 
 
+# ---------------------------------------------------------------- backend
+
+def _sender():
+    import notify_senders
+    return notify_senders.current_sender()
+
+
+class DiscordSender:
+    """The "discord" backend for notify_senders. Token and channel come from
+    settings; everything else is the plain v10 REST API."""
+
+    def send(self, content: str, *, mention: bool = False,
+             embed: dict | None = None) -> dict:
+        return send(channel_id(), content, mention=mention, embed=embed)
+
+    def edit(self, message_id: str, content: str) -> dict:
+        return edit(channel_id(), message_id, content)
+
+    def fetch_recent(self, limit: int = 20) -> list[dict]:
+        msgs = _req("GET", f"/channels/{channel_id()}/messages?limit={limit}")
+        return msgs if isinstance(msgs, list) else []
+
+    def ping_user_id(self) -> str | None:
+        return ping_user_id()
+
+    def describe(self) -> str:
+        return "discord sender (channel %s)" % channel_id()
+
+
+try:
+    import notify_senders as _ns
+    _ns.register("discord")(DiscordSender)
+except Exception:      # pragma: no cover -- a broken facade must not kill this CLI
+    pass
+
+
 # ---------------------------------------------------------------- API
+
+def _round_summary(project: str, round_no: int | None) -> str:
+    """The plain-English (fifth-grade) line for a round message, or "" when
+    off/unconfigured. The summary engine itself lives in checkpoint.py
+    (_plain_for/_plain_current, cached per round on disk); this decides only
+    WHETHER to ask: notifications.include_summaries + a configured endpoint."""
+    if round_no is None:
+        return ""
+    try:
+        import notify_senders as ns
+        if not ns.include_summaries():
+            return ""
+        import checkpoint as C
+        return C.plain_round_summary(project) or ""
+    except Exception:
+        return ""
+
 
 def progress(project: str, text: str, *, round_no: int | None = None,
              total: int | None = None) -> dict:
-    """Quiet progress line. Never pings."""
+    """Quiet progress line. Never pings. Messages that name a round carry the
+    plain-English summary of what the round is doing/did when
+    notifications.include_summaries is on and a summary model is configured."""
     tag = f"[{project}]"
     if round_no is not None and total is not None:
         tag += f" round {round_no}/{total}"
-    return send(channel_id(), f"`{tag}` {text}", mention=False)
+    body = f"`{tag}` {text}"
+    plain = _round_summary(project, round_no)
+    if plain:
+        body += "\n💬 " + plain
+    return _sender().send(body, mention=False)
 
 
 def stuck(project: str, text: str) -> dict:
-    """Blocker. No ping by default (set IMPROVER_PING_ON_STUCK=1 to change)."""
-    do_ping = (_env("IMPROVER_PING_ON_STUCK") or "0").strip() in {"1", "true", "yes"}
-    return send(channel_id(), f"**[STUCK]** `[{project}]` {text}", mention=do_ping)
+    """Blocker. No ping unless notifications.ping_on_stuck is on."""
+    do_ping = False
+    try:
+        import settings as _S
+        do_ping = bool(_S.notify_ping_on_stuck())
+    except Exception:
+        do_ping = (_env("IMPROVER_PING_ON_STUCK") or "0").strip() in {"1", "true", "yes"}
+    return _sender().send(f"**[STUCK]** `[{project}]` {text}", mention=do_ping)
 
 
 def ask(project: str, question: str, *, qid: str, repeat_min: int = 5,
@@ -169,8 +291,7 @@ def ask(project: str, question: str, *, qid: str, repeat_min: int = 5,
         "answered": False,
     }
     # ping #1
-    r = send(
-        channel_id(),
+    r = _sender().send(
         f"**[QUESTION]** `[{project}]`\n{question}\n\n"
         f"_Reply in this channel to answer._ (reminder every {repeat_min}m, "
         f"up to {max_repeat}x)",
@@ -217,11 +338,11 @@ def remind() -> str:
         (ROOT / "state" / "answer.json").write_text(
             json.dumps({"qid": st["qid"], "answer": assumption,
                         "assumed": True, "at": now}, indent=2), encoding="utf-8")
-        send(channel_id(),
-             f"**[ASSUMED]** `[{st['project']}]` no answer after {st['max_repeat']} pings "
-             f"({st['max_repeat'] * st['repeat_min']}m) — proceeding on this assumption, "
-             f"say the word to override:\n> {assumption[:400]}",
-             mention=True)
+        _sender().send(
+            f"**[ASSUMED]** `[{st['project']}]` no answer after {st['max_repeat']} pings "
+            f"({st['max_repeat'] * st['repeat_min']}m) — proceeding on this assumption, "
+            f"say the word to override:\n> {assumption[:400]}",
+            mention=True)
         st["parked"] = True
         (ROOT / "questions" / "parked.json").write_text(json.dumps(st, indent=2), encoding="utf-8")
         qfile.unlink()
@@ -229,10 +350,10 @@ def remind() -> str:
         return "assumed"
 
     st["reminders"] += 1
-    send(channel_id(),
-         f"⏰ **[reminder {st['reminders']}/{st['max_repeat']}]** `[{st['project']}]`\n"
-         f"{st['question']}\n\n_Reply in this channel to answer._",
-         mention=True)
+    _sender().send(
+        f"⏰ **[reminder {st['reminders']}/{st['max_repeat']}]** `[{st['project']}]`\n"
+        f"{st['question']}\n\n_Reply in this channel to answer._",
+        mention=True)
     st["asked_at"] = now
     qfile.write_text(json.dumps(st, indent=2), encoding="utf-8")
     _log(f"REMIND {st['qid']} #{st['reminders']}")
@@ -253,8 +374,8 @@ def answer(text: str, *, answered_by: str = "operator") -> str:
     (ROOT / "questions" / "answered" / f"{st['qid']}.json").write_text(
         json.dumps(st, indent=2), encoding="utf-8")
     qfile.unlink()
-    send(channel_id(),
-         f"✅ `[{st['project']}]` got it — resuming.\n> {text[:400]}", mention=False)
+    _sender().send(f"✅ `[{st['project']}]` got it — resuming.\n> {text[:400]}",
+                   mention=False)
     _log(f"ANSWER {st['qid']}: {text[:120]}")
     return "ok"
 
@@ -262,11 +383,21 @@ def answer(text: str, *, answered_by: str = "operator") -> str:
 # ---------------------------------------------------------------- selftest
 
 def _selftest():
-    ch = channel_id()
-    print(f"channel={ch} ping_user={ping_user_id()}")
-    r = progress("selftest", "bridge online — this is a quiet progress line")
-    print("progress msg id:", r.get("id"))
-    return r.get("id")
+    try:
+        import notify_senders as ns
+        s = ns.current_sender()
+        print("sender:", s.describe())
+        if s.name == "none":
+            print("notifications are OFF (notifications.enabled=false or "
+                  "backend=none). Enable them in settings.yaml / "
+                  "settings.local.yaml to get round messages.")
+            return None
+        r = progress("selftest", "bridge online — this is a quiet progress line")
+        print("progress msg id:", r.get("id"))
+        return r.get("id")
+    except Exception as e:
+        print("selftest failed:", e)
+        return None
 
 
 if __name__ == "__main__":
@@ -283,7 +414,7 @@ if __name__ == "__main__":
         # Two accepted shapes:
         #   ask <project> <qid> <question>      (explicit id)
         #   ask <project> <question>            (id derived from the text)
-        # The card prompts in improve.yaml/method.py use the short form, so
+        # The card prompts use the short form, so
         # make it the default rather than silently shifting the arguments.
         rest = sys.argv[3:]
         if rest and re.fullmatch(r"[A-Za-z0-9_-]{3,40}", rest[0]) and len(rest) > 1:

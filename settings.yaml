@@ -1,0 +1,51 @@
+# settings.yaml -- Karpathy Loop configuration for THIS deployment.
+# Everything here is optional; these are the safe built-in defaults.
+# Machine-specific values and SECRETS belong in settings.local.yaml
+# (gitignored). A token in this tracked file is rejected by validation.
+
+github:
+  enabled: false            # master switch: false = tags stay local, no pushes
+  owner: ""                 # your GitHub username (for repo creation hints)
+  token_env: GITHUB_TOKEN   # NAME of the env var holding your token
+  require_repo: false       # true = refuse rounds on repos with no remote
+  gh_cli: gh                # path to the gh binary if it is not on PATH
+  push_branches: true       # push the working branch each round (not just tags)
+
+notifications:
+  enabled: false            # master switch for progress/stuck/ask pings
+  backend: none             # discord | none  (add more senders in
+                            #   notify_senders.py: slack/telegram fit here)
+  include_summaries: true   # round messages carry the plain-English summary
+  bot_token_env: DISCORD_BOT_TOKEN
+  channel_id: ""            # the channel the loop posts into
+  ping_user_id: ""          # Discord user id that gets @mentioned on questions
+  ping_on_stuck: false      # also @mention when the loop reports STUCK
+  env_file: ""              # optional KEY=VALUE file (e.g. Hermes' .env) for the above
+
+hermes:
+  home: ""                  # Hermes home dir (default: ~/.hermes or %LOCALAPPDATA%\hermes)
+  python: ""                # interpreter that launches hermes CLI children
+  profile: default          # Hermes profile the loop threads run under
+  config_file: ""           # hermes config.yaml (validated against model seats)
+
+models:
+  implementer: ""           # provider:model seat writing the change
+  reviewer: ""              # provider:model seat reading the diff (MUST differ)
+  builder_fallback: ""      # seat used when loop.json has no implementer yet
+  brief_model: ""           # model for the one-shot repo briefs
+  brief_profile: ""
+  summary_url: ""           # OpenAI-compatible /v1/chat/completions endpoint
+                            #   for the fifth-grade round summaries
+  summary_model: ""         # model name on that endpoint
+  summary_url_2: ""         # optional fallback endpoint
+  summary_model_2: ""       # its model name
+
+projects:
+  manifest: ""              # improve.yaml path (default: alongside the loop)
+  index_rows: ""            # optional rows.json seed for project discovery
+
+runtime:
+  round_timeout: 4200       # hard ceiling per round (seconds)
+  worktree_abandon_secs: 21600
+  gate_timeout: 900         # default gate command timeout (seconds)
+

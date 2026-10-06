@@ -14,11 +14,11 @@ import json
 import sqlite3
 import sys
 
-sys.path.insert(0, r"C:/CODING/project-improver")
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 import threads as T  # noqa: E402
 
 DB = r"os.environ.get("LOCALAPPDATA", "\\\?\\unknown") + "\\hermes"/state.db"
-REG = r"C:/CODING/project-improver/state/threads.json"
+REG = str(Path(__file__).resolve().parent / "state" / "threads.json")
 
 reg = json.load(open(REG, encoding="utf-8"))
 tips = {}

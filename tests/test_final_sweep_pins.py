@@ -89,7 +89,7 @@ def test_quoted_runner_row_matches_top_level():
     import subprocess
     import loopctl
     cmd = subprocess.list2cmdline(
-        ["C:\\CODING\\project-improver\\karpathy_runner.py"])
+        [str(ROOT / "karpathy_runner.py")])
     line = _ps_row(cmd, "5555")
     cmd_decoded, pid = loopctl._csv_cmd_and_pid(line)
     first = cmd_decoded.split()[0]
@@ -104,7 +104,7 @@ def test_arg_text_quoting_the_runner_path_is_spared():
     import loopctl
     cmd = subprocess.list2cmdline([
         "C:\\x\\python.exe", "-m", "hermes_cli.main", "-z",
-        "review of C:\\CODING\\project-improver\\karpathy_runner.py"])
+        "review of " + str(ROOT / "karpathy_runner.py")])
     line = _ps_row(cmd, "777")
     cmd_decoded, _ = loopctl._csv_cmd_and_pid(line)
     first = cmd_decoded.split()[0]
@@ -300,8 +300,7 @@ def test_push_retries_once_via_gh_credential_helper():
     round ('could not read Username'). The runner must retry ONCE with the gh
     CLI's non-interactive credential helper before reporting failure."""
     import pathlib
-    src = pathlib.Path("C:/CODING/project-improver/karpathy_runner.py").read_text(
-        encoding="utf-8")
+    src = (ROOT / "karpathy_runner.py").read_text(encoding="utf-8")
     assert 'credential.helper=!gh auth git-credential' in src, (
         "the gh fallback push retry is missing — round work reaches a local "
         "tag but never GitHub")
@@ -314,8 +313,7 @@ def test_checkpoint_payload_is_small():
     """F-Q: the desktop bridge clipped the 4KB checkpoints payload mid-stream
     ('Unexpected token o' at byte ~16). Summaries cap at 72 chars."""
     import pathlib, re
-    src = pathlib.Path("C:/CODING/project-improver/checkpoint.py").read_text(
-        encoding="utf-8")
+    src = (ROOT / "checkpoint.py").read_text(encoding="utf-8")
     assert '[:72]' in src and '[:160]' not in src.split("F-Q")[0].split("LIMIT = 12")[-1]
 
 
@@ -325,7 +323,6 @@ def test_elapsed_is_never_dropped_by_size_guard():
     blank. The floor guard must now shrink `see` blocks FIRST and must NEVER
     drop `elapsed`."""
     import sys
-    sys.path.insert(0, "C:/CODING/project-improver")
     import activity
     d = activity.activities(max_steps=18)
     payload = json.loads(activity.compact_payload(d))
@@ -341,18 +338,23 @@ def test_checkpoints_carry_plain_summaries():
     explanation) per row, cached in state/plain_summaries.json."""
     import subprocess, json as _j
     out = subprocess.run(
-        ["os.environ.get("LOCALAPPDATA", "\\\?\\unknown") + "\\hermes"/hermes-agent/venv/Scripts/python.exe",
-         "checkpoint.py", "all"],
-        cwd="C:/CODING/project-improver", capture_output=True, text=True,
+        [PY, "checkpoint.py", "all"],
+        cwd=str(ROOT), capture_output=True, text=True,
         timeout=300).stdout
     d = _j.loads(out)
     cks = d.get("checkpoints") or []
-    assert cks, "no checkpoints emitted"
+    # A fresh clone has no kp/ tags: nothing to summarise is a valid state.
+    if not cks:
+        pytest.skip("no checkpoints in this checkout (fresh clone)")
+    # plain summaries need a configured summary endpoint (models.summary_url);
+    # with none configured the field is legitimately absent.
+    import settings as _S
+    if not _S.summary_endpoints():
+        pytest.skip("no summary LLM endpoint configured (models.summary_url)")
     assert any(c.get("plain") for c in cks), (
-        "no plain-language summaries present (LLM endpoints both down, or "
-        "cache empty)")
+        "endpoint configured but no plain-language summaries landed")
     import pathlib
-    cache = pathlib.Path("C:/CODING/project-improver/state/plain_summaries.json")
+    cache = pathlib.Path(str(ROOT)) / "state" / "plain_summaries.json"
     if cache.exists():
         vals = _j.loads(cache.read_text(encoding="utf-8")).values()
         assert not any(v == "None" or v is None for v in vals), (
@@ -364,8 +366,7 @@ def test_worktree_process_sweep_is_wired_before_removal():
     removal fails -> repo quarantined (happened twice: r57, r58 x3). The
     sweep must run inside _remove_worktree BEFORE _cleanup_junctions."""
     import pathlib, ast
-    src = pathlib.Path("C:/CODING/project-improver/karpathy_runner.py").read_text(
-        encoding="utf-8")
+    src = (ROOT / "karpathy_runner.py").read_text(encoding="utf-8")
     tree = ast.parse(src)
     fns = {n.name: n for n in ast.walk(tree)
            if isinstance(n, ast.FunctionDef) and n.name == "_remove_worktree"}
@@ -383,8 +384,7 @@ def test_heartbeat_fallback_covers_inter_round_gap():
     read that gap as 'no repo in rotation'. The producer must fall back to a
     fresh round-started heartbeat naming the project."""
     import ast, pathlib
-    src = pathlib.Path("C:/CODING/project-improver/activity.py").read_text(
-        encoding="utf-8")
+    src = (ROOT / "activity.py").read_text(encoding="utf-8")
     assert "runner_heartbeat.json" in src, (
         "no heartbeat fallback in the activity producer")
     assert "round-started" in src.split("F-U")[1][:900], (
@@ -396,9 +396,8 @@ def test_current_work_verb_emits_plain():
     fifth-grade explanation of what the loop is working on."""
     import subprocess, json as _j
     out = subprocess.run(
-        ["os.environ.get("LOCALAPPDATA", "\\\?\\unknown") + "\\hermes"/hermes-agent/venv/Scripts/python.exe",
-         "checkpoint.py", "current"],
-        cwd="C:/CODING/project-improver", capture_output=True, text=True,
+        [PY, "checkpoint.py", "current"],
+        cwd=str(ROOT), capture_output=True, text=True,
         timeout=120).stdout
     d = _j.loads(out)
     if d.get("running"):

@@ -18,8 +18,12 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-ROOT = Path(r"C:\CODING\project-improver")
-PY = Path(r"<LOCALAPPDATA>\..\AppData\Local\hermes\hermes-agent\venv\Scripts\python.exe")
+ROOT = Path(__file__).resolve().parent
+import sys
+sys.path.insert(0, str(ROOT))
+import settings as _S
+
+PY = _S.hermes_python()
 
 
 def run(script: str, *args, timeout=600):

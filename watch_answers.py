@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-project-improver / watch_answers.py
+karpathy-loop / watch_answers.py
 
 Two jobs, run every minute by the watcher task:
   1. send the next reminder ping for an unanswered question (nag loop)
@@ -34,9 +34,11 @@ def _mark(mid: str) -> None:
 
 
 def fetch_recent(limit: int = 20) -> list[dict]:
-    ch = dn.channel_id()
-    msgs = dn._req("GET", f"/channels/{ch}/messages?limit={limit}")
-    return msgs if isinstance(msgs, list) else []
+    """Recent messages from the configured sender's channel. The sender
+    interface owns the platform details; with notifications off this returns
+    [] and the watcher idles instead of erroring."""
+    import notify_senders
+    return notify_senders.current_sender().fetch_recent(limit)
 
 
 def check_reply() -> str:

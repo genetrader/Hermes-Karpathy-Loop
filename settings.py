@@ -21,8 +21,13 @@ tracked file may only name an ENV VAR (github.token_env, e.g. "GITHUB_TOKEN").
 
 Env overrides (all optional; "1/true/yes/on" enable, "0/false/no/off" disable):
     KL_SETTINGS_FILE      alternate path for the tracked settings file
+    KL_SETTINGS_LOCAL     alternate path for settings.local.yaml (tests)
     KL_GITHUB_ENABLED     master GitHub switch
     KL_NOTIFY_ENABLED     master notifications switch
+    KL_NOTIFY_BACKEND     discord | none (pluggable; none = silent no-op)
+    KL_NOTIFY_SUMMARIES   include the plain-English round summary (default on)
+    KL_LLM_URL / KL_LLM_MODEL (+ _2 fallbacks)  plain-summary LLM endpoints
+    KL_BUILDER_MODEL_SEAT / KL_REVIEWER_MODEL_SEAT   model seats
     GITHUB_TOKEN          token value the github.token_env default points at
     GH_TOKEN              honoured by gh itself; we forward our token to it
     HERMES_HOME           where Hermes lives
@@ -49,6 +54,16 @@ ROOT = Path(__file__).resolve().parent
 SETTINGS_FILE = ROOT / "settings.yaml"
 SETTINGS_LOCAL = ROOT / "settings.local.yaml"
 
+
+def _main_path() -> Path:
+    """Honours KL_SETTINGS_FILE everywhere the tracked file is touched."""
+    return Path(os.environ.get("KL_SETTINGS_FILE") or SETTINGS_FILE)
+
+
+def _local_path() -> Path:
+    """Honours KL_SETTINGS_LOCAL everywhere the local file is touched."""
+    return Path(os.environ.get("KL_SETTINGS_LOCAL") or SETTINGS_LOCAL)
+
 # Keys whose VALUES are secrets. They are rejected in the tracked file and
 # accepted only from settings.local.yaml or the environment.
 SECRET_LEAVES = {"github.token", "notifications.bot_token"}
@@ -65,25 +80,33 @@ SCHEMA: dict[str, tuple[str, str, object]] = {
     "github.gh_cli":             ("str",  "KL_GH_CLI", "gh"),
     "github.push_branches":      ("bool", "", True),
 
-    "notifications.enabled":     ("bool", "KL_NOTIFY_ENABLED", False),
-    "notifications.backend":     ("str",  "KL_NOTIFY_BACKEND", "discord"),
-    "notifications.bot_token_env": ("str", "", "DISCORD_BOT_TOKEN"),
-    "notifications.bot_token":   ("str",  "DISCORD_BOT_TOKEN", ""),
-    "notifications.channel_id":  ("str",  "IMPROVER_CHANNEL_ID", ""),
-    "notifications.ping_user_id": ("str", "IMPROVER_PING_USER_ID", ""),
+    "notifications.enabled":       ("bool", "KL_NOTIFY_ENABLED", False),
+    "notifications.backend":       ("str",  "KL_NOTIFY_BACKEND", "none"),
+    "notifications.bot_token_env": ("str",  "", "DISCORD_BOT_TOKEN"),
+    "notifications.bot_token":     ("str",  "DISCORD_BOT_TOKEN", ""),
+    "notifications.channel_id":    ("str",  "IMPROVER_CHANNEL_ID", ""),
+    "notifications.ping_user_id":  ("str",  "IMPROVER_PING_USER_ID", ""),
     "notifications.ping_on_stuck": ("bool", "IMPROVER_PING_ON_STUCK", False),
-    "notifications.env_file":    ("str",  "KL_NOTIFY_ENV_FILE", ""),
+    "notifications.include_summaries": ("bool", "KL_NOTIFY_SUMMARIES", True),
+    "notifications.env_file":      ("str",  "KL_NOTIFY_ENV_FILE", ""),
 
     "hermes.home":               ("str",  "HERMES_HOME", ""),
     "hermes.python":             ("str",  "KL_HERMES_PYTHON", ""),
     "hermes.profile":            ("str",  "KL_HERMES_PROFILE", ""),
     "hermes.config_file":        ("str",  "KL_HERMES_CONFIG", ""),
 
-    "models.implementer":        ("str",  "", ""),
-    "models.reviewer":           ("str",  "", ""),
+    "models.implementer":        ("str",  "KL_BUILDER_MODEL_SEAT", ""),
+    "models.reviewer":           ("str",  "KL_REVIEWER_MODEL_SEAT", ""),
     "models.builder_fallback":   ("str",  "KL_BUILDER_MODEL", ""),
     "models.brief_model":        ("str",  "KL_BRIEF_MODEL", ""),
     "models.brief_profile":      ("str",  "KL_BRIEF_PROFILE", ""),
+    # The plain-English (fifth-grade) round-summary LLM: any OpenAI-compatible
+    # /v1/chat/completions endpoint. url + model, with an optional fallback pair.
+    # No hardcoded servers: nothing ships with anyone's topology in it.
+    "models.summary_url":        ("str",  "KL_LLM_URL", ""),
+    "models.summary_url_2":      ("str",  "KL_LLM_URL_2", ""),
+    "models.summary_model":      ("str",  "KL_LLM_MODEL", ""),
+    "models.summary_model_2":    ("str",  "KL_LLM_MODEL_2", ""),
 
     "projects.manifest":         ("str",  "KL_MANIFEST", ""),
     "projects.index_rows":       ("str",  "KL_INDEX_ROWS", ""),
@@ -205,10 +228,10 @@ def _hermes_default_home() -> Path:
 def load_settings(refresh: bool = False) -> dict:
     """Merged settings as a nested dict. Reads cache unless files changed."""
     global _CACHE, _CACHE_STAMP, _ISSUES, _SOURCES
-    main = Path(os.environ.get("KL_SETTINGS_FILE") or SETTINGS_FILE)
+    main, local = _main_path(), _local_path()
     stamp = tuple(
         (p.stat().st_mtime_ns, p.stat().st_size) if p.exists() else None
-        for p in (main, SETTINGS_LOCAL))
+        for p in (main, local))
     if _CACHE is not None and stamp == _CACHE_STAMP and not refresh:
         return copy.deepcopy(_CACHE)
 
@@ -220,7 +243,7 @@ def load_settings(refresh: bool = False) -> dict:
     file_flat, iss = _layer_from_yaml(main, tracked=True)
     issues += iss
     layers.append(("file", file_flat))
-    local_flat, iss = _layer_from_yaml(SETTINGS_LOCAL, tracked=False)
+    local_flat, iss = _layer_from_yaml(local, tracked=False)
     issues += iss
     layers.append(("local", local_flat))
     layers.append(("env", _layer_from_env()))
@@ -435,6 +458,15 @@ def notify_enabled() -> bool:
     return bool(setting("notifications.enabled"))
 
 
+def notify_backend() -> str:
+    return (setting("notifications.backend") or "none").strip().lower()
+
+
+def notify_include_summaries() -> bool:
+    """Whether round messages carry the plain-English round summary."""
+    return bool(setting("notifications.include_summaries"))
+
+
 def notify_token() -> str | None:
     tok = (setting("notifications.bot_token") or "").strip()
     return tok or None
@@ -504,6 +536,32 @@ def seat_defaults() -> tuple[str, str]:
             (setting("models.reviewer") or "").strip())
 
 
+def implementer_seat() -> str:
+    """Settings-layer default for the implementer seat. loop.json (set via
+    `loopctl config --implementer`) still wins at runtime; this is what a
+    fresh deployment seeds it from -- no hardcoded fleet model names."""
+    return (setting("models.implementer") or "").strip()
+
+
+def reviewer_seat() -> str:
+    return (setting("models.reviewer") or "").strip()
+
+
+def summary_endpoints() -> list[tuple[str, str]]:
+    """[(url, model), ...] for the plain-English round-summary LLM.
+
+    OpenAI-compatible /v1/chat/completions endpoints, primary first, optional
+    fallback second. Empty when unconfigured -- callers must then skip summary
+    generation (never fall back to a hardcoded server or model name)."""
+    out: list[tuple[str, str]] = []
+    for ukey, mkey in (("models.summary_url", "models.summary_model"),
+                       ("models.summary_url_2", "models.summary_model_2")):
+        u = (setting(ukey) or "").strip()
+        if u:
+            out.append((u, (setting(mkey) or "").strip() or "gpt-4o-mini"))
+    return out
+
+
 def round_timeout() -> int:
     return int(setting("runtime.round_timeout") or 4200)
 
@@ -543,7 +601,7 @@ def write_setting(key: str, raw_value: str, tracked: bool = False) -> None:
     val, issue = _coerce(kind, raw_value, key)
     if issue:
         raise SystemExit(str(issue))
-    path = SETTINGS_FILE if tracked else SETTINGS_LOCAL
+    path = _main_path() if tracked else _local_path()
     doc: dict = {}
     if path.exists():
         try:
@@ -565,7 +623,7 @@ def write_setting(key: str, raw_value: str, tracked: bool = False) -> None:
 def unset_setting(key: str, tracked: bool = False) -> None:
     if key not in SCHEMA:
         raise SystemExit("unknown setting %r" % key)
-    path = SETTINGS_FILE if tracked else SETTINGS_LOCAL
+    path = _main_path() if tracked else _local_path()
     if not path.exists():
         return
     import yaml
@@ -612,8 +670,10 @@ def _example_yaml_text() -> str:
         "  push_branches: true       # push the working branch each round (not just tags)",
         "",
         "notifications:",
-        "  enabled: false            # master switch for Discord progress/stuck/ask pings",
-        "  backend: discord          # discord | none",
+        "  enabled: false            # master switch for progress/stuck/ask pings",
+        "  backend: none             # discord | none  (add more senders in",
+        "                            #   notify_senders.py: slack/telegram fit here)",
+        "  include_summaries: true   # round messages carry the plain-English summary",
         "  bot_token_env: DISCORD_BOT_TOKEN",
         "  channel_id: \"\"            # the channel the loop posts into",
         "  ping_user_id: \"\"          # Discord user id that gets @mentioned on questions",
@@ -632,6 +692,11 @@ def _example_yaml_text() -> str:
         "  builder_fallback: \"\"      # seat used when loop.json has no implementer yet",
         "  brief_model: \"\"           # model for the one-shot repo briefs",
         "  brief_profile: \"\"",
+        "  summary_url: \"\"           # OpenAI-compatible /v1/chat/completions endpoint",
+        "                            #   for the fifth-grade round summaries",
+        "  summary_model: \"\"         # model name on that endpoint",
+        "  summary_url_2: \"\"         # optional fallback endpoint",
+        "  summary_model_2: \"\"       # its model name",
         "",
         "projects:",
         "  manifest: \"\"              # improve.yaml path (default: alongside the loop)",

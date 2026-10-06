@@ -366,7 +366,14 @@ def test_rejected_untracked_residue_removed(world):
 # --------------------------------------------------------------------------
 # 3. accepted second round's published range contains none of round 1's work
 # --------------------------------------------------------------------------
-def test_accepted_round2_range_excludes_round1(world):
+def test_accepted_round2_range_excludes_round1(world, monkeypatch):
+    # this scenario asserts the tag reaches origin, so it exercises the PUSH
+    # path: GitHub ships disabled (safe default) -- flip the settings gates.
+    import settings as S_mod
+    monkeypatch.setattr(kr._S, "github_enabled", lambda: True)
+    monkeypatch.setattr(S_mod, "github_enabled", lambda: True)
+    monkeypatch.setattr(kr._S, "push_enabled", lambda loop_cfg=None: True)
+    monkeypatch.setattr(S_mod, "push_enabled", lambda loop_cfg=None: True)
     h = world(gate_ok=False)                    # round 1: rejected
     h.child_does(commit_file="r1.py", msg="round one work")
     h.run()

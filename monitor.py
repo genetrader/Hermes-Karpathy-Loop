@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-project-improver / monitor.py
+karpathy-loop / monitor.py
 
 Generates monitor.html — the "special area" you watch. Reads real state:
   state/rotation.json   rotation position + turn history

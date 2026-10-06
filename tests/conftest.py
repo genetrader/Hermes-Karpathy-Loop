@@ -1,4 +1,4 @@
-"""Shared test setup for the project-improver suite.
+"""Shared test setup for the Karpathy Loop suite.
 
 CRITICAL: KL_RUNNER_LOG must be set BEFORE any test imports karpathy_runner,
 because LOG is read at import time. Without this, every orchestration test
@@ -15,5 +15,12 @@ if "KL_RUNNER_LOG" not in os.environ:
     os.environ["KL_RUNNER_LOG"] = str(
         Path(tempfile.gettempdir()) / "kl-test-runner.log")
 
-# Keep the discord notifier inert in tests: no token, no network calls.
-os.environ.setdefault("DISCORD_BOT_TOKEN", "test-token-nonetwork")
+# Keep the notifier provably inert in tests: backend none + disabled, so no
+# test ever reaches the network no matter what settings.yaml this checkout
+# carries. (The old line set a fake DISCORD token, which could let a real
+# DiscordSender get built and point at the API.)
+os.environ["KL_NOTIFY_ENABLED"] = "0"
+os.environ["KL_NOTIFY_BACKEND"] = "none"
+os.environ["KL_GITHUB_ENABLED"] = "0"
+os.environ["KL_SETTINGS_FILE"] = str(Path(tempfile.gettempdir()) / "kl-test-settings-none.yaml")
+os.environ["KL_SETTINGS_LOCAL"] = str(Path(tempfile.gettempdir()) / "kl-test-settings-local-none.yaml")

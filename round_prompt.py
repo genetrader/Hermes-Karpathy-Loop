@@ -54,14 +54,25 @@ WRAP-UP (before you run out of room)
 {scope_marker}{prior_block}"""
 
 
-# F3.7 (2026-09-30): reviewer seats must be LIVE endpoints. The old primary
-# (glm53-flash-2x-spark / EXL3) was hidden on 2026-09-30, so every round was
-# offered a dead reviewer. The runner passes the loop.json seat via
-# build(seats=); these constants are only the fallback for callers that do
-# not pass seats (legacy/test calls). Primary and alt are different machines
-# so one dead box cannot take out both seats.
-REVIEWER_MODEL = "custom:d754-mia-flashnext:qwen3.8-flash-next"
-REVIEWER_ALT_MODEL = "custom:evo-x2:qwen3.8-flash-next"
+# F3.7 (2026-09-30): reviewer seats must be LIVE endpoints -- the loop once
+# offered every round a dead reviewer because a hidden model was hardcoded
+# here. The runner passes the live loop.json seat via build(seats=); the
+# fallback for callers that do not pass seats is settings
+# (models.reviewer / env KL_REVIEWER_MODEL_SEAT), so NO model name ships in
+# this file. Unset means "no review block": the round must then name its own
+# reviewer, and the acceptance chain still requires one.
+import settings as _S  # noqa: E402
+
+
+def _default_reviewer() -> str:
+    try:
+        return _S.reviewer_seat() or _S.seat_defaults()[0]
+    except Exception:
+        return ""
+
+
+REVIEWER_MODEL = ""       # filled from settings on first use (see below)
+REVIEWER_ALT_MODEL = ""
 
 # The machine-readable scope line. It is PARSED (see karpathy_runner), so it must
 # be requested explicitly -- a marker nobody asks for does not arrive. The
@@ -309,19 +320,32 @@ def build(project: str, angle: dict, gate: str, round_no: int, prior: dict,
         worktree_block = "\n".join(wt_lines) + "\n"
 
     # Offer the concrete reviewer seats so the round does not have to invent one.
-    # The runner hands the live loop.json reviewer seat via `seats` (F3.7).
-    _rev = (seats or {}).get("reviewer") or REVIEWER_MODEL
-    _alt = (seats or {}).get("alt") or REVIEWER_ALT_MODEL
-    review_block = (
-        "  Reviewer seats available on this box (use a DIFFERENT family than yours):\n"
-        "      primary: %s\n"
-        "      alt    : %s\n"
-        "  Drive it headlessly if you like:\n"
-        "      hermes -p default --model %s -z \"<your diff + the claimed finding; "
-        "try to falsify it>\"\n"
-        "  If the reviewer endpoint is unreachable, say so explicitly and mark the "
-        "review INCONCLUSIVE rather than claiming it passed."
-        % (_rev, _alt, _rev))
+    # The runner hands the live loop.json reviewer seat via `seats` (F3.7);
+    # the fallback comes from settings, never from a name baked into code.
+    _rev = (seats or {}).get("reviewer") or _default_reviewer()
+    _alt = (seats or {}).get("alt") or ""
+    if _rev:
+        _prof = "default"
+        try:
+            _prof = _S.hermes_profile() or "default"
+        except Exception:
+            pass
+        review_block = (
+            "  Reviewer seats available on this box (use a DIFFERENT family than yours):\n"
+            "      primary: %s\n"
+            + ("      alt    : %s\n" % _alt if _alt else "")
+            + "  Drive it headlessly if you like:\n"
+            "      hermes -p %s --model %s -z \"<your diff + the claimed finding; "
+            "try to falsify it>\"\n"
+            "  If the reviewer endpoint is unreachable, say so explicitly and mark the "
+            "review INCONCLUSIVE rather than claiming it passed."
+            % (_prof, _rev, _rev))
+    else:
+        review_block = (
+            "  Review this round with a DIFFERENT model than the one writing the "
+            "change (configure models.reviewer so a concrete seat can be offered).\n"
+            "  If no reviewer endpoint is reachable, say so explicitly and mark the "
+            "review INCONCLUSIVE rather than claiming it passed.")
     return TEMPLATE.format(project=project, round_no=round_no, angle_id=aid,
                                angle_text=atext, gate=gate, prior_block=prior_block,
                                prompt_block=prompt_block,

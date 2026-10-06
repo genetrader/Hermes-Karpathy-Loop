@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-project-improver / improver.py — the ROTATOR
+karpathy-loop / improver.py — the ROTATOR
 
 Walks the enabled projects in improve.yaml on a schedule. For each project whose
 turn is up, it creates ONE goal-mode kanban card (a full OS process that survives
@@ -30,14 +30,20 @@ import angle_pick as ap
 import loopctl
 
 ROOT = Path(__file__).resolve().parent
+sys.path.insert(0, str(ROOT))
+import settings as _S  # noqa: E402  machine config comes from settings.py only
+
 STATE = ROOT / "state" / "rotation.json"
-MANIFEST = ROOT / "improve.yaml"
+MANIFEST = _S.manifest_path()
 # Where kanban boards live. Each board dir holds board.json (slug, name,
 # default_workdir) next to its kanban.db. A card created on a board with no
 # default_workdir can never start -- see board_workdir().
-BOARD_HOME = Path(r"<LOCALAPPDATA>\..\AppData\Local\hermes\kanban\boards")
-HERMES_PY = Path(r"<LOCALAPPDATA>\..\AppData\Local\hermes\hermes-agent\venv\Scripts\python.exe")
-HERMES_MAIN = Path(r"<LOCALAPPDATA>\..\AppData\Local\hermes\hermes-agent\hermes_cli\main.py")
+BOARD_HOME = _S.hermes_home() / "kanban" / "boards"
+HERMES_PY = _S.hermes_python()
+HERMES_MAIN = _S.hermes_home() / "hermes-agent" / "hermes_cli" / "main.py"
+
+# The command the worker cards use to reach the operator (path stays generic).
+DN_CMD = str(ROOT / "discord_notify.py")
 
 
 # ---------------------------------------------------------------- manifest
@@ -384,12 +390,12 @@ WRAP-UP (mandatory, and it comes BEFORE the budget runs out):
   frozen -- do not repeat that. Always leave the branch consistent and the gate
   green before you finish, even if that means reporting fewer rounds than asked.
 - If you hit a decision only the operator can make, STOP and post ONE question
-  (one question at a time, never two) via: python C:\\CODING\\project-improver\\discord_notify.py ask "{proj['name']}" "<question>"
+  (one question at a time, never two) via: python {DN_CMD} ask "{proj['name']}" "<question>"
   then call kanban_block with kind=needs_input. Resume when unblocked.
 - Report each round with:
-  python C:\\CODING\\project-improver\\discord_notify.py progress "{proj['name']}" "round N/{loops}: angle {angle['angle']} - <what changed>, gate <pass/fail>, commit <hash>"
+  python {DN_CMD} progress "{proj['name']}" "round N/{loops}: angle {angle['angle']} - <what changed>, gate <pass/fail>, commit <hash>"
 - Record the angle outcome when done:
-  python C:\\CODING\\project-improver\\angle_pick.py mark --angle {angle['angle']} --project {proj['name']} --family {angle['family']} --result accepted
+  python {ROOT / "angle_pick.py"} mark --angle {angle['angle']} --project {proj['name']} --family {angle['family']} --result accepted
 - Do NOT merge to main. Do NOT push to a shared branch. Checkpoint branches only.
 """
     else:
@@ -416,12 +422,12 @@ Loop contract:
 - ONE backlog item per loop. Do not batch multiple items into one unverified commit.
 - Commit EVERY passing round as its own commit on this task's branch.
 - If you hit a decision only the operator can make, STOP and post ONE question
-  (one question at a time, never two) via: python C:\\CODING\\project-improver\\discord_notify.py ask "{proj['name']}" "<question>"
+  (one question at a time, never two) via: python {DN_CMD} ask "{proj['name']}" "<question>"
   then call kanban_block with kind=needs_input. Resume when unblocked.
 - Report each round with:
-  python C:\\CODING\\project-improver\\discord_notify.py progress "{proj['name']}" "round N/{loops}: <what changed>, gate <pass/fail>, commit <hash>"
+  python {DN_CMD} progress "{proj['name']}" "round N/{loops}: <what changed>, gate <pass/fail>, commit <hash>"
 - When the stage is finished, record it:
-  python C:\\CODING\\project-improver\\method.py advance "{proj['name']}" {key} ok
+  python {ROOT / "method.py"} advance "{proj['name']}" {key} ok
 - Do NOT merge to main. Do NOT push to a shared branch. Checkpoint branches only.
 """
     args = [
@@ -921,7 +927,8 @@ def _run_locked(m, s, projs):
             angle = ap.pick(p["name"], facts)
             dn.progress(p["name"],
                         f"round {lc.get('rounds_done', 0) + 1} — angle "
-                        f"`{angle['angle']}` ({angle['family']}): {angle['lens']}")
+                        f"`{angle['angle']}` ({angle['family']}): {angle['lens']}",
+                        round_no=lc.get("rounds_done", 0) + 1)
             print(f"angle: {angle['angle']} ({angle['family']})")
         else:
             stage = next_stage(p["name"])

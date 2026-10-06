@@ -10,7 +10,7 @@ Two additions since the last handoff: **the panel** (your base platform) and
 The whole inventory is the working surface, with the rotation on top.
 
 ```
-C:\CODING\project-improver\panel.html     ← open this
+panel.html                                ← open this (in the loop's folder)
 python control_panel.py --open            ← rebuild + open
 ```
 

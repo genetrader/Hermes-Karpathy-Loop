@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-project-improver / method.py
+karpathy-loop / method.py
 
 THE PROCESS. This is what makes the loop methodical instead of blind.
 
@@ -211,10 +211,10 @@ RULES
   - Never report a command result you did not actually execute.
   - Do not skip ahead to a later stage. The next stage needs this artifact.
   - If you are blocked on a decision only the operator can make, ask ONE question:
-      python C:\\CODING\\project-improver\\discord_notify.py ask "{project}" "<question>"
+      python {Path(__file__).resolve().parent / "discord_notify.py"} ask "{project}" "<question>"
     then stop and wait. Do not guess and continue.
   - Report progress to Discord:
-      python C:\\CODING\\project-improver\\discord_notify.py progress "{project}" "<what happened>"
+      python {Path(__file__).resolve().parent / "discord_notify.py"} progress "{project}" "<what happened>"
 
 ITERATION BUDGET FOR THIS TURN: {loops} loops (used in S4)
 """

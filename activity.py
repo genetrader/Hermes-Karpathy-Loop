@@ -42,13 +42,11 @@ ROOT = Path(__file__).resolve().parent
 # The payload must stay under this or the widget's JSON.parse fails.
 BRIDGE_BUDGET = 3800
 STATE = ROOT / "state" / "rotation.json"
-HERMES_HOME = Path(
-    os.environ.get("HERMES_HOME")
-    or (Path.home() / "AppData" / "Local" / "hermes")
-)
-BOARDS = HERMES_HOME / "kanban" / "boards"
-
 sys.path.insert(0, str(ROOT))
+import settings as _S   # noqa: E402  portable Hermes home, never hardcoded
+
+HERMES_HOME = _S.hermes_home()
+BOARDS = HERMES_HOME / "kanban" / "boards"
 
 # ── transcript parsing ──────────────────────────────────────────────────────
 

@@ -78,7 +78,8 @@ def git(repo: Path, *args, check=False, timeout=300):
 
 
 def gh(*args, check=False, timeout=300):
-    return run(["gh", *args], cwd=HERE, check=check, timeout=timeout)
+    import settings as _S
+    return run([_S.gh_cli(), *args], cwd=HERE, check=check, timeout=timeout)
 
 
 # --------------------------------------------------------------------------
@@ -172,6 +173,18 @@ def ensure_remote(repo: Path, project: str, owner_hint: str | None = None,
     private own    -> nothing to do
     """
     res = {"action": "none", "safe": True, "detail": ""}
+
+    # GitHub master switch OFF (the shipped default): checkpoints are LOCAL
+    # tags only. No gh calls, no fork/repo creation, no network -- and this
+    # is a SUPPORTED mode, so it reports safe, not a refusal.
+    try:
+        import settings as _S
+        if not _S.github_enabled():
+            res.update(action="local-only", safe=True,
+                       detail="GitHub disabled by settings -- tags stay local")
+            return res
+    except Exception:
+        pass
 
     if not is_repo(repo):
         res.update(safe=False, action="not-a-repo",
@@ -296,6 +309,12 @@ def make_checkpoint(repo: Path, tag: str, message: str, push: bool = True,
 
     res = {"ok": True, "tag": tag, "sha": short_sha(repo), "pushed": False}
 
+    try:
+        import settings as _S
+        push = push and _S.push_enabled()
+    except Exception:
+        pass
+
     if push:
         rem = remotes(repo)
         if "origin" in rem:
@@ -324,6 +343,14 @@ def commit_all(repo: Path, message: str) -> dict:
 
 
 def push_branch(repo: Path, project: str) -> dict:
+    try:
+        import settings as _S
+        if not _S.push_enabled() or not _S.push_branches():
+            return {"ok": True, "skipped": True,
+                    "detail": "branch push disabled by settings (github off / "
+                              "push_branches false)"}
+    except Exception:
+        pass
     rem = remotes(repo)
     if "origin" not in rem:
         return {"ok": False, "detail": "no origin to push to"}
@@ -590,15 +617,29 @@ def cmd_status(a):
 # subject into 1-2 plain sentences, ONCE per tag, cached on disk -- the panel
 # polls every 30s and must never pay for (or wait on) an LLM call per render.
 PLAIN_CACHE = HERE / "state" / "plain_summaries.json"
-# Plain-English summary LLM. Set KL_LLM_URL (an OpenAI-compatible
-# /v1/chat/completions endpoint) and KL_LLM_MODEL. Optional KL_LLM_URL_2 /
-# KL_LLM_MODEL_2 for a fallback. No hardcoded servers: nothing ships with
-# your topology in it.
-def _e(k): return os.environ.get(k) or None
-PLAIN_ENDPOINTS = [u for u in (_e("KL_LLM_URL"), _e("KL_LLM_URL_2")) if u]
-PLAIN_MODELS = {}
-if _e("KL_LLM_MODEL"): PLAIN_MODELS["1"] = _e("KL_LLM_MODEL")
-if _e("KL_LLM_MODEL_2"): PLAIN_MODELS["2"] = _e("KL_LLM_MODEL_2")
+
+
+def _summary_endpoints() -> list:
+    """[(url, model), ...] for the plain-English summary LLM, read FRESH from
+    settings -- models.summary_url / summary_model (+ _2 fallback), env names
+    KL_LLM_URL / KL_LLM_MODEL. An OpenAI-compatible /v1/chat/completions
+    endpoint. EMPTY when unconfigured: summary generation is then simply
+    skipped -- there are no hardcoded servers or model names anywhere."""
+    try:
+        import settings as _S
+        eps = _S.summary_endpoints()
+        if eps:
+            return eps
+    except Exception:
+        pass
+    # historical env names (settings folds these too; belt and braces so the
+    # summaries keep working if the settings layer itself is broken)
+    out = []
+    for uk, mk in (("KL_LLM_URL", "KL_LLM_MODEL"), ("KL_LLM_URL_2", "KL_LLM_MODEL_2")):
+        u = os.environ.get(uk)
+        if u:
+            out.append((u, os.environ.get(mk) or "gpt-4o-mini"))
+    return out
 
 
 def _load_plain_cache() -> dict:
@@ -624,13 +665,12 @@ def _plain_for(tag: str, subject: str, project: str) -> str:
     usermsg = ("Change made to the %s project:\n%s\n\n"
                "Explain in 1-2 simple sentences what this did for the person "
                "using the app." % (project, subject[:600]))
-    for url in PLAIN_ENDPOINTS:
-        model = PLAIN_MODELS.get(str(PLAIN_ENDPOINTS.index(url) + 1)) or "gpt-4o-mini"
+    for url, model in _summary_endpoints():
         try:
             # Thinking models burn small max_tokens budgets on hidden
             # reasoning and return content:null (measured: 160 tokens -> None
             # every call). Disable thinking where supported (vLLM
-            # chat_template_kwargs, the BASTION lane) and budget generously.
+            # chat_template_kwargs) and budget generously.
             body = json.dumps({
                 "model": model, "max_tokens": 400, "temperature": 0.2,
                 "chat_template_kwargs": {"enable_thinking": False},
@@ -660,6 +700,69 @@ def _plain_for(tag: str, subject: str, project: str) -> str:
     except Exception:
         pass
     return text
+
+
+def _inflight_round(project: str, round_no: int | None = None) -> tuple:
+    """(entry, current_angle) for a project from the threads registry, or
+    (None, {}) when it has none. When round_no is given the angle must belong
+    to that round (or not name one), so a stale current_angle from a previous
+    round never captions a fresh message."""
+    try:
+        reg = json.loads((HERE / "state" / "threads.json").read_text(encoding="utf-8"))
+    except Exception:
+        reg = {}
+    e = reg.get(project) or {}
+    ca = e.get("current_angle") or {}
+    if ca and round_no is not None and ca.get("round") not in (None, round_no):
+        return None, {}
+    return (e, ca) if ca else (None, {})
+
+
+def _current_subject(brief: str, ca: dict, project: str) -> str:
+    """The engineer-speak description handed to the fifth-grade translator for
+    the in-flight round. Shared by cmd_current (panel) and plain_round_summary
+    (Discord) so the two can never drift."""
+    return ("The project: %s\n"
+            "This round (number %s) is applying the review angle '%s' "
+            "-- %s\n"
+            "The exact instruction the worker was given: %s"
+            % ((brief or project)[:300], ca.get("round"), ca.get("id"),
+               (ca.get("lens") or ""), (ca.get("prompt") or "")[:900]))
+
+
+def plain_round_summary(project: str, round_no: int | None = None) -> str:
+    """Public: the fifth-grade line for THIS project's round, used by
+    discord_notify.progress on round messages. Cache-first (the notify path
+    must never block the round on the LLM); asks the summary model only for
+    the in-flight round and caches per <project>/<angle>/<round>. Returns ""
+    when notifications-summaries are off, no endpoint is configured, or
+    nothing is in flight -- callers then just post the technical line."""
+    e, ca = _inflight_round(project, round_no)
+    if ca:
+        key = "current/%s/%s/r%s" % (project, ca.get("id"), ca.get("round"))
+        hit = _load_plain_cache().get(key)
+        if isinstance(hit, str) and hit:
+            return hit
+        # cache miss: generating a NEW summary needs an endpoint; without one
+        # we post the technical line only.
+        try:
+            if not _summary_endpoints():
+                return ""
+        except Exception:
+            return ""
+        brief = ""
+        try:
+            brief = json.loads((HERE / "state" / "repos" / ("%s.json" % project)).read_text(
+                encoding="utf-8")).get("what_it_is") or ""
+        except Exception:
+            pass
+        return _plain_current(key, _current_subject(brief, ca, project), project) or ""
+    # not in flight: a cached checkpoint summary for the finished round, if any
+    if round_no:
+        hit = _load_plain_cache().get("kp/%s/r%02d" % (project, round_no))
+        if isinstance(hit, str) and hit:
+            return hit
+    return ""
 
 
 def cmd_current(a):
@@ -707,13 +810,7 @@ def cmd_current(a):
     key = "current/%s/%s/r%s" % (name, ca.get("id"), ca.get("round"))
     plain = _plain_for(key, "", name)  # cache lookup only
     if not plain:
-        subject = ("The project: %s\n"
-                   "This round (number %s) is applying the review angle '%s' "
-                   "-- %s\n"
-                   "The exact instruction the worker was given: %s"
-                   % ((brief or name)[:300], ca.get("round"), ca.get("id"),
-                      (ca.get("lens") or ""), (ca.get("prompt") or "")[:900]))
-        plain = _plain_current(key, subject, name)
+        plain = _plain_current(key, _current_subject(brief, ca, name), name)
     print()
     print(json.dumps({
         "running": True, "project": name, "round": ca.get("round"),
@@ -737,8 +834,7 @@ def _plain_current(key: str, subject: str, project: str) -> str:
     usermsg = ("%s\n\nExplain simply what this worker is trying to do right "
                "now." % subject)
     text = ""
-    for url in PLAIN_ENDPOINTS:
-        model = PLAIN_MODELS.get(str(PLAIN_ENDPOINTS.index(url) + 1)) or "gpt-4o-mini"
+    for url, model in _summary_endpoints():
         try:
             body = json.dumps({
                 "model": model, "max_tokens": 400, "temperature": 0.2,
