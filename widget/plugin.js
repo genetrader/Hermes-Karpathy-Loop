@@ -970,7 +970,9 @@ const S = {
   modalBack: { position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)",
                display: "flex", alignItems: "flex-start", justifyContent: "center",
                zIndex: 50, padding: 24 },
-  modalCard: { width: "min(860px, 94%)", maxHeight: "88vh", display: "flex" },
+  modalCard: { width: "min(860px, 94%)", maxHeight: "88vh", display: "flex",
+                background: "#ffffff", color: "#111827",
+                borderRadius: 12, border: "1px solid #d1d5db" },
   modalScroll: { overflowY: "auto", maxHeight: "calc(88vh - 64px)", paddingRight: 4 },
 
   /* settings card */
