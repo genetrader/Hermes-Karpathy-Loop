@@ -30,6 +30,9 @@ def clean_env(tmp_path, monkeypatch):
             monkeypatch.delenv(k, raising=False)
     monkeypatch.setenv("KL_SETTINGS_FILE", str(tmp_path / "settings.yaml"))
     monkeypatch.setenv("KL_SETTINGS_LOCAL", str(tmp_path / "settings.local.yaml"))
+    # hermetic: the channel state-file fallback must point at tmp, never the
+    # live loop's state/channel_id.txt
+    monkeypatch.setattr(S, "CHANNEL_STATE_FILE", tmp_path / "channel_id.txt", raising=False)
     S.reset_cache()
     yield tmp_path
     S.reset_cache()
@@ -168,13 +171,39 @@ def test_negative_timeout_is_error(clean_env, tmp_path):
     assert any("runtime.round_timeout" in i.key for i in errs)
 
 
-def test_enabled_discord_without_token_or_channel_errors(clean_env, tmp_path):
+def test_enabled_discord_without_token_or_channel_warns(clean_env, tmp_path):
+    """Missing token/channel is a WARN, never a save-blocking ERROR: sending
+    fails gracefully (and never breaks rounds) until they are set — the old
+    error-level check blocked saving UNRELATED settings, which was the bug
+    Gene hit ('model change does not show after saving')."""
     _write(tmp_path / "settings.yaml",
            "notifications:\n  enabled: true\n  backend: discord\n")
-    errs = [i for i in S.issues() if i.level == "error"]
-    keys = [i.key for i in errs]
-    assert "notifications.bot_token" in keys
-    assert "notifications.channel_id" in keys
+    issues = S.issues()
+    assert not [i for i in issues if i.level == "error"], \
+        "token/channel absence must not block saves with an error"
+    warns = [i.key for i in issues if i.level == "warn"]
+    assert "notifications.bot_token" in warns
+    assert "notifications.channel_id" in warns
+
+
+def test_token_from_env_file_resolves(clean_env, tmp_path):
+    envf = tmp_path / "notify.env"
+    envf.write_text("DISCORD_BOT_TOKEN=mtqxyz.secret\n", encoding="utf-8")
+    _write(tmp_path / "settings.yaml",
+           "notifications:\n  enabled: true\n  backend: discord\n"
+           "  bot_token: ''\n  channel_id: '123'\n  env_file: %s\n" % envf)
+    assert not [i for i in S.issues() if i.key == "notifications.bot_token"]
+    assert S.notify_token() == "mtqxyz.secret"
+
+
+def test_channel_from_state_file_resolves(clean_env, tmp_path):
+    ch = tmp_path / "channel_id.txt"
+    ch.write_text("  1497116046513131673  ", encoding="utf-8")
+    _write(tmp_path / "settings.yaml",
+           "notifications:\n  enabled: true\n  backend: discord\n"
+           "  bot_token: 'tok'\n  channel_id: ''\n")
+    assert not [i for i in S.issues() if i.key == "notifications.channel_id"]
+    assert S.notify_channel() == "1497116046513131673"
 
 
 def test_backend_none_needs_no_token(clean_env, tmp_path):

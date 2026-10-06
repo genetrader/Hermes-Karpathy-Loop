@@ -428,14 +428,14 @@ def _validate_semantics(flat: dict, sources: dict) -> list:
                                 "auto-creating repos needs to know whose account",
                                 "set github.owner in settings.yaml"))
     if flat.get("notifications.enabled") and flat.get("notifications.backend") == "discord":
-        if not notify_token():
+        if not _token_resolves(flat):
             issues.append(Issue("warn", "notifications.bot_token",
                                 "notifications are enabled but no Discord bot "
                                 "token resolves from env or %s -- sending will "
                                 "fail (and never break rounds) until set" % SETTINGS_LOCAL.name,
                                 "export DISCORD_BOT_TOKEN, set bot_token in %s, "
                                 "or turn notifications off" % SETTINGS_LOCAL.name))
-        if not notify_channel():
+        if not _channel_resolves(flat):
             issues.append(Issue("warn", "notifications.channel_id",
                                 "notifications are enabled but no channel is "
                                 "configured",
@@ -545,9 +545,13 @@ def notify_include_summaries() -> bool:
     return bool(setting("notifications.include_summaries"))
 
 
-def _env_file_value(key: str) -> str:
+CHANNEL_STATE_FILE = ROOT / "state" / "channel_id.txt"
+"""Fallback channel file (what discord_notify stores). Tests redirect this."""
+
+
+def _env_file_value(key: str, env_file: str | None = None) -> str:
     """Read KEY from notifications.env_file (a .env-style file), if set."""
-    pth = (setting("notifications.env_file") or "").strip()
+    pth = (env_file if env_file is not None else (setting("notifications.env_file") or "")).strip()
     if not pth:
         return ""
     try:
@@ -561,6 +565,33 @@ def _env_file_value(key: str) -> str:
     except Exception:
         pass
     return ""
+
+
+def _token_resolves(flat: dict) -> bool:
+    """Validator-side token resolution: settings value, env, or env_file."""
+    if (flat.get("notifications.bot_token") or "").strip():
+        return True
+    import os as _os
+    if (_os.environ.get("DISCORD_BOT_TOKEN") or "").strip():
+        return True
+    return bool(_env_file_value("DISCORD_BOT_TOKEN",
+                               env_file=flat.get("notifications.env_file") or ""))
+
+
+def _channel_resolves(flat: dict) -> bool:
+    """Validator-side channel resolution: settings, env, or state file."""
+    if (flat.get("notifications.channel_id") or "").strip():
+        return True
+    import os as _os
+    if (_os.environ.get("IMPROVER_CHANNEL_ID") or "").strip():
+        return True
+    try:
+        if CHANNEL_STATE_FILE.exists() and CHANNEL_STATE_FILE.read_text(
+                encoding="utf-8", errors="replace").strip():
+            return True
+    except Exception:
+        pass
+    return False
 
 
 def notify_token() -> str | None:
@@ -587,9 +618,8 @@ def notify_channel() -> str:
         return ch
     # the loop's own state file (what discord_notify falls back to)
     try:
-        pth = ROOT / "state" / "channel_id.txt"
-        if pth.exists():
-            return pth.read_text(encoding="utf-8", errors="replace").strip()
+        if CHANNEL_STATE_FILE.exists():
+            return CHANNEL_STATE_FILE.read_text(encoding="utf-8", errors="replace").strip()
     except Exception:
         pass
     return ""
