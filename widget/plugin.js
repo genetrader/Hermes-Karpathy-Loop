@@ -1477,13 +1477,20 @@ const SETTING_SECTIONS = [
     keys: ["notifications.enabled", "notifications.backend",
            "notifications.channel_id", "notifications.ping_user_id",
            "notifications.ping_on_stuck", "notifications.include_summaries",
-           "notifications.bot_token", "notifications.env_file"] },
+           "notifications.bot_token", "notifications.bot_token_env",
+           "notifications.env_file"] },
   { id: "projects", title: "Projects & rotation",
     note: "paths live in files on THIS machine — set them here, not in code. "
         + "Rotation values below write the live loop.json immediately.",
     keys: ["projects.manifest", "projects.index_rows", "projects.sweep_roots",
            "rot:angles_per_visit", "rot:sweep_minutes", "rot:max_rounds",
            "rot:max_hours", "rot:implementer", "rot:reviewer"] },
+  { id: "hermes", title: "Hermes install",
+    note: "where Hermes lives on THIS machine. The loop launches round "
+        + "workers with this Python and profile. Defaults are auto-detected "
+        + "\u2014 fix only if Hermes moved or you run several installs.",
+    keys: ["hermes.home", "hermes.python", "hermes.profile",
+           "hermes.config_file"] },
   { id: "runtime", title: "Runtime & machine",
     note: "timeouts are seconds. The loop's git identity is what authors its "
         + "checkpoint commits/tags.",
@@ -1515,6 +1522,11 @@ const SETTING_LABELS = {
   "runtime.worktree_abandon_secs": "Abandon worktree after (s)",
   "runtime.gate_timeout": "Gate timeout (s)",
   "widget.status_port": "Status server port",
+  "hermes.home": "Hermes folder",
+  "hermes.python": "Hermes Python",
+  "hermes.profile": "Round-worker profile",
+  "hermes.config_file": "Hermes config.yaml",
+  "notifications.bot_token_env": "Bot token env var NAME",
 };
 
 function labelFor(key) {
@@ -1554,27 +1566,64 @@ function secretKeyIn(schemaList, key) {
 
 /** One editable row. Draft edits are held locally until Save; the source
  *  chip tells the operator which layer currently answers for this key. */
-// The circled "?" on EVERY settings row. Click OR hover opens a plain-English
+// The circled "?" on EVERY settings row. Hover or click opens a plain-English
 // bubble: what the setting does, what to put there, required vs optional.
-// Native title tooltips are unreliable in the desktop renderer, so the card
-// draws its own. It is its own component because settingsField is a plain
-// helper — hooks only live here.
+//
+// Why the bubble is PLAIN DOM and not a React child (this killed v1): settings
+// labels carry overflow:hidden (ellipsis) and the modal body is a scroll
+// container, so an absolutely-positioned React child is CLIPPED INVISIBLE by
+// the nearest ancestor no matter its z-index — and the runtime plugin sandbox
+// exposes no react-dom, so createPortal is not available either (no useRef
+// either). A hand-built element appended to document.body escapes every
+// ancestor; handlers use event.currentTarget so no refs are needed.
+// One bubble at a time; closed on mouseleave/click-out/scroll/resize.
+var _klHelpEl = null;
+function _klHelpClose() {
+  if (_klHelpEl) {
+    try { document.body.removeChild(_klHelpEl); } catch (e) {}
+    _klHelpEl = null;
+  }
+}
+function _klHelpOpen(anchor, settingKey, text) {
+  _klHelpClose();
+  var r = anchor.getBoundingClientRect();
+  var box = document.createElement("div");
+  box.setAttribute("role", "tooltip");
+  box.style.cssText = "position:fixed;z-index:2147483000;width:340px;max-width:92vw;" +
+    "background:#ffffff;color:#111827;border:1px solid #d1d5db;border-radius:10px;" +
+    "box-shadow:0 8px 24px rgba(0,0,0,.18);padding:10px 12px;font-size:12.5px;" +
+    "line-height:1.5;font-weight:400;text-align:left;pointer-events:none;";
+  var head = document.createElement("div");
+  head.style.cssText = "font-size:10.5px;font-weight:700;letter-spacing:.04em;" +
+    "color:#6b7280;text-transform:uppercase;margin-bottom:3px;";
+  head.textContent = settingKey || "";
+  var body = document.createElement("div");
+  body.textContent = text || "no help text for this setting";
+  box.appendChild(head); box.appendChild(body);
+  document.body.appendChild(box);
+  // clamp INSIDE the viewport (measure after append so box size is real)
+  var bw = box.offsetWidth || 340, bh = box.offsetHeight || 120;
+  var left = Math.max(8, Math.min(r.left - 6, window.innerWidth - bw - 12));
+  var top = r.bottom + 8;
+  if (top + bh > window.innerHeight - 8) top = Math.max(8, r.top - bh - 8);
+  box.style.left = left + "px"; box.style.top = top + "px";
+  _klHelpEl = box;
+  window.addEventListener("scroll", _klHelpClose, true);
+  window.addEventListener("resize", _klHelpClose);
+}
 function HelpDot(props) {
-  const [open, setOpen] = useState(false);
-  const text = String(props.text || "");
-  return jsxs("span", {
+  return jsx("span", {
     style: S.helpDot,
-    onMouseEnter: function () { setOpen(true); },
-    onMouseLeave: function () { setOpen(false); },
-    onClick: function (ev) { ev.preventDefault(); ev.stopPropagation();
-                            setOpen(function (v) { return !v; }); },
-    children: [
-      "?",
-      open ? jsxs("span", { style: S.helpBubble, children: [
-        props.settingKey ? jsx("span", { style: S.helpBubbleKey, children: props.settingKey }, "bk") : null,
-        text || "no help text for this setting",
-      ] }, "hb") : null,
-    ] }, "hd");
+    onMouseEnter: function (ev) {
+      _klHelpOpen(ev.currentTarget, props.settingKey, String(props.text || ""));
+    },
+    onMouseLeave: _klHelpClose,
+    onClick: function (ev) {
+      ev.preventDefault(); ev.stopPropagation();
+      if (_klHelpEl) { _klHelpClose(); }
+      else { _klHelpOpen(ev.currentTarget, props.settingKey, String(props.text || "")); }
+    },
+    children: "?" }, "hd");
 }
 
 function settingsField(props) {
@@ -1688,11 +1737,27 @@ function settingsField(props) {
   ] });
 }
 
+// Rotation sliders (rot:*) edit loop.json, not settings.yaml, so they carry no
+// schema item of their own — map them to their settings twin purely to borrow
+// the layman help text for their "?" bubble (behaviour otherwise unchanged).
+const ROT_HELP_ALIAS = {
+  "rot:angles_per_visit": "runtime.angles_per_visit",
+  "rot:sweep_minutes":    "runtime.sweep_minutes",
+  "rot:max_rounds":       "runtime.max_rounds",
+  "rot:max_hours":        "runtime.max_hours",
+  "rot:implementer":      "models.implementer",
+  "rot:reviewer":         "models.reviewer",
+};
+
 function settingsSection(props) {
   const sec = props.section;
   const doc = props.doc;
   const rows = sec.keys.map(function (key) {
-    const sItem = schemaFor(props.schema, key);
+    let sItem = schemaFor(props.schema, key);
+    if (!sItem && ROT_HELP_ALIAS[key]) {
+      const twin = schemaFor(props.schema, ROT_HELP_ALIAS[key]);
+      sItem = { type: "str", secret: false, help: (twin && twin.help) || "" };
+    }
     return settingsField({
       key: key, schema: sItem || { type: "str", secret: false },
       onPickModel: props.onPickModel,
@@ -1862,7 +1927,10 @@ function settingsModal(props) {
                   "where THIS widget talks to the loop (browser-local, not saved to the loop)" }, "n"),
               ] }, "h"),
               jsxs("div", { style: S.setRow, children: [
-                jsx("span", { style: S.setKey, children: "server base URL" }, "k"),
+                jsxs("span", { style: S.setKey, children: [
+                  "server base URL",
+                  jsx(HelpDot, { text: "The web address this dashboard uses to talk to the loop on THIS computer (default http://127.0.0.1:8765). Only change it if the loop's server runs on another port. Stored in the browser only \u2014 never sent to the loop. Optional.", settingKey: "widget server base URL" }, "hd"),
+                ] }, "k"),
                 jsxs("div", { style: { display: "flex", gap: 6, alignItems: "center" }, children: [
                   jsx("input", { type: "text", style: S.setInput,
                     defaultValue: SERVER_BASE,
