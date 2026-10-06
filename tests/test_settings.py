@@ -264,9 +264,12 @@ def test_progress_message_carries_plain_summary(clean_env, monkeypatch, tmp_path
 
     import notify_senders
     monkeypatch.setattr(notify_senders, "current_sender", lambda: FakeSender())
-    # an in-flight round whose summary is already cached (the notify path must
-    # never block on the LLM itself)
-    (tmp_path_state := ROOT / "state").mkdir(exist_ok=True)
+    # HERMETIC: redirect checkpoint's HERE so the fixture never touches the
+    # live state/ dir (a live-overwrite bug here once wiped the real registry).
+    import checkpoint as _C
+    monkeypatch.setattr(_C, "HERE", tmp_path, raising=False)
+    monkeypatch.setattr(_C, "PLAIN_CACHE", tmp_path / "state" / "plain_summaries.json", raising=False)
+    (tmp_path_state := tmp_path / "state").mkdir(exist_ok=True)
     threads = tmp_path_state / "threads.json"
     cache = tmp_path_state / "plain_summaries.json"
     t_bak = threads.read_text(encoding="utf-8") if threads.exists() else None
