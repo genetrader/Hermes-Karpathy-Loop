@@ -266,7 +266,7 @@ async function runPy(host2, route, args, timeoutMs) {
 }
 
 // ---------------------------------------------------------------- angles settings
-/* ANGLE LIBRARY -- the 8 families x their angles, each with its working prompt.
+/* ANGLE LIBRARY -- every family x its angles, each with its working prompt.
    Loaded on demand (button), NOT polled: it is reference + edit data, not telemetry.
    Edits POST through angles.py save --json as a JSON argument; only CHANGED fields
    are stored in state/angle_overrides.yaml and merged by angle_pick at pick time. */
@@ -425,7 +425,7 @@ function anglesModal(props) {
   return jsx("div", { style: S.modalBack, onClick: function (ev) {
     if (ev.target === ev.currentTarget) props.onClose();
   }, children: jsx("div", { style: S.modalCard, children: jsxs(Panel, {
-    title: "Angle library \\u2014 8 families, every working prompt",
+    title: "Angle library \\u2014 every family, every working prompt",
     note: "edits take effect on the next picked round",
     right: jsx(Button, { onClick: props.onClose, children: "Close" }),
     children: jsx("iframe", {

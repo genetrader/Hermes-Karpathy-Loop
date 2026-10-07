@@ -16,7 +16,7 @@
 #           gameplay, interface, comprehension, meta
 
 version: 1
-updated: "2026-09-22"
+updated: "2026-10-07"
 
 # --- knobs the picker reads -------------------------------------------------
 picker:
@@ -386,6 +386,53 @@ angles:
     avoid_when: No user-facing surface.
 
   # ======================= G. COMPREHENSION =======================
+  # --- interface additions (2026-10-07): the aesthetic + layout lenses.
+  # Aesthetics is enforced as an EVIDENCE BAR (measured spacing, contrast,
+  # hierarchy) rather than a vibes angle, so a round stays falsifiable.
+  - id: visual-consistency
+    family: interface
+    lens: Find places the visual system disagrees with itself.
+    look_for:
+      - two paddings/margins/radii for the same role (e.g. card padding 12px here, 16px there)
+      - the same element styled three ways (button colours/fonts drifting per page)
+      - colour values that should be tokens but are hand-copied hex literals
+      - icons from mixed sets or at mismatched sizes in one view
+    evidence: A table of the drifted roles with file:line for each variant, collapsed to one token/value, and the pages verified unchanged-or-improved by screenshot.
+    avoid_when: No rendered UI, or the project has a strict enforced design system with lint (then drift is impossible).
+
+  - id: layout-hierarchy
+    family: interface
+    lens: Find layouts where importance and visual weight disagree.
+    look_for:
+      - the primary action visually equal to or smaller than secondary actions
+      - headings that do not out-size their content, or two same-level headings with different sizes
+      - key data pushed below the fold while chrome occupies the top
+      - alignment that drifts column to column (baseline/grid not held)
+    evidence: Before/after screenshots of the worst screen with the specific px measurements that changed, and one sentence per screen on why the new hierarchy matches the task's importance.
+    avoid_when: No rendered UI or website surface.
+
+  - id: first-impression
+    family: interface
+    lens: Find what a first-time user sees that makes them doubt or leave.
+    look_for:
+      - an empty state with no guidance (blank screen, table of nothing, no call to action)
+      - a landing/loading screen that shows no identity or value in the first seconds
+      - jargon, placeholder text, or debug strings visible in the default view
+      - a default view that requires configuration before showing anything
+    evidence: The exact first screen a new user hits (screenshot), the specific elements that fail the five-second test, and the changed copy/layout with a screenshot after.
+    avoid_when: No user-facing surface, or the surface is an internal tool with a mandated workflow.
+
+  - id: findability
+    family: interface
+    lens: Find things users must hunt for that the layout should surface.
+    look_for:
+      - a frequently-used action buried in a menu while rare actions sit in the toolbar
+      - no search or filter where the list is longer than a screen
+      - navigation that does not show where you are (no active state, no breadcrumb)
+      - dead ends: a page or modal with no way back or onward
+    evidence: The three most common user goals (named), the click-count for each before and after, and the navigation change that reduced them.
+    avoid_when: Single-screen app, or a surface whose every function is already on one screen.
+
   - id: unsafe-to-modify
     family: comprehension
     lens: Find the function nobody can safely change.

@@ -21,7 +21,7 @@ VIEW_TEMPLATE = """<!doctype html>
 <html><head><meta charset="utf-8"><title>Karpathy angle library</title>
 <style>
   /* OPAQUE by design: this page runs in an iframe and paints nothing behind itself,
-     so translucency made it unreadable (the operator: "blending in with the background").
+     so translucency made it unreadable (Gene: "blending in with the background").
      Palette matches the picker page so both modals look like one system. */
   :root {
     color-scheme: dark;
@@ -65,7 +65,7 @@ VIEW_TEMPLATE = """<!doctype html>
   .msg { font-size: 12px; }
   .ok { color: #2ecc8f; } .err { color: #ff6b6b; }
 </style></head><body>
-<h1>Angle library — 8 families, every working prompt</h1>
+<h1>Angle library — every family, every working prompt</h1>
 <div class="sub">edits take effect on the next picked round · saved per angle</div>
 <div id="root"></div>
 <script>
