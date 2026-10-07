@@ -24,6 +24,7 @@ import json
 import os
 import re
 import subprocess
+import msvcrt
 import sys
 import time
 from pathlib import Path
@@ -167,43 +168,94 @@ def heartbeat(state: str, **extra) -> None:
         pass
 
 
-def _acquire_single_flight() -> bool:
-    """
-    Exclusive single-runner guard using O_CREAT|O_EXCL (atomic on Windows).
+_LOCK_FILE = ROOT / "state" / "runner.locktxt"
+_lock_handle = None            # module-global: process-lifetime OS byte lock
 
-    A pid-file check races: two simultaneous Start clicks both see 'no pid',
-    both spawn. O_EXCL makes the second creator lose atomically.
+
+def _other_runner_pids() -> list:
+    """PIDs of any OTHER karpathy_runner.py python processes on this box.
+
+    The pid-file lock alone cannot see a live runner that never registered
+    (2026-10-06 incident: an old zombie runner predating the lock kept
+    rotating repos while a fresh runner held runner.pid -- two rounds ran at
+    once and collided on worktrees). The backstop scans real process command
+    lines and refuses to start alongside any sibling.
     """
     try:
-        PID_FILE.parent.mkdir(parents=True, exist_ok=True)
-        if PID_FILE.exists():
-            # stale from a crash? reclaim only if the pid is dead
-            try:
-                pid = int(PID_FILE.read_text(encoding="utf-8").strip() or 0)
-            except Exception:
-                pid = 0
-            alive = False
-            if pid:
-                # Match the EXACT image + pid from tasklist CSV rather than
-                # substring-searching for "python": a recycled PID belonging to
-                # any python.exe would otherwise read as our live runner and
-                # permanently block a new Start.
-                out = subprocess.run(["tasklist", "/FI", "PID eq %d" % pid, "/FO", "CSV", "/NH"],
-                                     capture_output=True, text=True, timeout=60,
-                                     errors="replace", creationflags=0x08000000).stdout or ""
-                alive = ('"%d"' % pid) in out and "python.exe" in out.lower()
-            if alive:
-                return False
-            PID_FILE.unlink(missing_ok=True)
-        fd = os.open(str(PID_FILE), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
-        os.write(fd, str(os.getpid()).encode())
-        os.close(fd)
-        return True
-    except FileExistsError:
-        return False
+        out = subprocess.run(
+            ["powershell", "-NoProfile", "-Command",
+             "Get-CimInstance Win32_Process -Filter \"Name like 'python%'\" | "
+             "Where-Object { $_.CommandLine -like '*karpathy_runner.py*' } | "
+             "Select-Object -ExpandProperty ProcessId"],
+            capture_output=True, text=True, timeout=60,
+            errors="replace", creationflags=0x08000000).stdout or ""
     except Exception:
-        return False
+        return []
+    mine = set()
+    pid = os.getpid()
+    for _ in range(4):
+        mine.add(pid)
+        try:
+            out2 = subprocess.run(
+                ["powershell", "-NoProfile", "-Command",
+                 "(Get-CimInstance Win32_Process -Filter 'ProcessId=%d').ParentProcessId" % pid],
+                capture_output=True, text=True, timeout=30,
+                errors="replace", creationflags=0x08000000).stdout or ""
+            pid = int(out2.strip())
+            if pid <= 0:
+                break
+        except Exception:
+            break
+    pids = []
+    for line in out.split():
+        try:
+            q = int(line)
+        except ValueError:
+            continue
+        if q not in mine:
+            pids.append(q)
+    return pids
 
+
+def _acquire_single_flight() -> bool:
+    """
+    Exclusive single-runner guard, two layers (2026-10-06 double-runner fix):
+
+    1. OS-HELD BYTE LOCK on state/runner.locktxt (msvcrt.locking). The lock
+       lives in the FILE HANDLE, not the file contents -- Windows releases it
+       automatically when the owning process dies, so there is no stale-file
+       guessing and no window where a crashed runner blocks the next start.
+    2. PROCESS-SCAN BACKSTOP: refuse if any other karpathy_runner.py image is
+       running, whatever it thinks about locks (catches zombies from before
+       this fix, and any future code path that forgets to take the lock).
+
+    runner.pid is still written for diagnostics/back-compat readers.
+    """
+    global _lock_handle
+    try:
+        PID_FILE.parent.mkdir(parents=True, exist_ok=True)
+        _LOCK_FILE.parent.mkdir(parents=True, exist_ok=True)
+        others = _other_runner_pids()
+        if others:
+            log("START REFUSED -- another karpathy_runner.py is already alive "
+                "(pid %s). One runner at a time." % ", ".join(map(str, sorted(others))))
+            return False
+        _LOCK_FILE.touch(exist_ok=True)
+        fd = os.open(str(_LOCK_FILE), os.O_RDWR)
+        try:
+            msvcrt.locking(fd, msvcrt.LK_NBLCK, 1)
+        except OSError:
+            os.close(fd)
+            log("START REFUSED -- runner lock is held by another process.")
+            return False
+        _lock_handle = fd
+        os.lseek(fd, 0, os.SEEK_SET)
+        os.write(fd, str(os.getpid()).encode())
+        PID_FILE.write_text(str(os.getpid()), encoding="utf-8")
+        return True
+    except Exception as exc:
+        log("lock acquisition failed: %r" % (exc,))
+        return False
 
 def is_running() -> bool:
     """Is a runner process alive? (pid file + process check)
@@ -215,6 +267,11 @@ def is_running() -> bool:
     The exact trap `_acquire_single_flight()` already fixes at :126-129, applied
     here too: match the IMAGE NAME and the PID in the CSV row.
     """
+    # 2026-10-06 double-runner fix: ANY live karpathy_runner.py counts. A
+    # zombie that never held runner.pid would otherwise read as dead and the
+    # watchdog would respawn alongside it.
+    if _other_runner_pids():
+        return True
     try:
         pid = int(PID_FILE.read_text(encoding="utf-8").strip() or 0)
     except Exception:

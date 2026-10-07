@@ -74,5 +74,25 @@ def test_no_tasks_row_is_not_running(monkeypatch, tmp_path):
 
 
 def test_pid_file_missing_is_not_running(monkeypatch, tmp_path):
+    # stub the process-scan backstop (2026-10-06): on a dev box a real runner
+    # may exist; the pid-file path alone must read as not-running.
+    monkeypatch.setattr(K, "_other_runner_pids", lambda: [])
     monkeypatch.setattr(K, "PID_FILE", tmp_path / "absent.pid")
     assert K.is_running() is False
+
+
+def test_zombie_runner_without_pidfile_counts_as_running(monkeypatch, tmp_path):
+    """2026-10-06 incident pin: a live karpathy_runner.py that never held the
+    pid file MUST count as running, or the watchdog respawns alongside it."""
+    monkeypatch.setattr(K, "_other_runner_pids", lambda: [4242])
+    monkeypatch.setattr(K, "PID_FILE", tmp_path / "absent.pid")
+    assert K.is_running() is True
+
+
+def test_second_start_refused_when_sibling_runner_alive(monkeypatch, tmp_path):
+    """The double-runner guard: _acquire_single_flight must lose when any
+    other karpathy_runner.py is alive, regardless of lock files."""
+    monkeypatch.setattr(K, "_other_runner_pids", lambda: [4242])
+    monkeypatch.setattr(K, "PID_FILE", tmp_path / "runner.pid")
+    monkeypatch.setattr(K, "_LOCK_FILE", tmp_path / "runner.locktxt")
+    assert K._acquire_single_flight() is False
