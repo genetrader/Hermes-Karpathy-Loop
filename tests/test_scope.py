@@ -142,7 +142,7 @@ def test_marker_found_anywhere_in_a_long_message():
 def test_campaign_opens_on_cross_cutting():
     entry = {"rounds": 5}
     scope_ = scope.parse("CROSS_CUTTING: server,android :: add the field")
-    camp = scope.commit(entry, scope.propose(entry, scope_, "project-b"), accepted=True)
+    camp = scope.commit(entry, scope.propose(entry, scope_, "secondbrain"), accepted=True)
     assert camp is not None
     assert camp["surfaces"] == ["server", "android"]
     assert camp["verdicts"] == {}
@@ -154,7 +154,7 @@ def test_campaign_advances_and_closes():
     # round 6: declare, work server
     s = scope.parse("CROSS_CUTTING: server,android :: add the field\n"
                     "SURFACE-DONE: server :: done -- server side shipped")
-    scope.commit(entry, scope.propose(entry, s, "project-b"), accepted=True)
+    scope.commit(entry, scope.propose(entry, s, "secondbrain"), accepted=True)
     entry["rounds"] = 6
     # Verdicts are stored RICH now ({"verdict", "reason"}) so a reviewer can see
     # WHY, not just that. Compare the verdict field, not the whole container.
@@ -163,7 +163,7 @@ def test_campaign_advances_and_closes():
     # round 7: work android -> checklist full -> CLOSED (returns None)
     s = scope.parse("SURFACE-DONE: android :: done -- client updated")
     entry["rounds"] = 7
-    after = scope.commit(entry, scope.propose(entry, s, "project-b"), accepted=True)
+    after = scope.commit(entry, scope.propose(entry, s, "secondbrain"), accepted=True)
     assert after is None, "a full checklist must CLOSE the campaign"
     closed = entry["campaigns_closed"]
     assert len(closed) == 1
@@ -179,22 +179,22 @@ def test_redeclaring_the_same_campaign_does_not_reset_verdicts():
     """
     entry = {"rounds": 6}
     s = scope.parse("CROSS_CUTTING: server,android :: x\nSURFACE-DONE: server :: done")
-    scope.commit(entry, scope.propose(entry, s, "project-b"), accepted=True)
+    scope.commit(entry, scope.propose(entry, s, "secondbrain"), accepted=True)
     assert _v(entry["campaign"]["verdicts"]["server"]) == "done"
 
     entry["rounds"] = 7
     s2 = scope.parse("CROSS_CUTTING: server,android :: x\nSURFACE-DONE: android :: done")
-    camp = scope.commit(entry, scope.propose(entry, s2, "project-b"), accepted=True)
+    camp = scope.commit(entry, scope.propose(entry, s2, "secondbrain"), accepted=True)
     assert camp is None, "second surface completing must close it"
 
 
 def test_a_silent_round_leaves_the_campaign_exactly_as_it_was():
     entry = {"rounds": 6}
     s = scope.parse("CROSS_CUTTING: server,android :: x")
-    scope.commit(entry, scope.propose(entry, s, "project-b"), accepted=True)
+    scope.commit(entry, scope.propose(entry, s, "secondbrain"), accepted=True)
     before = dict(entry["campaign"])
     entry["rounds"] = 7
-    after = scope.commit(entry, scope.propose(entry, scope.parse("nothing here"), "project-b"), accepted=True)
+    after = scope.commit(entry, scope.propose(entry, scope.parse("nothing here"), "secondbrain"), accepted=True)
     assert after == before, "a round with no markers must not disturb the campaign"
 
 
@@ -202,11 +202,11 @@ def test_cross_cutting_surfaces_union_in():
     """A later round naming a NEW surface must widen the checklist, not drop it."""
     entry = {"rounds": 6}
     s = scope.parse("CROSS_CUTTING: server,android :: x")
-    scope.commit(entry, scope.propose(entry, s, "project-b"), accepted=True)
+    scope.commit(entry, scope.propose(entry, s, "secondbrain"), accepted=True)
     entry["rounds"] = 7
     s2 = scope.parse("CROSS_CUTTING: server,chrome-extension :: x\n"
                      "SURFACE-DONE: server :: done")
-    camp = scope.commit(entry, scope.propose(entry, s2, "project-b"), accepted=True)
+    camp = scope.commit(entry, scope.propose(entry, s2, "secondbrain"), accepted=True)
     assert "chrome-extension" in camp["surfaces"]
     assert _v(camp["verdicts"]["server"]) == "done"
 
@@ -215,20 +215,20 @@ def test_untracked_surface_verdict_is_ignored_not_added():
     """A verdict for a surface the campaign never declared must not extend it."""
     entry = {"rounds": 6}
     s = scope.parse("CROSS_CUTTING: server,android :: x")
-    scope.commit(entry, scope.propose(entry, s, "project-b"), accepted=True)
+    scope.commit(entry, scope.propose(entry, s, "secondbrain"), accepted=True)
     entry["rounds"] = 7
     s2 = scope.parse("SURFACE-DONE: web-app :: done -- surprise")
-    camp = scope.commit(entry, scope.propose(entry, s2, "project-b"), accepted=True)
+    camp = scope.commit(entry, scope.propose(entry, s2, "secondbrain"), accepted=True)
     assert camp["surfaces"] == ["server", "android"]
     assert "web-app" not in camp["verdicts"]
 
 
 def test_no_markers_no_campaign():
-    assert scope.commit({"rounds": 1}, scope.propose({"rounds": 1}, scope.parse(""), "project-b"), accepted=True) is None
+    assert scope.commit({"rounds": 1}, scope.propose({"rounds": 1}, scope.parse(""), "secondbrain"), accepted=True) is None
 
 
 def test_summary_line_is_readable():
-    camp = {"id": "project-b-x3", "surfaces": ["a", "b", "c"],
+    camp = {"id": "secondbrain-x3", "surfaces": ["a", "b", "c"],
             "verdicts": {"a": "done"}}
     line = scope.summary_line(camp)
     assert "1/3" in line and "b, c" in line

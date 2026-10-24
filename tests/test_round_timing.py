@@ -1,4 +1,4 @@
-"""Round-duration telemetry (the operator, 2026-10-01).
+"""Round-duration telemetry (Gene, 2026-10-01).
 
 The runner stamps entry["last_round_seconds"] and appends to
 entry["round_seconds_hist"] when a round finishes; loopctl/monitor display
@@ -100,7 +100,7 @@ def test_timing_rows_shape(tmp_path, monkeypatch):
         "beta": {"rounds": 1},
     }
     import threads as threads_mod
-    monkeypatch.setattr(threads_mod, "load", lambda: dict(reg))
+    monkeypatch.setattr(threads_mod, "load", lambda strict=False: dict(reg))
     st = tmp_path / "state"
     st.mkdir()
     (st / "runner_heartbeat.json").write_text(
@@ -125,7 +125,7 @@ def test_timing_rows_in_flight(tmp_path, monkeypatch):
         "beta": {"rounds": 1, "current_angle": {"started": 900.0}},
     }
     import threads as threads_mod
-    monkeypatch.setattr(threads_mod, "load", lambda: dict(reg))
+    monkeypatch.setattr(threads_mod, "load", lambda strict=False: dict(reg))
     st = tmp_path / "state"
     st.mkdir()
     (st / "runner_heartbeat.json").write_text(
@@ -147,7 +147,7 @@ def test_timing_rows_in_flight(tmp_path, monkeypatch):
 def test_timing_rows_stale_heartbeat(tmp_path, monkeypatch):
     reg = {"alpha": {"rounds": 3, "current_angle": {"started": 900.0}}}
     import threads as threads_mod
-    monkeypatch.setattr(threads_mod, "load", lambda: dict(reg))
+    monkeypatch.setattr(threads_mod, "load", lambda strict=False: dict(reg))
     st = tmp_path / "state"
     st.mkdir()
     (st / "runner_heartbeat.json").write_text(

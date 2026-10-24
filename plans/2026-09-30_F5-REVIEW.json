@@ -1,0 +1,22 @@
+{
+  "a": {
+    "finish": "stop",
+    "secs": 5.3,
+    "text": "VERDICT: holds -- The claim is not falsifiable because the code strictly enforces the stated constraints.\n\n1. **Unknowns Reject:** The code defines `_gate_ok = _gate_state is True`. If `rc == 0` but `_gate` is not a dict (or lacks `ok`), `_gate_state` becomes `None`, making `_gate_ok` `False`. Since `rc == 0` bypasses the `rc != 0` check, a `None` gate state propagates to `False` in `_round_ok`. Thus, unknowns reject.\n2. **Strict Acceptance:** `_round_ok` requires `rc == 0`, `_gate_ok`, `_head_ok is True`, and `proposal_state is True`. Any falsy value (including `None` or `False`) in these positions evaluates to `False` in the `and` chain, rejecting the round.\n\nSince a round is accepted *only* when all four conditions are strictly `True`, no input sequence (e.g., `None` gate or non-descendant HEAD) can produce an accept. The logic is defensive and correct as described."
+  },
+  "b": {
+    "finish": "stop",
+    "secs": 5.4,
+    "text": "VERDICT: falsified -- `remote.origin.pushurl=DISABLED` is invalid syntax for git configuration and does not disable pushes. `pushurl` expects a URI (e.g., `file:///dev/null` or `nonexistent://`), not the boolean-like string \"DISABLED\". Git may interpret \"DISABLED\" as a literal remote name or fail to apply the override, allowing the child to push to the real `origin` defined in the shared `.git/config`. Furthermore, the child inherits the parent's `os.environ`, which may contain valid `SSH_KEYS`, `GIT_TERMINAL_PROMPT`, or network proxy settings that bypass the intended egress boundary. If `pushurl` fails to apply correctly, or if the child spawns sub-processes that re-inherit the environment, pushes can succeed. The assumption that setting a config key to an arbitrary string \"DISABLED\" acts as a firewall is a critical logical error; it creates a false sense of isolation where none exists, allowing the child to modify remote state or leak credentials via inherited SSH/HTTPS agents."
+  },
+  "c": {
+    "finish": "stop",
+    "secs": 6.0,
+    "text": "VERDICT: falsified -- The provided code block is logically incomplete and omits the tag creation logic entirely, rendering the claim about \"checkpoint() as the only author\" unverifiable. More critically, the code introduces a potential \"ordering hole\" by executing `git merge --ff-only` *before* the canonical gate re-run (`_cgate`). While the script attempts to `reset_canonical` if the gate fails, this sequence violates the standard \"test-then-merge\" or \"gate-then-publish\" atomicity. If the process crashes, loses network, or fails during the `_run_gate` call *after* the merge succeeds but *before* the reset/rollback completes, the canonical branch remains moved to the unverified (or failing) state. This allows a state that \"never saved\" (or failed validation) to persist on the canonical branch, potentially leading to a subsequent tag or push of invalid code if external processes (not shown) assume the merge implies success. The \"post-merge gate\" design inherently creates a window where the published/merged state precedes final verification, contradicting the spirit of \"publish runs ONLY after... a post-merge canonical gate... passed.\""
+  },
+  "d": {
+    "finish": "stop",
+    "secs": 5.6,
+    "text": "VERDICT: falsified -- The claim that the code \"cannot kill unrelated processes\" is false due to weak argument validation.\n\n1. **False Positives via Prompt Injection**: The filter only checks if `--resume` and `hermes_cli.main` exist in the command line and if a matching session ID appears *somewhere* via regex. It does not verify that the session ID is an *argument* to `--resume`. An innocent process with a prompt containing a valid session ID (e.g., `python script.py --resume \"debug --resume <valid_sid>\"`) or a file path containing that ID (e.g., `/logs/--resume <sid>.txt`) will satisfy the `hit = True` condition and be killed.\n\n2. **Crude PID Parsing**: `line.rstrip()...split(\",\")[-1]` assumes the last comma-separated field is the PID. If `ps` output or the input `lines` format includes trailing commas or data (e.g., `PID,PPID,`), parsing may fail or misalign. If it successfully parses a non-PID number (e.g., PPID) or if the input structure varies, the code may attempt to kill unintended PIDs or crash, failing to reliably restrict scope to the intended targets.\n\nTherefore, unrelated processes *can* be killed."
+  }
+}

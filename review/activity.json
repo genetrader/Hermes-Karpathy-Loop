@@ -1,0 +1,73 @@
+{
+ "ts": 1790128218.4906886,
+ "running": true,
+ "projects": [
+  "tombs-and-tyrants",
+  "zip-code-ranker",
+  "secondbrain"
+ ],
+ "rows": [
+  {
+   "name": "tombs-and-tyrants",
+   "never_rotated": false,
+   "active_task": "t_42fa5ba4",
+   "active_status": "running",
+   "elapsed": "1.9h",
+   "open_cards": 1,
+   "rounds": 3,
+   "running": true
+  },
+  {
+   "name": "zip-code-ranker",
+   "never_rotated": true,
+   "active_task": null,
+   "active_status": null,
+   "elapsed": "",
+   "open_cards": 0,
+   "rounds": 0,
+   "running": false
+  },
+  {
+   "name": "secondbrain",
+   "never_rotated": true,
+   "active_task": null,
+   "active_status": null,
+   "elapsed": "",
+   "open_cards": 0,
+   "rounds": 0,
+   "running": false
+  }
+ ],
+ "cot": {
+  "steps": [
+   {
+    "kind": "code",
+    "icon": "\ud83d\udc0d",
+    "text": "import re",
+    "duration": "0.0s",
+    "note": ""
+   },
+   {
+    "kind": "code",
+    "icon": "\ud83d\udc0d",
+    "text": "import re",
+    "duration": "0.0s",
+    "note": ""
+   },
+   {
+    "kind": "read",
+    "icon": "\ud83d\udcd6",
+    "text": "game_session.py L2002-2015",
+    "duration": "1.0s",
+    "note": ""
+   }
+  ],
+  "task": "t_42fa5ba4",
+  "project": "tombs-and-tyrants",
+  "steps_total": 296,
+  "log_lines": 1387,
+  "log_age_s": 10,
+  "log_bytes": 102642,
+  "log_path": "C:\\Users\\gene\\AppData\\Local\\hermes\\kanban\\boards\\tombs-and-tyrants\\logs\\t_42fa5ba4.log"
+ }
+}

@@ -44,25 +44,30 @@ def test_threads_save_is_atomic_and_parses(tmp_state):
     assert not list(tmp_state.glob("*.tmp")), "temp file left behind"
 
 
-def test_threads_corrupt_file_is_salvaged_not_silently_reset(tmp_state):
-    threads.STATE.write_text('{"p1": {"rounds": 35', encoding="utf-8")  # torn JSON
-    d = threads.load()
-    assert d == {}                       # starts empty, as it must
+def test_threads_corrupt_file_is_salvaged_and_fails_closed(tmp_state):
+    """W4 (2026-10-23): salvaging evidence is right; RETURNING {} IS NOT.
+
+    An empty registry forgets every quarantine and all round history, so the
+    loop resumes on repos whose trees are in an unknown state. Corrupt state
+    must raise so the caller pauses and surfaces it.
+    """
+    threads.STATE.write_text('{"p1": {"rounds": 35', encoding="utf-8")
+    with pytest.raises(threads.RegistryCorrupt):
+        threads.load()
     salvage = list(tmp_state.glob("threads.json.corrupt-*"))
     assert len(salvage) == 1, "the corrupt file was deleted, not salvaged"
-    assert "rounds" in salvage[0].read_text(encoding="utf-8"), \
-        "the salvaged copy lost the data"
+    salvaged_text = salvage[0].read_text(encoding="utf-8")
+    assert "rounds" in salvaged_text, "the salvaged copy lost the data"
 
 
 def test_threads_corrupt_then_save_keeps_evidence(tmp_state):
     threads.STATE.write_text("{torn", encoding="utf-8")
-    threads.load()                        # salvages the corrupt file
-    threads.save({"p1": {"rounds": 1}})   # writes a fresh, valid registry
-    assert json.loads(threads.STATE.read_text(encoding="utf-8"))["p1"]["rounds"] == 1
+    with pytest.raises(threads.RegistryCorrupt):
+        threads.load()                    # salvages the corrupt file, then raises
+    threads.save({"p1": {"rounds": 1}})   # a deliberate rebuild writes fresh state
+    rebuilt = json.loads(threads.STATE.read_text(encoding="utf-8"))
+    assert rebuilt["p1"]["rounds"] == 1
     assert len(list(tmp_state.glob("threads.json.corrupt-*"))) == 1
-
-
-# ------------------------------------------------------------------ loopctl
 
 def test_loopctl_save_is_atomic_and_parses(tmp_state):
     cfg = dict(loopctl.DEFAULTS)

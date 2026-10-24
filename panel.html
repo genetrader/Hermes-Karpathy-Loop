@@ -1,0 +1,2497 @@
+<!doctype html><meta charset="utf-8">
+<title>Project Improver — Control Panel</title>
+<style>
+ :root{--fg:#e8ecf7;--mut:#7d879f;--acc:#5b7cfa;--ok:#4ec9a0;--warn:#e0a94e;
+        --bad:#e06c75;--bd:#262a38;--card:#171a24;--bg:#12141c}
+ *{box-sizing:border-box}
+ body{background:var(--bg);color:var(--fg);font:13px/1.55 -apple-system,"Segoe UI",sans-serif;margin:0;padding:20px 22px}
+ h1{font-size:20px;margin:0} h2{font-size:12px;text-transform:uppercase;letter-spacing:.08em;
+    color:#9db1ff;margin:24px 0 9px;padding-bottom:5px;border-bottom:1px solid var(--bd)}
+ .sub{color:var(--mut);font-size:12px;margin:5px 0 0}
+ .grid{display:flex;gap:10px;flex-wrap:wrap;margin:14px 0}
+ .kpi{background:var(--card);border:1px solid var(--bd);border-radius:9px;padding:9px 13px;min-width:104px}
+ .kpi .v{font-size:19px;font-weight:700;font-variant-numeric:tabular-nums}
+ .kpi .k{color:var(--mut);font-size:10px;text-transform:uppercase;letter-spacing:.06em}
+ .cols{display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap}
+ .col{flex:1 1 420px;min-width:360px}
+ .pcard{background:var(--card);border:1px solid var(--bd);border-left:3px solid var(--bd);
+        border-radius:9px;padding:11px 13px;margin-bottom:9px}
+ .pcard.on{border-left-color:var(--ok)} .pcard.off{opacity:.62}
+ .phead{display:flex;align-items:center;gap:9px;margin-bottom:5px}
+ .pname{font-weight:700;font-size:14px} .ploops{color:var(--mut);font-size:11px;margin-left:auto}
+ .badge{font-size:10px;font-weight:700;letter-spacing:.05em;padding:2px 7px;border-radius:5px;
+        background:#2a2f40;color:#c8d0e4}
+ .badge.run{background:#1d2c4d;color:#8fb2ff} .badge.nxt{background:#4a3a12;color:#ffd479}
+ .badge.mut{background:#232735;color:var(--mut)}
+ .ppath{color:var(--mut);font-size:11px;font-family:ui-monospace,Consolas,monospace;
+        word-break:break-all;margin-bottom:5px}
+ .pdetail{color:var(--mut);font-size:11px;margin-bottom:5px}
+ .pobj{font-size:12px;color:#c3cadb;margin-bottom:7px;line-height:1.5}
+ .pmeta{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:7px}
+ .tag{background:#1e2230;color:#a8b0c6;font-size:10px;padding:2px 6px;border-radius:4px;
+      font-family:ui-monospace,Consolas,monospace}
+ .tag.ok{background:#16281f;color:#7fd6ac} .tag.warn{background:#2c2413;color:#e0b96e}
+ .tag.rev{background:#1d2438;color:#9db1ff}
+ .prog{height:4px;background:#1e2230;border-radius:3px;overflow:hidden;margin-bottom:4px}
+ .pfill{height:100%;background:linear-gradient(90deg,var(--acc),var(--ok));width:0}
+ table{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--bd);
+       border-radius:9px;overflow:hidden;font-size:12px}
+ th{text-align:left;color:var(--mut);font-size:10px;text-transform:uppercase;letter-spacing:.05em;
+    padding:8px 10px;border-bottom:1px solid var(--bd);background:#141722}
+ td{padding:7px 10px;border-bottom:1px solid #1e2230;vertical-align:top}
+ tr:last-child td{border-bottom:0} tr.inv:hover{background:#1a1e2b}
+ .pa{color:var(--mut);font-size:11px;font-family:ui-monospace,Consolas,monospace}
+ .num{text-align:right;font-variant-numeric:tabular-nums}
+ .run{color:var(--acc);font-weight:600} .mut{color:var(--mut)} .warn{color:var(--warn)}
+ .ok2,.ok{color:var(--ok)} .bad{color:var(--bad)} .done{color:var(--ok);font-weight:600}
+ .pin{color:var(--ok);font-weight:700} .nxt{color:var(--warn)}
+ .alert{background:#2a1d1d;border:1px solid #6b3535;border-left:4px solid var(--bad);
+        border-radius:9px;padding:12px 14px;margin:12px 0}
+ .ah{color:#ffb3b3;font-weight:700;margin-bottom:6px;font-size:12px}
+ .ab{font-size:14px;line-height:1.5;margin-bottom:5px} .ap{color:var(--mut);font-size:11px}
+ .ok{background:#16241d;border:1px solid #2c5a45;border-left:4px solid var(--ok);
+     border-radius:9px;padding:10px 14px;margin:12px 0;color:#a8e6cf}
+ .planrow{display:flex;gap:10px;align-items:center;padding:6px 10px;border:1px solid #232735;
+          border-radius:7px;margin-bottom:5px;background:var(--card)}
+ .pwhen{color:var(--warn);font-size:11px;font-weight:700;min-width:52px}
+ .bar{position:sticky;top:0;background:var(--bg);padding:10px 0;border-bottom:1px solid var(--bd);
+      z-index:9;margin-bottom:8px;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+ input[type=text]{background:#1c1f2b;border:1px solid #2e3346;color:var(--fg);
+   padding:7px 10px;border-radius:6px;width:260px;font-size:12px}
+ select{background:#1c1f2b;border:1px solid #2e3346;color:var(--fg);padding:7px 9px;
+        border-radius:6px;font-size:12px}
+ .c{color:var(--mut);font-size:11px}
+ .artbox{background:var(--card);border:1px solid var(--bd);border-radius:9px;padding:10px 12px}
+ .afile{display:flex;justify-content:space-between;gap:10px;align-items:center;
+   padding:5px 8px;border-bottom:1px solid #1b1f2b;border-radius:5px}
+ .afile:last-child{border-bottom:0}
+ .afile:hover{background:#1a1e2b}
+ .aname{font-family:ui-monospace,Consolas,monospace;font-size:11.5px;color:#c3cadb}
+ code{background:#0d0f16;padding:1px 4px;border-radius:3px;font-size:11px}
+</style>
+
+<h1>Project Improver — Control Panel</h1>
+<div class="sub">built 2026-09-22 14:45:44 · inventory: ai-project-index (225 projects) ·
+  rotation: improve.yaml (1 pinned / 1 parked)</div>
+
+<div class="grid">
+  <div class="kpi"><div class="v">1</div><div class="k">pinned in loop</div></div>
+  <div class="kpi"><div class="v">225</div><div class="k">total projects</div></div>
+  <div class="kpi"><div class="v">2</div><div class="k">turns taken</div></div>
+  <div class="kpi"><div class="v">0</div><div class="k">waiting on you</div></div>
+  <div class="kpi"><div class="v">100%</div><div class="k">have a gate</div></div>
+  <div class="kpi"><div class="v">1</div><div class="k">answered</div></div>
+</div>
+
+<div class="ok">No open question — nothing is waiting on you.</div>
+
+<div class="cols">
+  <div class="col">
+    <h2>Rotation — pinned projects</h2>
+    <div class="pcard on">
+  <div class="phead">
+    <span class="badge run">RUNNING</span>
+    <span class="pname">tombs-and-tyrants</span>
+    <span class="ploops">24 loops</span>
+  </div>
+  <div class="ppath">D:/ZCODE/TOMBS AND TYRANTS</div>
+  <div class="pdetail">card t_8e7a4676 · tombs-and-tyrants: S3 backlog (24 loops)</div>
+  <div class="pobj">Make the game engine accept natural-language player intent instead of refusing it before the GM ever sees the turn. The reported failure, verbatim, playing at The Blooming Tankard:
+
+  Player: &quot;Henk, what work can you give me? I&#x27;m </div>
+  <div class="pmeta">
+    <span class="tag ok">gate: .venv/Scripts/python.exe -m pytest -q tests/test_a_degree_</span>
+    <span class="tag">impl: GLM-5.3-Flash-EXL3</span>
+    <span class="tag rev">rev: deepseek-v4.1-flash</span>
+    <span class="tag">Game Development</span>
+    <span class="tag">Active</span>
+  </div>
+  <div class="prog"><div class="pfill" style="width:33%"></div></div>
+  <div class="pdetail">stage 2/6 · 33% · done: baseline · scout</div>
+  <div class="pdetail">next stage: <b class="nxt">S3 backlog</b></div>
+</div><div class="pcard off">
+  <div class="phead">
+    <span class="badge mut">PARKED</span>
+    <span class="pname">secondbrain</span>
+    <span class="ploops">8 loops</span>
+  </div>
+  <div class="ppath">C:/Users/gene/ANDROID NOTES LIKE GENSPARK</div>
+  <div class="pdetail">not in rotation</div>
+  <div class="pobj">Close the Google OAuth outage (consent screen unpublished -&gt; no email for 520h+) and unblock the decision_events loop. Then harden the two-uvicorn ghost-process situation on :8823.</div>
+  <div class="pmeta">
+    <span class="tag ok">gate: python -m pytest tests -q</span>
+    <span class="tag">impl: deepseek-v4.1-flash</span>
+    <span class="tag rev">rev: GLM-5.3-Flash-EXL3</span>
+    <span class="tag">Personal Life System</span>
+    <span class="tag">Active</span>
+  </div>
+  <div class="prog"><div class="pfill" style="width:0%"></div></div>
+  <div class="pdetail">stage — · 0% · done: not started</div>
+  <div class="pdetail">next stage: <b class="nxt">S1 scout</b></div>
+</div>
+
+    <h2>Planned order</h2>
+    <div class="planrow"><span class="pwhen">now</span><b>tombs-and-tyrants</b><span class="pa">24 loops</span></div>
+
+    <h2>Stage artifacts — evidence on disk</h2>
+    <div class="artbox">
+      <div class="pdetail"><b>tombs-and-tyrants</b></div><div class="afile">
+  <span class="aname">01-scout.md</span>
+  <span class="pa">8.6K</span>
+</div><div class="afile">
+  <span class="aname">prompt-S1-scout.md</span>
+  <span class="pa">5.0K</span>
+</div><div class="afile">
+  <span class="aname">prompt-S2-baseline.md</span>
+  <span class="pa">5.0K</span>
+</div><div class="afile">
+  <span class="aname">prompt-S3-backlog.md</span>
+  <span class="pa">5.0K</span>
+</div><div class="afile">
+  <span class="aname">prompt-S4-iterate.md</span>
+  <span class="pa">5.0K</span>
+</div><div class="afile">
+  <span class="aname">prompt-S5-review.md</span>
+  <span class="pa">5.1K</span>
+</div><div class="afile">
+  <span class="aname">prompt-S6-verify.md</span>
+  <span class="pa">5.0K</span>
+</div><div class="afile">
+  <span class="aname">S2-baseline.json</span>
+  <span class="pa">1.0K</span>
+</div>
+    </div>
+  </div>
+
+  <div class="col">
+    <h2>Rotation ledger — what has been done</h2>
+    <table>
+      <tr><th>When</th><th>Project</th><th>Card</th><th>Loops</th><th>Outcome</th><th>Note</th></tr>
+      <tr>
+  <td class="pa">09-22 12:40</td>
+  <td><b>tombs-and-tyrants</b></td>
+  <td class="pa">stage</td>
+  <td class="num">—</td>
+  <td class="done">scout</td>
+  <td class="pa">completed</td>
+</tr><tr>
+  <td class="pa">09-22 12:40</td>
+  <td><b>tombs-and-tyrants</b></td>
+  <td class="pa">stage</td>
+  <td class="num">—</td>
+  <td class="done">baseline</td>
+  <td class="pa">completed</td>
+</tr><tr>
+  <td class="pa">09-22 14:30</td>
+  <td><b>tombs-and-tyrants</b></td>
+  <td class="pa">—</td>
+  <td class="num">24</td>
+  <td class="run">created</td>
+  <td class="pa"></td>
+</tr><tr>
+  <td class="pa">09-22 14:13</td>
+  <td><b>tombs-and-tyrants</b></td>
+  <td class="pa">t_8e7a4676</td>
+  <td class="num">24</td>
+  <td class="run">created</td>
+  <td class="pa"></td>
+</tr>
+    </table>
+  </div>
+</div>
+
+<h2>Full inventory — 225 projects</h2>
+<div class="bar">
+  <input type="text" id="q" placeholder="filter name / path / category…">
+  <select id="fc"><option value="">all categories</option>
+    <option value="AI Agent / Agent Tooling">AI Agent / Agent Tooling (69)</option><option value="Model &amp; Inference">Model &amp; Inference (26)</option><option value="Archive / Stale">Archive / Stale (26)</option><option value="Utility / Script">Utility / Script (21)</option><option value="Media &amp; Video">Media &amp; Video (18)</option><option value="Business / Marketing">Business / Marketing (16)</option><option value="Game Development">Game Development (12)</option><option value="Web App / SaaS">Web App / SaaS (11)</option><option value="Browser Extension">Browser Extension (11)</option><option value="Fleet &amp; Infrastructure">Fleet &amp; Infrastructure (8)</option><option value="Personal Life System">Personal Life System (7)</option>
+  </select>
+  <select id="fs"><option value="">all statuses</option>
+    <option value="Active">Active</option><option value="Archive">Archive</option><option value="Dormant">Dormant</option><option value="Unknown">Unknown</option>
+  </select>
+  <select id="fv"><option value="">show all</option>
+    <option value="pin">only in rotation</option>
+    <option value="git">only git repos</option>
+    <option value="tested">only with tests</option>
+    <option value="live">only existing on disk</option>
+  </select>
+  <span class="c" id="cnt"></span>
+</div>
+<table>
+  <tr><th></th><th>Project</th><th>Category</th><th>Status</th><th>Size</th><th>Gate</th><th>Run</th></tr>
+  <tr class="inv" data-s="aeon opencode agent config d:\aeon-opencode-home\.opencode ai agent / agent tooling"
+     data-cat="AI Agent / Agent Tooling" data-status="Dormant">
+  <td class="mark "></td>
+  <td><b>AEON OpenCode Agent Config</b>
+      <div class="ppath">D:\AEON-OpenCode-Home\.opencode</div></td>
+  <td class="pa">AI Agent / Agent Tooling</td>
+  <td class="st">Dormant</td>
+  <td class="pa">0B</td>
+  <td class="mut pa">no git</td>
+  <td class="pa"></td>
+</tr><tr class="inv" data-s="aeon opencode home — config d:\aeon-opencode-home\.config ai agent / agent tooling"
+     data-cat="AI Agent / Agent Tooling" data-status="Dormant">
+  <td class="mark "></td>
+  <td><b>AEON OpenCode Home — Config</b>
+      <div class="ppath">D:\AEON-OpenCode-Home\.config</div></td>
+  <td class="pa">AI Agent / Agent Tooling</td>
+  <td class="st">Dormant</td>
+  <td class="pa">0B</td>
+  <td class="mut pa">no git</td>
+  <td class="pa"></td>
+</tr><tr class="inv" data-s="aeon opencode home — local data d:\aeon-opencode-home\.local ai agent / agent tooling"
+     data-cat="AI Agent / Agent Tooling" data-status="Dormant">
+  <td class="mark "></td>
+  <td><b>AEON OpenCode Home — Local Data</b>
+      <div class="ppath">D:\AEON-OpenCode-Home\.local</div></td>
+  <td class="pa">AI Agent / Agent Tooling</td>
+  <td class="st">Dormant</td>
+  <td class="pa">14.6M</td>
+  <td class="mut pa">no git</td>
+  <td class="pa"></td>
+</tr><tr class="inv" data-s="aeon opencode workspace skills d:\aeon-opencode-workspace\skills ai agent / agent tooling"
+     data-cat="AI Agent / Agent Tooling" data-status="Dormant">
+  <td class="mark "></td>
+  <td><b>AEON OpenCode Workspace Skills</b>
+      <div class="ppath">D:\AEON-OpenCode-Workspace\skills</div></td>
+  <td class="pa">AI Agent / Agent Tooling</td>
+  <td class="st">Dormant</td>
+  <td class="pa">0B</td>
+  <td class="mut pa">no git</td>
+  <td class="pa"></td>
+</tr><tr class="inv" data-s="aider skills store (.aider) d:\coding\.aider ai agent / agent tooling"
+     data-cat="AI Agent / Agent Tooling" data-status="Dormant">
+  <td class="mark "></td>
+  <td><b>Aider Skills Store (.aider)</b>
+      <div class="ppath">D:\coding\.aider</div></td>
+  <td class="pa">AI Agent / Agent Tooling</td>
+  <td class="st">Dormant</td>
+  <td class="pa">1.6M</td>
+  <td class="mut pa">no git</td>
+  <td class="pa">aider</td>
+</tr><tr class="inv" data-s="aider tags cache d:\coding\.aider.tags.cache.v4 ai agent / agent tooling"
+     data-cat="AI Agent / Agent Tooling" data-status="Archive">
+  <td class="mark "></td>
+  <td><b>Aider Tags Cache</b>
+      <div class="ppath">D:\coding\.aider.tags.cache.v4</div></td>
+  <td class="pa">AI Agent / Agent Tooling</td>
+  <td class="st">Archive</td>
+  <td class="pa">102.4K</td>
+  <td class="mut pa">no git</td>
+  <td class="pa"></td>
+</tr><tr class="inv" data-s="aider virtual environment d:\coding\aider-venv ai agent / agent tooling"
+     data-cat="AI Agent / Agent Tooling" data-status="Dormant">
+  <td class="mark "></td>
+  <td><b>Aider Virtual Environment</b>
+      <div class="ppath">D:\coding\aider-venv</div></td>
+  <td class="pa">AI Agent / Agent Tooling</td>
+  <td class="st">Dormant</td>
+  <td class="pa">6.2M</td>
+  <td class="mut pa">no git</td>
+  <td class="pa">D:\coding\aider-venv\Scripts\activate</td>
+</tr><tr class="inv" data-s="aionui (migrated app) — agent gui, archived copy d:\migratedapps\aionui ai agent / agent tooling"
+     data-cat="AI Agent / Agent Tooling" data-status="Unknown">
+  <td class="mark "></td>
+  <td><b>AionUi (Migrated App) — Agent GUI, Archived Copy</b>
+      <div class="ppath">D:\MigratedApps\AionUi</div></td>
+  <td class="pa">AI Agent / Agent Tooling</td>
+  <td class="st">Unknown</td>
+  <td class="pa">906.9M</td>
+  <td class="mut pa">no git</td>
+  <td class="pa"></td>
+</tr><tr class="inv" data-s="buzz agents c:\users\gene\.buzz ai agent / agent tooling"
+     data-cat="AI Agent / Agent Tooling" data-status="Dormant">
+  <td class="mark "></td>
+  <td><b>Buzz Agents</b>
+      <div class="ppath">C:\Users\gene\.buzz</div></td>
+  <td class="pa">AI Agent / Agent Tooling</td>
+  <td class="st">Dormant</td>
+  <td class="pa">577.2M</td>
+  <td class="mut pa">no git</td>
+  <td class="pa"></td>
+</tr><tr class="inv" data-s="claude code (desktop + cli) c:\users\gene\.claude ai agent / agent tooling"
+     data-cat="AI Agent / Agent Tooling" data-status="Active">
+  <td class="mark "></td>
+  <td><b>Claude Code (Desktop + CLI)</b>
+      <div class="ppath">C:\Users\gene\.claude</div></td>
+  <td class="pa">AI Agent / Agent Tooling</td>
+  <td class="st">Active</td>
+  <td class="pa">80.0M</td>
+  <td class="mut pa">no git</td>
+  <td class="pa">claude</td>
+</tr><tr class="inv" data-s="claude projects workspace c:\users\gene\documents\claude ai agent / agent tooling"
+     data-cat="AI Agent / Agent Tooling" data-status="Dormant">
+  <td class="mark "></td>
+  <td><b>Claude Projects Workspace</b>
+      <div class="ppath">C:\Users\gene\Documents\Claude</div></td>
+  <td class="pa">AI Agent / Agent Tooling</td>
+  <td class="st">Dormant</td>
+  <td class="pa">1.0M</td>
+  <td class="mut pa">no git</td>
+  <td class="pa"></td>
+</tr><tr class="inv" data-s="clawteam marketing assets d:\openclaw\assets ai agent / agent tooling"
+     data-cat="AI Agent / Agent Tooling" data-status="Dormant">
+  <td class="mark "></td>
+  <td><b>ClawTeam Marketing Assets</b>
+      <div class="ppath">D:\openclaw\assets</div></td>
+  <td class="pa">AI Agent / Agent Tooling</td>
+  <td class="st">Dormant</td>
+  <td class="pa">8.5M</td>
+  <td class="mut pa">no git</td>
+  <td class="pa"></td>
+</tr><tr class="inv" data-s="clawteam multi-agent framework d:\openclaw\clawteam ai agent / agent tooling"
+     data-cat="AI Agent / Agent Tooling" data-status="Dormant">
+  <td class="mark "></td>
+  <td><b>ClawTeam Multi-Agent Framework</b>
+      <div class="ppath">D:\openclaw\clawteam</div></td>
+  <td class="pa">AI Agent / Agent Tooling</td>
+  <td class="st">Dormant</td>
+  <td class="pa">614.4K</td>
+  <td class="mut pa">no git</td>
+  <td class="pa">cd D:\openclaw</td>
+</tr><tr class="inv" data-s="clawteam skill definitions d:\openclaw\skills ai agent / agent tooling"
+     data-cat="AI Agent / Agent Tooling" data-status="Dormant">
+  <td class="mark "></td>
+  <td><b>ClawTeam Skill Definitions</b>
+      <div class="ppath">D:\openclaw\skills</div></td>
+  <td class="pa">AI Agent / Agent Tooling</td>
+  <td class="st">Dormant</td>
+  <td class="pa">0B</td>
+  <td class="mut pa">no git</td>
+  <td class="pa"></td>
+</tr><tr class="inv" data-s="clawteam test suite d:\openclaw\tests ai agent / agent tooling"
+     data-cat="AI Agent / Agent Tooling" data-status="Dormant">
+  <td class="mark "></td>
+  <td><b>ClawTeam Test Suite</b>
+      <div class="ppath">D:\openclaw\tests</div></td>
+  <td class="pa">AI Agent / Agent Tooling</td>
+  <td class="st">Dormant</td>
+  <td class="pa">307.2K</td>
+  <td class="mut pa">no git</td>
+  <td class="pa">cd D:\openclaw</td>
+</tr><tr class="inv" data-s="clawteam website (vite/react) d:\openclaw\website ai agent / agent tooling"
+     data-cat="AI Agent / Agent Tooling" data-status="Dormant">
+  <td class="mark "></td>
+  <td><b>ClawTeam Website (Vite/React)</b>
+      <div class="ppath">D:\openclaw\website</div></td>
+  <td class="pa">AI Agent / Agent Tooling</td>
+  <td class="st">Dormant</td>
+  <td class="pa">0B</td>
+  <td class="mut pa">no git</td>
+  <td class="pa">cd D:/openclaw/website &amp;&amp; npx vite</td>
+</tr><tr class="inv" data-s="codex cli (npm install dir) d:\coding\codex-cli ai agent / agent tooling"
+     data-cat="AI Agent / Agent Tooling" data-status="Dormant">
+  <td class="mark "></td>
+  <td><b>Codex CLI (npm install dir)</b>
+      <div class="ppath">D:\coding\codex-cli</div></td>
+  <td class="pa">AI Agent / Agent Tooling</td>
+  <td class="st">Dormant</td>
+  <td class="pa">0B</td>
+  <td class="mut pa">no git</td>
+  <td class="pa">codex.cmd</td>
+</tr><tr class="inv" data-s="codex cli scratch workspace c:\users\gene\documents\codex ai agent / agent tooling"
+     data-cat="AI Agent / Agent Tooling" data-status="Active">
+  <td class="mark "></td>
+  <td><b>Codex CLI Scratch Workspace</b>
+      <div class="ppath">C:\Users\gene\Documents\Codex</div></td>
+  <td class="pa">AI Agent / Agent Tooling</td>
+  <td class="st">Active</td>
+  <td class="pa">37.5G</td>
+  <td class="warn pa">no tests</td>
+  <td class="pa"></td>
+</tr><tr class="inv" data-s="codex desktop / codex cli c:\users\gene\.codex ai agent / agent tooling"
+     data-cat="AI Agent / Agent Tooling" data-status="Active">
+  <td class="mark "></td>
+  <td><b>Codex Desktop / Codex CLI</b>
+      <div class="ppath">C:\Users\gene\.codex</div></td>
+  <td class="pa">AI Agent / Agent Tooling</td>
+  <td class="st">Active</td>
+  <td class="pa">9.7G</td>
+  <td class="mut pa">no git</td>
+  <td class="pa">codex</td>
+</tr><tr class="inv" data-s="continue / cursor c:\users\gene\.continue ai agent / agent tooling"
+     data-cat="AI Agent / Agent Tooling" data-status="Archive">
+  <td class="mark "></td>
+  <td><b>Continue / Cursor</b>
+      <div class="ppath">C:\Users\gene\.continue</div></td>
+  <td class="pa">AI Agent / Agent Tooling</td>
+  <td class="st">Archive</td>
+  <td class="pa">19.7M</td>
+  <td class="mut pa">no git</td>
+  <td class="pa"></td>
+</tr><tr class="inv" data-s="deerflow 2.0 (cloned research agent) d:\coding\deer-flow ai agent / agent tooling"
+     data-cat="AI Agent / Agent Tooling" data-status="Dormant">
+  <td class="mark "></td>
+  <td><b>DeerFlow 2.0 (cloned research agent)</b>
+      <div class="ppath">D:\coding\deer-flow</div></td>
+  <td class="pa">AI Agent / Agent Tooling</td>
+  <td class="st">Dormant</td>
+  <td class="pa">26.2M</td>
+  <td class="ok pa">make test</td>
+  <td class="pa">make install</td>
+</tr><tr class="inv" data-s="eigent (migrated app) — multi-agent desktop, archived copy d:\migratedapps\eigent ai agent / agent tooling"
+     data-cat="AI Agent / Agent Tooling" data-status="Unknown">
+  <td class="mark "></td>
+  <td><b>Eigent (Migrated App) — Multi-Agent Desktop, Archived Copy</b>
+      <div class="ppath">D:\MigratedApps\Eigent</div></td>
+  <td class="pa">AI Agent / Agent Tooling</td>
+  <td class="st">Unknown</td>
+  <td class="pa">4.0G</td>
+  <td class="mut pa">no git</td>
+  <td class="pa"></td>
+</tr><tr class="inv" data-s="grok cli c:\users\gene\.grok ai agent / agent tooling"
+     data-cat="AI Agent / Agent Tooling" data-status="Dormant">
+  <td class="mark "></td>
+  <td><b>Grok CLI</b>
+      <div class="ppath">C:\Users\gene\.grok</div></td>
+  <td class="pa">AI Agent / Agent Tooling</td>
+  <td class="st">Dormant</td>
+  <td class="pa">716.8K</td>
+  <td class="mut pa">no git</td>
+  <td class="pa"></td>
+</tr><tr class="inv" data-s="hermes agent (desktop home) c:\users\gene\appdata\local\hermes ai agent / agent tooling"
+     data-cat="AI Agent / Agent Tooling" data-status="Active">
+  <td class="mark "></td>
+  <td><b>Hermes Agent (desktop home)</b>
+      <div class="ppath">C:\Users\gene\AppData\Local\hermes</div></td>
+  <td class="pa">AI Agent / Agent Tooling</td>
+  <td class="st">Active</td>
+  <td class="pa">17.0G</td>
+  <td class="mut pa">no git</td>
+  <td class="pa">hermes</td>
+</tr><tr class="inv" data-s="hermes agent (legacy .hermes) c:\users\gene\.hermes ai agent / agent tooling"
+     data-cat="AI Agent / Agent Tooling" data-status="Archive">
+  <td class="mark "></td>
+  <td><b>Hermes Agent (legacy .hermes)</b>
+      <div class="ppath">C:\Users\gene\.hermes</div></td>
+  <td class="pa">AI Agent / Agent Tooling</td>
+  <td class="st">Archive</td>
+  <td class="pa">3.3G</td>
+  <td class="mut pa">no git</td>
+  <td class="pa"></td>
+</tr><tr class="inv" data-s="hermes agent (source checkout) d:\coding\hermes-agent ai agent / agent tooling"
+     data-cat="AI Agent / Agent Tooling" data-status="Active">
+  <td class="mark "></td>
+  <td><b>Hermes Agent (source checkout)</b>
+      <div class="ppath">D:\coding\hermes-agent</div></td>
+  <td class="pa">AI Agent / Agent Tooling</td>
+  <td class="st">Active</td>
+  <td class="pa">169.0M</td>
+  <td class="ok pa">python -m pytest -q</td>
+  <td class="pa">cd D:\coding\hermes-agent</td>
+</tr><tr class="inv" data-s="hermes agent home d:\apps\hermes ai agent / agent tooling"
+     data-cat="AI Agent / Agent Tooling" data-status="Active">
+  <td class="mark "></td>
+  <td><b>Hermes Agent Home</b>
+      <div class="ppath">D:\Apps\Hermes</div></td>
+  <td class="pa">AI Agent / Agent Tooling</td>
+  <td class="st">Active</td>
+  <td class="pa">2.5G</td>
+  <td class="mut pa">no git</td>
+  <td class="pa"></td>
+</tr><tr class="inv" data-s="hermes plans folder c:\coding\.hermes ai agent / agent tooling"
+     data-cat="AI Agent / Agent Tooling" data-status="Dormant">
+  <td class="mark "></td>
+  <td><b>Hermes Plans Folder</b>
+      <div class="ppath">C:\CODING\.hermes</div></td>
+  <td class="pa">AI Agent / Agent Tooling</td>
+  <td class="st">Dormant</td>
+  <td class="pa">0B</td>
+  <td class="mut pa">no git</td>
+  <td class="pa"></td>
+</tr><tr class="inv" data-s="hermes voice barge-in patch c:\users\gene\hermes-voice-barge-in ai agent / agent tooling"
+     data-cat="AI Agent / Agent Tooling" data-status="Dormant">
+  <td class="mark "></td>
+  <td><b>Hermes Voice Barge-In Patch</b>
+      <div class="ppath">C:\Users\gene\hermes-voice-barge-in</div></td>
+  <td class="pa">AI Agent / Agent Tooling</td>
+  <td class="st">Dormant</td>
+  <td class="pa">2.7M</td>
+  <td class="warn pa">no tests</td>
+  <td class="pa">cd C:\Users\gene\hermes-voice-barge-in</td>
+</tr><tr class="inv" data-s="idea validator c:\users\gene\documents\idea validator ai agent / agent tooling"
+     data-cat="AI Agent / Agent Tooling" data-status="Dormant">
+  <td class="mark "></td>
+  <td><b>Idea Validator</b>
+      <div class="ppath">C:\Users\gene\Documents\IDEA VALIDATOR</div></td>
+  <td class="pa">AI Agent / Agent Tooling</td>
+  <td class="st">Dormant</td>
+  <td class="pa">102.4K</td>
+  <td class="mut pa">no git</td>
+  <td class="pa">cd &quot;C:\Users\gene\Documents\IDEA VALIDATOR&quot;</td>
+</tr><tr class="inv" data-s="idea validator d:\coding\idea validator ai agent / agent tooling"
+     data-cat="AI Agent / Agent Tooling" data-status="Active">
+  <td class="mark "></td>
+  <td><b>Idea Validator</b>
+      <div class="ppath">D:\coding\IDEA VALIDATOR</div></td>
+  <td class="pa">AI Agent / Agent Tooling</td>
+  <td class="st">Active</td>
+  <td class="pa">204.8K</td>
+  <td class="ok pa">python -m pytest -q</td>
+  <td class="pa">cd /d D:\coding\IDEA VALIDATOR &amp;&amp; .\.venv\Scripts\idea-validator serve</td>
+</tr><tr class="inv" data-s="impeccable d:\coding\impeccable ai agent / agent tooling"
+     data-cat="AI Agent / Agent Tooling" data-status="Active">
+  <td class="mark "></td>
+  <td><b>Impeccable</b>
+      <div class="ppath">D:\coding\impeccable</div></td>
+  <td class="pa">AI Agent / Agent Tooling</td>
+  <td class="st">Active</td>
+  <td class="pa">33.2M</td>
+  <td class="ok pa">npm test</td>
+  <td class="pa">cd D:\coding\impeccable</td>
+</tr><tr class="inv" data-s="kimi code c:\users\gene\.kimi-code ai agent / agent tooling"
+     data-cat="AI Agent / Agent Tooling" data-status="Dormant">
+  <td class="mark "></td>
+  <td><b>Kimi Code</b>
+      <div class="ppath">C:\Users\gene\.kimi-code</div></td>
+  <td class="pa">AI Agent / Agent Tooling</td>
+  <td class="st">Dormant</td>
+  <td class="pa">0B</td>
+  <td class="mut pa">no git</td>
+  <td class="pa"></td>
+</tr><tr class="inv" data-s="minimax code / hub c:\users\gene\.minimax ai agent / agent tooling"
+     data-cat="AI Agent / Agent Tooling" data-status="Dormant">
+  <td class="mark "></td>
+  <td><b>MiniMax Code / Hub</b>
+      <div class="ppath">C:\Users\gene\.minimax</div></td>
+  <td class="pa">AI Agent / Agent Tooling</td>
+  <td class="st">Dormant</td>
+  <td class="pa">42.9M</td>
+  <td class="mut pa">no git</td>
+  <td class="pa"></td>
+</tr><tr class="inv" data-s="openclaude (+ pill) c:\users\gene\.openclaude ai agent / agent tooling"
+     data-cat="AI Agent / Agent Tooling" data-status="Archive">
+  <td class="mark "></td>
+  <td><b>OpenClaude (+ Pill)</b>
+      <div class="ppath">C:\Users\gene\.openclaude</div></td>
+  <td class="pa">AI Agent / Agent Tooling</td>
+  <td class="st">Archive</td>
+  <td class="pa">117.8M</td>
+  <td class="mut pa">no git</td>
+  <td class="pa">openclaude</td>
+</tr><tr class="inv" data-s="openclaude pill c:\users\gene\documents\openclaude-pill ai agent / agent tooling"
+     data-cat="AI Agent / Agent Tooling" data-status="Dormant">
+  <td class="mark "></td>
+  <td><b>OpenClaude Pill</b>
+      <div class="ppath">C:\Users\gene\Documents\openclaude-pill</div></td>
+  <td class="pa">AI Agent / Agent Tooling</td>
+  <td class="st">Dormant</td>
+  <td class="pa">7.8M</td>
+  <td class="warn pa">no tests</td>
+  <td class="pa">Double-click the Desktop &#x27;OpenClaude Pill&#x27; shortcut</td>
+</tr><tr class="inv" data-s="openclaude skills store (.openclaude) d:\coding\.openclaude ai agent / agent tooling"
+     data-cat="AI Agent / Agent Tooling" data-status="Dormant">
+  <td class="mark "></td>
+  <td><b>OpenClaude Skills Store (.openclaude)</b>
+      <div class="ppath">D:\coding\.openclaude</div></td>
+  <td class="pa">AI Agent / Agent Tooling</td>
+  <td class="st">Dormant</td>
+  <td class="pa">2.4M</td>
+  <td class="mut pa">no git</td>
+  <td class="pa">openclaude</td>
+</tr><tr class="inv" data-s="openclaw c:\users\gene\.openclaw ai agent / agent tooling"
+     data-cat="AI Agent / Agent Tooling" data-status="Dormant">
+  <td class="mark "></td>
+  <td><b>OpenClaw</b>
+      <div class="ppath">C:\Users\gene\.openclaw</div></td>
+  <td class="pa">AI Agent / Agent Tooling</td>
+  <td class="st">Dormant</td>
+  <td class="pa">44.4M</td>
+  <td class="mut pa">no git</td>
+  <td class="pa">cd D:\openclaw</td>
+</tr><tr class="inv" data-s="openclaw agent skills config d:\openclaw\.agents ai agent / agent tooling"
+     data-cat="AI Agent / Agent Tooling" data-status="Dormant">
+  <td class="mark "></td>
+  <td><b>OpenClaw Agent Skills Config</b>
+      <div class="ppath">D:\openclaw\.agents</div></td>
+  <td class="pa">AI Agent / Agent Tooling</td>
+  <td class="st">Dormant</td>
+  <td class="pa">0B</td>
+  <td class="mut pa">no git</td>
+  <td class="pa"></td>
+</tr><tr class="inv" data-s="openclaw claude config d:\openclaw\.claude ai agent / agent tooling"
+     data-cat="AI Agent / Agent Tooling" data-status="Dormant">
+  <td class="mark "></td>
+  <td><b>OpenClaw Claude Config</b>
+      <div class="ppath">D:\openclaw\.claude</div></td>
+  <td class="pa">AI Agent / Agent Tooling</td>
+  <td class="st">Dormant</td>
+  <td class="pa">0B</td>
+  <td class="mut pa">no git</td>
+  <td class="pa"></td>
+</tr><tr class="inv" data-s="openclaw codegraph index d:\openclaw\.codegraph ai agent / agent tooling"
+     data-cat="AI Agent / Agent Tooling" data-status="Dormant">
+  <td class="mark "></td>
+  <td><b>OpenClaw CodeGraph Index</b>
+      <div class="ppath">D:\openclaw\.codegraph</div></td>
+  <td class="pa">AI Agent / Agent Tooling</td>
+  <td class="st">Dormant</td>
+  <td class="pa">5.9M</td>
+  <td class="mut pa">no git</td>
+  <td class="pa"></td>
+</tr><tr class="inv" data-s="openclaw docs &amp; docs site d:\openclaw\docs ai agent / agent tooling"
+     data-cat="AI Agent / Agent Tooling" data-status="Dormant">
+  <td class="mark "></td>
+  <td><b>OpenClaw Docs &amp; Docs Site</b>
+      <div class="ppath">D:\openclaw\docs</div></td>
+  <td class="pa">AI Agent / Agent Tooling</td>
+  <td class="st">Dormant</td>
+  <td class="pa">1.0M</td>
+  <td class="mut pa">no git</td>
+  <td class="pa">Open D:\openclaw\docs\index.html</td>
+</tr><tr class="inv" data-s="openclaw github workflows d:\openclaw\.github ai agent / agent tooling"
+     data-cat="AI Agent / Agent Tooling" data-status="Dormant">
+  <td class="mark "></td>
+  <td><b>OpenClaw GitHub Workflows</b>
+      <div class="ppath">D:\openclaw\.github</div></td>
+  <td class="pa">AI Agent / Agent Tooling</td>
+  <td class="st">Dormant</td>
+  <td class="pa">0B</td>
+  <td class="mut pa">no git</td>
+  <td class="pa"></td>
+</tr><tr class="inv" data-s="openclaw worker script d:\openclaw\scripts ai agent / agent tooling"
+     data-cat="AI Agent / Agent Tooling" data-status="Dormant">
+  <td class="mark "></td>
+  <td><b>OpenClaw Worker Script</b>
+      <div class="ppath">D:\openclaw\scripts</div></td>
+  <td class="pa">AI Agent / Agent Tooling</td>
+  <td class="st">Dormant</td>
+  <td class="pa">0B</td>
+  <td class="mut pa">no git</td>
+  <td class="pa">bash D:\openclaw\scripts\openclaw_worker.sh</td>
+</tr><tr class="inv" data-s="opencode c:\users\gene\.opencode ai agent / agent tooling"
+     data-cat="AI Agent / Agent Tooling" data-status="Dormant">
+  <td class="mark "></td>
+  <td><b>OpenCode</b>
+      <div class="ppath">C:\Users\gene\.opencode</div></td>
+  <td class="pa">AI Agent / Agent Tooling</td>
+  <td class="st">Dormant</td>
+  <td class="pa">5.0M</td>
+  <td class="mut pa">no git</td>
+  <td class="pa">cd D:\coding\opencode</td>
+</tr><tr class="inv" data-s="opencode pill home — config d:\opencode-pill-home\.config ai agent / agent tooling"
+     data-cat="AI Agent / Agent Tooling" data-status="Dormant">
+  <td class="mark "></td>
+  <td><b>OpenCode Pill Home — Config</b>
+      <div class="ppath">D:\OpenCode-Pill-Home\.config</div></td>
+  <td class="pa">AI Agent / Agent Tooling</td>
+  <td class="st">Dormant</td>
+  <td class="pa">0B</td>
+  <td class="mut pa">no git</td>
+  <td class="pa"></td>
+</tr><tr class="inv" data-s="opencode pill home — grm 2.6 plus proxy config d:\opencode-pill-home\192-168-1-50-8085-grm-2-6-plus-bf16-gguf ai agent / agent tooling"
+     data-cat="AI Agent / Agent Tooling" data-status="Archive">
+  <td class="mark "></td>
+  <td><b>OpenCode Pill Home — GRM 2.6 Plus Proxy Config</b>
+      <div class="ppath">D:\OpenCode-Pill-Home\192-168-1-50-8085-grm-2-6-plus-bf16-gguf</div></td>
+  <td class="pa">AI Agent / Agent Tooling</td>
+  <td class="st">Archive</td>
+  <td class="pa">0B</td>
+  <td class="mut pa">no git</td>
+  <td class="pa"></td>
+</tr><tr class="inv" data-s="opencode pill home — local data d:\opencode-pill-home\.local ai agent / agent tooling"
+     data-cat="AI Agent / Agent Tooling" data-status="Dormant">
+  <td class="mark "></td>
+  <td><b>OpenCode Pill Home — Local Data</b>
+      <div class="ppath">D:\OpenCode-Pill-Home\.local</div></td>
+  <td class="pa">AI Agent / Agent Tooling</td>
+  <td class="st">Dormant</td>
+  <td class="pa">5.3M</td>
+  <td class="mut pa">no git</td>
+  <td class="pa"></td>
+</tr><tr class="inv" data-s="opencode pill home — qwen3 27b proxy config d:\opencode-pill-home\acemagic-win-6hl3k3c7lgq-8092-qwen3-6-27b-q4-k-s-gguf ai agent / agent tooling"
+     data-cat="AI Agent / Agent Tooling" data-status="Archive">
+  <td class="mark "></td>
+  <td><b>OpenCode Pill Home — Qwen3 27B Proxy Config</b>
+      <div class="ppath">D:\OpenCode-Pill-Home\acemagic-win-6hl3k3c7lgq-8092-qwen3-6-27b-q4-k-s-gguf</div></td>
+  <td class="pa">AI Agent / Agent Tooling</td>
+  <td class="st">Archive</td>
+  <td class="pa">0B</td>
+  <td class="mut pa">no git</td>
+  <td class="pa"></td>
+</tr><tr class="inv" data-s="opencode pill home — vibethinker 3b proxy config d:\opencode-pill-home\acemagic-win-6hl3k3c7lgq-8091-vibethinker-3b-q8-0-gguf ai agent / agent tooling"
+     data-cat="AI Agent / Agent Tooling" data-status="Archive">
+  <td class="mark "></td>
+  <td><b>OpenCode Pill Home — VibeThinker 3B Proxy Config</b>
+      <div class="ppath">D:\OpenCode-Pill-Home\acemagic-win-6hl3k3c7lgq-8091-vibethinker-3b-q8-0-gguf</div></td>
+  <td class="pa">AI Agent / Agent Tooling</td>
+  <td class="st">Archive</td>
+  <td class="pa">0B</td>
+  <td class="mut pa">no git</td>
+  <td class="pa"></td>
+</tr><tr class="inv" data-s="opencode pill workspace — grm 2.6 plus endpoint d:\opencode-pill-workspace\192-168-1-50-8085-grm-2-6-plus-bf16-gguf ai agent / agent tooling"
+     data-cat="AI Agent / Agent Tooling" data-status="Archive">
+  <td class="mark "></td>
+  <td><b>OpenCode Pill Workspace — GRM 2.6 Plus Endpoint</b>
+      <div class="ppath">D:\OpenCode-Pill-Workspace\192-168-1-50-8085-grm-2-6-plus-bf16-gguf</div></td>
+  <td class="pa">AI Agent / Agent Tooling</td>
+  <td class="st">Archive</td>
+  <td class="pa">0B</td>
+  <td class="mut pa">no git</td>
+  <td class="pa"></td>
+</tr><tr class="inv" data-s="opencode pill workspace — gemma 31b qat endpoint d:\opencode-pill-workspace\192-168-1-127-7901-gemma4-31b-qat-mtp ai agent / agent tooling"
+     data-cat="AI Agent / Agent Tooling" data-status="Archive">
+  <td class="mark "></td>
+  <td><b>OpenCode Pill Workspace — Gemma 31B QAT Endpoint</b>
+      <div class="ppath">D:\OpenCode-Pill-Workspace\192-168-1-127-7901-gemma4-31b-qat-mtp</div></td>
+  <td class="pa">AI Agent / Agent Tooling</td>
+  <td class="st">Archive</td>
+  <td class="pa">0B</td>
+  <td class="mut pa">no git</td>
+  <td class="pa"></td>
+</tr><tr class="inv" data-s="opencode pill workspace — qwen3 35b a3b endpoint d:\opencode-pill-workspace\192-168-1-127-7902-qwen3-6-35b-a3b-mtp ai agent / agent tooling"
+     data-cat="AI Agent / Agent Tooling" data-status="Archive">
+  <td class="mark "></td>
+  <td><b>OpenCode Pill Workspace — Qwen3 35B A3B Endpoint</b>
+      <div class="ppath">D:\OpenCode-Pill-Workspace\192-168-1-127-7902-qwen3-6-35b-a3b-mtp</div></td>
+  <td class="pa">AI Agent / Agent Tooling</td>
+  <td class="st">Archive</td>
+  <td class="pa">0B</td>
+  <td class="mut pa">no git</td>
+  <td class="pa"></td>
+</tr><tr class="inv" data-s="opencode pill workspace — remote qwen3 27b endpoint d:\opencode-pill-workspace\100-88-23-121-8081-qwen3-6-27b-q6-k-mtp-gguf ai agent / agent tooling"
+     data-cat="AI Agent / Agent Tooling" data-status="Archive">
+  <td class="mark "></td>
+  <td><b>OpenCode Pill Workspace — Remote Qwen3 27B Endpoint</b>
+      <div class="ppath">D:\OpenCode-Pill-Workspace\100-88-23-121-8081-qwen3-6-27b-q6-k-mtp-gguf</div></td>
+  <td class="pa">AI Agent / Agent Tooling</td>
+  <td class="st">Archive</td>
+  <td class="pa">0B</td>
+  <td class="mut pa">no git</td>
+  <td class="pa"></td>
+</tr><tr class="inv" data-s="opencode pill workspace — vibethinker 3b endpoint d:\opencode-pill-workspace\acemagic-win-6hl3k3c7lgq-8091-vibethinker-3b-q8-0-gguf ai agent / agent tooling"
+     data-cat="AI Agent / Agent Tooling" data-status="Archive">
+  <td class="mark "></td>
+  <td><b>OpenCode Pill Workspace — VibeThinker 3B Endpoint</b>
+      <div class="ppath">D:\OpenCode-Pill-Workspace\acemagic-win-6hl3k3c7lgq-8091-vibethinker-3b-q8-0-gguf</div></td>
+  <td class="pa">AI Agent / Agent Tooling</td>
+  <td class="st">Archive</td>
+  <td class="pa">0B</td>
+  <td class="mut pa">no git</td>
+  <td class="pa"></td>
+</tr><tr class="inv" data-s="opencode pill — agent settings d:\opencode-pill-home\.opencode ai agent / agent tooling"
+     data-cat="AI Agent / Agent Tooling" data-status="Dormant">
+  <td class="mark "></td>
+  <td><b>OpenCode Pill — Agent Settings</b>
+      <div class="ppath">D:\OpenCode-Pill-Home\.opencode</div></td>
+  <td class="pa">AI Agent / Agent Tooling</td>
+  <td class="st">Dormant</td>
+  <td class="pa">0B</td>
+  <td class="mut pa">no git</td>
+  <td class="pa"></td>
+</tr><tr class="inv" data-s="opencode tool compatibility pit test d:\opencode-pill-home\tool-compat-pitest ai agent / agent tooling"
+     data-cat="AI Agent / Agent Tooling" data-status="Archive">
+  <td class="mark "></td>
+  <td><b>OpenCode Tool Compatibility Pit Test</b>
+      <div class="ppath">D:\OpenCode-Pill-Home\tool-compat-pitest</div></td>
+  <td class="pa">AI Agent / Agent Tooling</td>
+  <td class="st">Archive</td>
+  <td class="pa">0B</td>
+  <td class="mut pa">no git</td>
+  <td class="pa"></td>
+</tr><tr class="inv" data-s="pi cli (.pi) c:\users\gene\.pi ai agent / agent tooling"
+     data-cat="AI Agent / Agent Tooling" data-status="Dormant">
+  <td class="mark "></td>
+  <td><b>Pi CLI (.pi)</b>
+      <div class="ppath">C:\Users\gene\.pi</div></td>
+  <td class="pa">AI Agent / Agent Tooling</td>
+  <td class="st">Dormant</td>
+  <td class="pa">200.5M</td>
+  <td class="mut pa">no git</td>
+  <td class="pa">pi</td>
+</tr><tr class="inv" data-s="pi-nudge-watchdog d:\coding\pi-nudge-watchdog ai agent / agent tooling"
+     data-cat="AI Agent / Agent Tooling" data-status="Active">
+  <td class="mark "></td>
+  <td><b>Pi-Nudge-Watchdog</b>
+      <div class="ppath">D:\coding\Pi-Nudge-Watchdog</div></td>
+  <td class="pa">AI Agent / Agent Tooling</td>
+  <td class="st">Active</td>
+  <td class="pa">17.3M</td>
+  <td class="warn pa">no tests</td>
+  <td class="pa">cd /d D:\coding\Pi-Nudge-Watchdog &amp;&amp; powershell -ExecutionPolicy Bypas</td>
+</tr><tr class="inv" data-s="playwright mcp snapshots c:\coding\.playwright-mcp ai agent / agent tooling"
+     data-cat="AI Agent / Agent Tooling" data-status="Active">
+  <td class="mark "></td>
+  <td><b>Playwright MCP Snapshots</b>
+      <div class="ppath">C:\CODING\.playwright-mcp</div></td>
+  <td class="pa">AI Agent / Agent Tooling</td>
+  <td class="st">Active</td>
+  <td class="pa">0B</td>
+  <td class="mut pa">no git</td>
+  <td class="pa"></td>
+</tr><tr class="inv" data-s="pushbullet → local model bridge c:\coding\pushbullet-model-bridge ai agent / agent tooling"
+     data-cat="AI Agent / Agent Tooling" data-status="Dormant">
+  <td class="mark "></td>
+  <td><b>Pushbullet → Local Model Bridge</b>
+      <div class="ppath">C:\CODING\pushbullet-model-bridge</div></td>
+  <td class="pa">AI Agent / Agent Tooling</td>
+  <td class="st">Dormant</td>
+  <td class="pa">102.4K</td>
+  <td class="warn pa">no tests</td>
+  <td class="pa">python bridge.py</td>
+</tr><tr class="inv" data-s="secondbrain review — findings &amp; fix program c:\coding\secondbrain-review ai agent / agent tooling"
+     data-cat="AI Agent / Agent Tooling" data-status="Dormant">
+  <td class="mark "></td>
+  <td><b>SecondBrain Review — Findings &amp; Fix Program</b>
+      <div class="ppath">C:\CODING\secondbrain-review</div></td>
+  <td class="pa">AI Agent / Agent Tooling</td>
+  <td class="st">Dormant</td>
+  <td class="pa">35.8M</td>
+  <td class="mut pa">no git</td>
+  <td class="pa">Open C:\CODING\secondbrain-review\BUILD-PLAN.md for the review index</td>
+</tr><tr class="inv" data-s="traycer c:\users\gene\.traycer ai agent / agent tooling"
+     data-cat="AI Agent / Agent Tooling" data-status="Active">
+  <td class="mark "></td>
+  <td><b>Traycer</b>
+      <div class="ppath">C:\Users\gene\.traycer</div></td>
+  <td class="pa">AI Agent / Agent Tooling</td>
+  <td class="st">Active</td>
+  <td class="pa">7.1G</td>
+  <td class="mut pa">no git</td>
+  <td class="pa"></td>
+</tr><tr class="inv" data-s="waku agent c:\coding\waku-agent ai agent / agent tooling"
+     data-cat="AI Agent / Agent Tooling" data-status="Dormant">
+  <td class="mark "></td>
+  <td><b>Waku Agent</b>
+      <div class="ppath">C:\CODING\waku-agent</div></td>
+  <td class="pa">AI Agent / Agent Tooling</td>
+  <td class="st">Dormant</td>
+  <td class="pa">2.9M</td>
+  <td class="ok pa">make test</td>
+  <td class="pa">cd C:\CODING\waku-agent &amp;&amp; make run</td>
+</tr><tr class="inv" data-s="zcode (desktop + cli) c:\users\gene\.zcode ai agent / agent tooling"
+     data-cat="AI Agent / Agent Tooling" data-status="Active">
+  <td class="mark "></td>
+  <td><b>ZCode (Desktop + CLI)</b>
+      <div class="ppath">C:\Users\gene\.zcode</div></td>
+  <td class="pa">AI Agent / Agent Tooling</td>
+  <td class="st">Active</td>
+  <td class="pa">458.5M</td>
+  <td class="mut pa">no git</td>
+  <td class="pa">D:\ZCODE\ZCode.exe</td>
+</tr><tr class="inv" data-s="little-coder d:\coding\little-coder ai agent / agent tooling"
+     data-cat="AI Agent / Agent Tooling" data-status="Active">
+  <td class="mark "></td>
+  <td><b>little-coder</b>
+      <div class="ppath">D:\coding\little-coder</div></td>
+  <td class="pa">AI Agent / Agent Tooling</td>
+  <td class="st">Active</td>
+  <td class="pa">1.1M</td>
+  <td class="ok pa">npm test</td>
+  <td class="pa">D:\coding\little-coder-launch.cmd   # NOTE: the launcher sits in D:\coding, no</td>
+</tr><tr class="inv" data-s="opencode (local install) d:\coding\opencode ai agent / agent tooling"
+     data-cat="AI Agent / Agent Tooling" data-status="Archive">
+  <td class="mark "></td>
+  <td><b>opencode (local install)</b>
+      <div class="ppath">D:\coding\opencode</div></td>
+  <td class="pa">AI Agent / Agent Tooling</td>
+  <td class="st">Archive</td>
+  <td class="pa">0B</td>
+  <td class="mut pa">no git</td>
+  <td class="pa">cd D:\coding\opencode</td>
+</tr><tr class="inv" data-s="pi-agent (runtime data) d:\coding\pi-agent ai agent / agent tooling"
+     data-cat="AI Agent / Agent Tooling" data-status="Archive">
+  <td class="mark "></td>
+  <td><b>pi-agent (runtime data)</b>
+      <div class="ppath">D:\coding\pi-agent</div></td>
+  <td class="pa">AI Agent / Agent Tooling</td>
+  <td class="st">Archive</td>
+  <td class="pa">21.4M</td>
+  <td class="mut pa">no git</td>
+  <td class="pa">pi   # uses ~/.pi/agent, falling back to this tree</td>
+</tr><tr class="inv" data-s="pi-gateway d:\coding\pi-gateway ai agent / agent tooling"
+     data-cat="AI Agent / Agent Tooling" data-status="Active">
+  <td class="mark "></td>
+  <td><b>pi-gateway</b>
+      <div class="ppath">D:\coding\pi-gateway</div></td>
+  <td class="pa">AI Agent / Agent Tooling</td>
+  <td class="st">Active</td>
+  <td class="pa">3.1M</td>
+  <td class="ok pa">npm test</td>
+  <td class="pa">cd D:\coding\pi-gateway</td>
+</tr><tr class="inv" data-s="aionui (__old) — superseded agent gui build d:\aionui.__old archive / stale"
+     data-cat="Archive / Stale" data-status="Unknown">
+  <td class="mark "></td>
+  <td><b>AIonUI (__old) — Superseded Agent GUI Build</b>
+      <div class="ppath">D:\AIonUI.__old</div></td>
+  <td class="pa">Archive / Stale</td>
+  <td class="st">Unknown</td>
+  <td class="pa">575.7M</td>
+  <td class="mut pa">no git</td>
+  <td class="pa"></td>
+</tr><tr class="inv" data-s="aionui old app archive d:\aionui.__old\resources archive / stale"
+     data-cat="Archive / Stale" data-status="Archive">
+  <td class="mark "></td>
+  <td><b>AIonUI Old App Archive</b>
+      <div class="ppath">D:\AIonUI.__old\resources</div></td>
+  <td class="pa">Archive / Stale</td>
+  <td class="st">Archive</td>
+  <td class="pa">370.1M</td>
+  <td class="mut pa">no git</td>
+  <td class="pa"></td>
+</tr><tr class="inv" data-s="business builder mcp (status stub) d:\coding\business builder app - mcp for all apps archive / stale"
+     data-cat="Archive / Stale" data-status="Archive">
+  <td class="mark "></td>
+  <td><b>Business Builder MCP (status stub)</b>
+      <div class="ppath">D:\coding\BUSINESS BUILDER APP - MCP FOR ALL APPS</div></td>
+  <td class="pa">Archive / Stale</td>
+  <td class="st">Archive</td>
+  <td class="pa">0B</td>
+  <td class="mut pa">no git</td>
+  <td class="pa">Open BUILD_STATUS_WEBSITE.md — this folder is a status doc only; the runnable </td>
+</tr><tr class="inv" data-s="c:\c — path-marshal artifact (contains a second hermes home) c:\c archive / stale"
+     data-cat="Archive / Stale" data-status="Unknown">
+  <td class="mark "></td>
+  <td><b>C:\c — Path-Marshal Artifact (contains a second Hermes home)</b>
+      <div class="ppath">C:\c</div></td>
+  <td class="pa">Archive / Stale</td>
+  <td class="st">Unknown</td>
+  <td class="pa">11.5M</td>
+  <td class="mut pa">no git</td>
+  <td class="pa"></td>
+</tr><tr class="inv" data-s="chessbase data folder c:\users\gene\documents\chessbase archive / stale"
+     data-cat="Archive / Stale" data-status="Dormant">
+  <td class="mark "></td>
+  <td><b>ChessBase Data Folder</b>
+      <div class="ppath">C:\Users\gene\Documents\ChessBase</div></td>
+  <td class="pa">Archive / Stale</td>
+  <td class="st">Dormant</td>
+  <td class="pa">0B</td>
+  <td class="mut pa">no git</td>
+  <td class="pa"></td>
+</tr><tr class="inv" data-s="codex session recovery snapshots c:\users\gene\documents\codex-recovery archive / stale"
+     data-cat="Archive / Stale" data-status="Archive">
+  <td class="mark "></td>
+  <td><b>Codex Session Recovery Snapshots</b>
+      <div class="ppath">C:\Users\gene\Documents\Codex-Recovery</div></td>
+  <td class="pa">Archive / Stale</td>
+  <td class="st">Archive</td>
+  <td class="pa">40.2G</td>
+  <td class="mut pa">no git</td>
+  <td class="pa"></td>
+</tr><tr class="inv" data-s="hermes (migrated install) — moved agent runtime d:\migratedapps\hermes archive / stale"
+     data-cat="Archive / Stale" data-status="Unknown">
+  <td class="mark "></td>
+  <td><b>Hermes (Migrated Install) — Moved Agent Runtime</b>
+      <div class="ppath">D:\MigratedApps\Hermes</div></td>
+  <td class="pa">Archive / Stale</td>
+  <td class="st">Unknown</td>
+  <td class="pa">2.1G</td>
+  <td class="mut pa">no git</td>
+  <td class="pa"></td>
+</tr><tr class="inv" data-s="hermes pre-mcp-skills backup c:\users\gene\documents\hermes backups archive / stale"
+     data-cat="Archive / Stale" data-status="Archive">
+  <td class="mark "></td>
+  <td><b>Hermes Pre-MCP-Skills Backup</b>
+      <div class="ppath">C:\Users\gene\Documents\Hermes Backups</div></td>
+  <td class="pa">Archive / Stale</td>
+  <td class="st">Archive</td>
+  <td class="pa">737.4M</td>
+  <td class="mut pa">no git</td>
+  <td class="pa"></td>
+</tr><tr class="inv" data-s="iis express config &amp; logs c:\users\gene\documents\iisexpress archive / stale"
+     data-cat="Archive / Stale" data-status="Archive">
+  <td class="mark "></td>
+  <td><b>IIS Express Config &amp; Logs</b>
+      <div class="ppath">C:\Users\gene\Documents\IISExpress</div></td>
+  <td class="pa">Archive / Stale</td>
+  <td class="st">Archive</td>
+  <td class="pa">102.4K</td>
+  <td class="mut pa">no git</td>
+  <td class="pa"></td>
+</tr><tr class="inv" data-s="logi options+ settings backup c:\users\gene\desktop\logi-settings-backup-2026-08-22 archive / stale"
+     data-cat="Archive / Stale" data-status="Archive">
+  <td class="mark "></td>
+  <td><b>Logi Options+ Settings Backup</b>
+      <div class="ppath">C:\Users\gene\Desktop\logi-settings-backup-2026-08-22</div></td>
+  <td class="pa">Archive / Stale</td>
+  <td class="st">Archive</td>
+  <td class="pa">8.5M</td>
+  <td class="mut pa">no git</td>
+  <td class="pa"></td>
+</tr><tr class="inv" data-s="mgr game save data c:\users\gene\documents\mgr archive / stale"
+     data-cat="Archive / Stale" data-status="Archive">
+  <td class="mark "></td>
+  <td><b>MGR Game Save Data</b>
+      <div class="ppath">C:\Users\gene\Documents\MGR</div></td>
+  <td class="pa">Archive / Stale</td>
+  <td class="st">Archive</td>
+  <td class="pa">102.4K</td>
+  <td class="mut pa">no git</td>
+  <td class="pa"></td>
+</tr><tr class="inv" data-s="migrated app shortcuts c:\users\gene\desktop\migrated app shortcuts archive / stale"
+     data-cat="Archive / Stale" data-status="Archive">
+  <td class="mark "></td>
+  <td><b>Migrated App Shortcuts</b>
+      <div class="ppath">C:\Users\gene\Desktop\Migrated App Shortcuts</div></td>
+  <td class="pa">Archive / Stale</td>
+  <td class="st">Archive</td>
+  <td class="pa">0B</td>
+  <td class="mut pa">no git</td>
+  <td class="pa"></td>
+</tr><tr class="inv" data-s="migrated gog game shortcuts c:\users\gene\desktop\migrated gog game shortcuts archive / stale"
+     data-cat="Archive / Stale" data-status="Archive">
+  <td class="mark "></td>
+  <td><b>Migrated GOG Game Shortcuts</b>
+      <div class="ppath">C:\Users\gene\Desktop\Migrated GOG Game Shortcuts</div></td>
+  <td class="pa">Archive / Stale</td>
+  <td class="st">Archive</td>
+  <td class="pa">0B</td>
+  <td class="mut pa">no git</td>
+  <td class="pa">Double-click Wizards Crown.cmd</td>
+</tr><tr class="inv" data-s="migratedapps — dated application migration archive d:\migratedapps archive / stale"
+     data-cat="Archive / Stale" data-status="Unknown">
+  <td class="mark "></td>
+  <td><b>MigratedApps — Dated Application Migration Archive</b>
+      <div class="ppath">D:\MigratedApps</div></td>
+  <td class="pa">Archive / Stale</td>
+  <td class="st">Unknown</td>
+  <td class="pa">15.2G</td>
+  <td class="mut pa">no git</td>
+  <td class="pa"></td>
+</tr><tr class="inv" data-s="migration first launch checks c:\users\gene\desktop\migration first launch checks archive / stale"
+     data-cat="Archive / Stale" data-status="Archive">
+  <td class="mark "></td>
+  <td><b>Migration First Launch Checks</b>
+      <div class="ppath">C:\Users\gene\Desktop\Migration First Launch Checks</div></td>
+  <td class="pa">Archive / Stale</td>
+  <td class="st">Archive</td>
+  <td class="pa">0B</td>
+  <td class="mut pa">no git</td>
+  <td class="pa">Open README.md, then work the numbered shortcuts in order</td>
+</tr><tr class="inv" data-s="migration launch checks (extended queue) c:\users\gene\desktop\migration launch checks archive / stale"
+     data-cat="Archive / Stale" data-status="Archive">
+  <td class="mark "></td>
+  <td><b>Migration Launch Checks (Extended Queue)</b>
+      <div class="ppath">C:\Users\gene\Desktop\Migration Launch Checks</div></td>
+  <td class="pa">Archive / Stale</td>
+  <td class="st">Archive</td>
+  <td class="pa">102.4K</td>
+  <td class="mut pa">no git</td>
+  <td class="pa">Open README-FIRST.txt</td>
+</tr><tr class="inv" data-s="my web sites (visual studio scratch) c:\users\gene\documents\my web sites archive / stale"
+     data-cat="Archive / Stale" data-status="Archive">
+  <td class="mark "></td>
+  <td><b>My Web Sites (Visual Studio Scratch)</b>
+      <div class="ppath">C:\Users\gene\Documents\My Web Sites</div></td>
+  <td class="pa">Archive / Stale</td>
+  <td class="st">Archive</td>
+  <td class="pa">409.6K</td>
+  <td class="mut pa">no git</td>
+  <td class="pa"></td>
+</tr><tr class="inv" data-s="noble virtual fencing research c:\users\gene\documents\noble virtual fencing archive / stale"
+     data-cat="Archive / Stale" data-status="Dormant">
+  <td class="mark "></td>
+  <td><b>Noble Virtual Fencing Research</b>
+      <div class="ppath">C:\Users\gene\Documents\Noble Virtual Fencing</div></td>
+  <td class="pa">Archive / Stale</td>
+  <td class="st">Dormant</td>
+  <td class="pa">1.4G</td>
+  <td class="warn pa">no tests</td>
+  <td class="pa"></td>
+</tr><tr class="inv" data-s="out of scope migrated shortcuts (proxy f-m) c:\users\gene\desktop\out of scope migrated shortcuts - proxy f m archive / stale"
+     data-cat="Archive / Stale" data-status="Archive">
+  <td class="mark "></td>
+  <td><b>Out of Scope Migrated Shortcuts (Proxy F-M)</b>
+      <div class="ppath">C:\Users\gene\Desktop\Out of Scope Migrated Shortcuts - Proxy F M</div></td>
+  <td class="pa">Archive / Stale</td>
+  <td class="st">Archive</td>
+  <td class="pa">0B</td>
+  <td class="mut pa">no git</td>
+  <td class="pa"></td>
+</tr><tr class="inv" data-s="pdfgear ocr conversions c:\users\gene\documents\pdfgear archive / stale"
+     data-cat="Archive / Stale" data-status="Dormant">
+  <td class="mark "></td>
+  <td><b>PDFgear OCR Conversions</b>
+      <div class="ppath">C:\Users\gene\Documents\PDFgear</div></td>
+  <td class="pa">Archive / Stale</td>
+  <td class="st">Dormant</td>
+  <td class="pa">16.6M</td>
+  <td class="mut pa">no git</td>
+  <td class="pa"></td>
+</tr><tr class="inv" data-s="proxyfullmirror — tool-swarm workspace mirror d:\proxyfullmirror archive / stale"
+     data-cat="Archive / Stale" data-status="Unknown">
+  <td class="mark "></td>
+  <td><b>ProxyFullMirror — Tool-Swarm Workspace Mirror</b>
+      <div class="ppath">D:\ProxyFullMirror</div></td>
+  <td class="pa">Archive / Stale</td>
+  <td class="st">Unknown</td>
+  <td class="pa">213.2G</td>
+  <td class="mut pa">no git</td>
+  <td class="pa"></td>
+</tr><tr class="inv" data-s="storyflow studio rescue c:\users\gene\documents\storyflow-studio-rescue archive / stale"
+     data-cat="Archive / Stale" data-status="Archive">
+  <td class="mark "></td>
+  <td><b>Storyflow Studio Rescue</b>
+      <div class="ppath">C:\Users\gene\Documents\storyflow-studio-rescue</div></td>
+  <td class="pa">Archive / Stale</td>
+  <td class="st">Archive</td>
+  <td class="pa">0B</td>
+  <td class="mut pa">no git</td>
+  <td class="pa">cd &quot;C:\Users\gene\Documents\storyflow-studio-rescue&quot;</td>
+</tr><tr class="inv" data-s="stray c:\c\users folder c:\c\users archive / stale"
+     data-cat="Archive / Stale" data-status="Archive">
+  <td class="mark "></td>
+  <td><b>Stray C:\c\Users Folder</b>
+      <div class="ppath">C:\c\Users</div></td>
+  <td class="pa">Archive / Stale</td>
+  <td class="st">Archive</td>
+  <td class="pa">921.6K</td>
+  <td class="mut pa">no git</td>
+  <td class="pa"></td>
+</tr><tr class="inv" data-s="tombs &amp; tyrants (placeholder) d:\zcode\tombs &amp; tyrants archive / stale"
+     data-cat="Archive / Stale" data-status="Archive">
+  <td class="mark "></td>
+  <td><b>Tombs &amp; Tyrants (placeholder)</b>
+      <div class="ppath">D:\ZCODE\TOMBS &amp; TYRANTS</div></td>
+  <td class="pa">Archive / Stale</td>
+  <td class="st">Archive</td>
+  <td class="pa">0B</td>
+  <td class="mut pa">no git</td>
+  <td class="pa"></td>
+</tr><tr class="inv" data-s="zcode desktop (extracted build) d:\coding\zcode-extract archive / stale"
+     data-cat="Archive / Stale" data-status="Archive">
+  <td class="mark "></td>
+  <td><b>ZCode Desktop (extracted build)</b>
+      <div class="ppath">D:\coding\zcode-extract</div></td>
+  <td class="pa">Archive / Stale</td>
+  <td class="st">Archive</td>
+  <td class="pa">48.8M</td>
+  <td class="mut pa">no git</td>
+  <td class="pa"></td>
+</tr><tr class="inv" data-s="zcode locales (chromium .pak files) d:\zcode\locales archive / stale"
+     data-cat="Archive / Stale" data-status="Archive">
+  <td class="mark "></td>
+  <td><b>ZCode Locales (Chromium .pak files)</b>
+      <div class="ppath">D:\ZCODE\locales</div></td>
+  <td class="pa">Archive / Stale</td>
+  <td class="st">Archive</td>
+  <td class="pa">1.1M</td>
+  <td class="mut pa">no git</td>
+  <td class="pa"></td>
+</tr><tr class="inv" data-s="hermes browser extension c:\coding\hermes-browser-extension browser extension"
+     data-cat="Browser Extension" data-status="Dormant">
+  <td class="mark "></td>
+  <td><b>Hermes Browser Extension</b>
+      <div class="ppath">C:\CODING\hermes-browser-extension</div></td>
+  <td class="pa">Browser Extension</td>
+  <td class="st">Dormant</td>
+  <td class="pa">13.6M</td>
+  <td class="mut pa">no git</td>
+  <td class="pa">Chrome -&gt; chrome://extensions -&gt; Load unpacked -&gt; C:\CODING\hermes-br</td>
+</tr><tr class="inv" data-s="opencli browser automation extension c:\coding\opencli chrome extension browser extension"
+     data-cat="Browser Extension" data-status="Archive">
+  <td class="mark "></td>
+  <td><b>OpenCLI Browser Automation Extension</b>
+      <div class="ppath">C:\CODING\opencli chrome extension</div></td>
+  <td class="pa">Browser Extension</td>
+  <td class="st">Archive</td>
+  <td class="pa">102.4K</td>
+  <td class="mut pa">no git</td>
+  <td class="pa">chrome://extensions -&gt; Developer mode -&gt; Load unpacked -&gt; select C:\C</td>
+</tr><tr class="inv" data-s="pushbullet extension (v366) — early test copy c:\coding\pushbullet-test-v1.0 browser extension"
+     data-cat="Browser Extension" data-status="Archive">
+  <td class="mark "></td>
+  <td><b>Pushbullet Extension (v366) — Early Test Copy</b>
+      <div class="ppath">C:\CODING\PUSHBULLET-TEST-v1.0</div></td>
+  <td class="pa">Browser Extension</td>
+  <td class="st">Archive</td>
+  <td class="pa">1.5M</td>
+  <td class="warn pa">no tests</td>
+  <td class="pa">Chrome -&gt; chrome://extensions -&gt; Load unpacked -&gt; C:\CODING\PUSHBULLE</td>
+</tr><tr class="inv" data-s="pushbullet extension (v379) — working copy c:\coding\pushbullet work browser extension"
+     data-cat="Browser Extension" data-status="Archive">
+  <td class="mark "></td>
+  <td><b>Pushbullet Extension (v379) — Working Copy</b>
+      <div class="ppath">C:\CODING\PUSHBULLET WORK</div></td>
+  <td class="pa">Browser Extension</td>
+  <td class="st">Archive</td>
+  <td class="pa">1.6M</td>
+  <td class="warn pa">no tests</td>
+  <td class="pa">Chrome -&gt; chrome://extensions -&gt; Load unpacked -&gt; C:\CODING\PUSHBULLE</td>
+</tr><tr class="inv" data-s="pushbullet extension (v379) — fix-main snapshot c:\coding\pushbullet-fix-main browser extension"
+     data-cat="Browser Extension" data-status="Archive">
+  <td class="mark "></td>
+  <td><b>Pushbullet Extension (v379) — fix-main Snapshot</b>
+      <div class="ppath">C:\CODING\pushbullet-fix-main</div></td>
+  <td class="pa">Browser Extension</td>
+  <td class="st">Archive</td>
+  <td class="pa">2.1M</td>
+  <td class="mut pa">no git</td>
+  <td class="pa">Chrome -&gt; chrome://extensions -&gt; Load unpacked -&gt; C:\CODING\pushbulle</td>
+</tr><tr class="inv" data-s="pushbullet extension (v382) — latest fix branch c:\coding\pushbullet-fix browser extension"
+     data-cat="Browser Extension" data-status="Dormant">
+  <td class="mark "></td>
+  <td><b>Pushbullet Extension (v382) — Latest Fix Branch</b>
+      <div class="ppath">C:\CODING\pushbullet-fix</div></td>
+  <td class="pa">Browser Extension</td>
+  <td class="st">Dormant</td>
+  <td class="pa">1.6M</td>
+  <td class="warn pa">no tests</td>
+  <td class="pa">Chrome -&gt; chrome://extensions -&gt; Load unpacked -&gt; C:\CODING\pushbulle</td>
+</tr><tr class="inv" data-s="pushbullet extension — firefox port (v379) c:\coding\pushbullet firefox browser extension"
+     data-cat="Browser Extension" data-status="Dormant">
+  <td class="mark "></td>
+  <td><b>Pushbullet Extension — Firefox Port (v379)</b>
+      <div class="ppath">C:\CODING\PUSHBULLET FIREFOX</div></td>
+  <td class="pa">Browser Extension</td>
+  <td class="st">Dormant</td>
+  <td class="pa">1.6M</td>
+  <td class="mut pa">no git</td>
+  <td class="pa">Firefox -&gt; about:debugging -&gt; This Firefox -&gt; Load Temporary Add-on -</td>
+</tr><tr class="inv" data-s="subscription tracker &amp; calendar sync (v1) d:\coding\subscription-ext-qwen browser extension"
+     data-cat="Browser Extension" data-status="Archive">
+  <td class="mark "></td>
+  <td><b>Subscription Tracker &amp; Calendar Sync (v1)</b>
+      <div class="ppath">D:\coding\subscription-ext-qwen</div></td>
+  <td class="pa">Browser Extension</td>
+  <td class="st">Archive</td>
+  <td class="pa">0B</td>
+  <td class="mut pa">no git</td>
+  <td class="pa">Chrome -&gt; chrome://extensions -&gt; Load unpacked -&gt; D:\coding\subscript</td>
+</tr><tr class="inv" data-s="subscription tracker &amp; calendar sync (v2) d:\coding\subscription-ext-improved browser extension"
+     data-cat="Browser Extension" data-status="Dormant">
+  <td class="mark "></td>
+  <td><b>Subscription Tracker &amp; Calendar Sync (v2)</b>
+      <div class="ppath">D:\coding\subscription-ext-improved</div></td>
+  <td class="pa">Browser Extension</td>
+  <td class="st">Dormant</td>
+  <td class="pa">102.4K</td>
+  <td class="warn pa">no tests</td>
+  <td class="pa">Chrome -&gt; chrome://extensions -&gt; Load unpacked -&gt; D:\coding\subscript</td>
+</tr><tr class="inv" data-s="workdog push (browser extension) c:\coding\workdog-push-extension browser extension"
+     data-cat="Browser Extension" data-status="Dormant">
+  <td class="mark "></td>
+  <td><b>WorkDog Push (Browser Extension)</b>
+      <div class="ppath">C:\CODING\workdog-push-extension</div></td>
+  <td class="pa">Browser Extension</td>
+  <td class="st">Dormant</td>
+  <td class="pa">0B</td>
+  <td class="warn pa">no tests</td>
+  <td class="pa">Chrome -&gt; chrome://extensions -&gt; Load unpacked -&gt; C:\CODING\workdog-p</td>
+</tr><tr class="inv" data-s="ebay scam remover extension d:\coding\ebay-scam-remover-extension browser extension"
+     data-cat="Browser Extension" data-status="Archive">
+  <td class="mark "></td>
+  <td><b>eBay Scam Remover Extension</b>
+      <div class="ppath">D:\coding\ebay-scam-remover-extension</div></td>
+  <td class="pa">Browser Extension</td>
+  <td class="st">Archive</td>
+  <td class="pa">0B</td>
+  <td class="warn pa">no tests</td>
+  <td class="pa">Chrome -&gt; chrome://extensions -&gt; Load unpacked -&gt; D:\coding\ebay-scam</td>
+</tr><tr class="inv" data-s="ai consulting offers page c:\coding\ai-consulting-offers business / marketing"
+     data-cat="Business / Marketing" data-status="Dormant">
+  <td class="mark "></td>
+  <td><b>AI Consulting Offers Page</b>
+      <div class="ppath">C:\CODING\ai-consulting-offers</div></td>
+  <td class="pa">Business / Marketing</td>
+  <td class="st">Dormant</td>
+  <td class="pa">0B</td>
+  <td class="mut pa">no git</td>
+  <td class="pa">start C:\CODING\ai-consulting-offers\index.html</td>
+</tr><tr class="inv" data-s="business builder mcp + saas dashboard d:\coding\business builder app - mcp for all other apps business / marketing"
+     data-cat="Business / Marketing" data-status="Active">
+  <td class="mark "></td>
+  <td><b>Business Builder MCP + SaaS Dashboard</b>
+      <div class="ppath">D:\coding\BUSINESS BUILDER APP - MCP FOR ALL OTHER APPS</div></td>
+  <td class="pa">Business / Marketing</td>
+  <td class="st">Active</td>
+  <td class="pa">45.8M</td>
+  <td class="ok pa">npm test</td>
+  <td class="pa">cd &quot;D:\coding\BUSINESS BUILDER APP - MCP FOR ALL OTHER APPS&quot;</td>
+</tr><tr class="inv" data-s="course funnel page c:\coding\course-funnel business / marketing"
+     data-cat="Business / Marketing" data-status="Archive">
+  <td class="mark "></td>
+  <td><b>Course Funnel Page</b>
+      <div class="ppath">C:\CODING\course-funnel</div></td>
+  <td class="pa">Business / Marketing</td>
+  <td class="st">Archive</td>
+  <td class="pa">0B</td>
+  <td class="mut pa">no git</td>
+  <td class="pa">start C:\CODING\course-funnel\index.html</td>
+</tr><tr class="inv" data-s="courses outcomes table c:\coding\courses business / marketing"
+     data-cat="Business / Marketing" data-status="Archive">
+  <td class="mark "></td>
+  <td><b>Courses Outcomes Table</b>
+      <div class="ppath">C:\CODING\courses</div></td>
+  <td class="pa">Business / Marketing</td>
+  <td class="st">Archive</td>
+  <td class="pa">0B</td>
+  <td class="mut pa">no git</td>
+  <td class="pa">start C:\CODING\courses\outcomes-table.html</td>
+</tr><tr class="inv" data-s="domain business builds d:\coding\domain business builds business / marketing"
+     data-cat="Business / Marketing" data-status="Archive">
+  <td class="mark "></td>
+  <td><b>Domain Business Builds</b>
+      <div class="ppath">D:\coding\DOMAIN BUSINESS BUILDS</div></td>
+  <td class="pa">Business / Marketing</td>
+  <td class="st">Archive</td>
+  <td class="pa">512.0K</td>
+  <td class="mut pa">no git</td>
+  <td class="pa"></td>
+</tr><tr class="inv" data-s="harbor laser co — shopify store &amp; video production c:\users\gene\documents\harbor laser co business / marketing"
+     data-cat="Business / Marketing" data-status="Active">
+  <td class="mark "></td>
+  <td><b>Harbor Laser Co — Shopify Store &amp; Video Production</b>
+      <div class="ppath">C:\Users\gene\Documents\HARBOR LASER CO</div></td>
+  <td class="pa">Business / Marketing</td>
+  <td class="st">Active</td>
+  <td class="pa">15.4G</td>
+  <td class="warn pa">no tests</td>
+  <td class="pa">cd C:\Users\gene\Documents\HARBOR LASER CO\voice-casting-console &amp;&amp; py</td>
+</tr><tr class="inv" data-s="last30days content drafts c:\users\gene\documents\last30days business / marketing"
+     data-cat="Business / Marketing" data-status="Dormant">
+  <td class="mark "></td>
+  <td><b>Last30Days Content Drafts</b>
+      <div class="ppath">C:\Users\gene\Documents\Last30Days</div></td>
+  <td class="pa">Business / Marketing</td>
+  <td class="st">Dormant</td>
+  <td class="pa">204.8K</td>
+  <td class="mut pa">no git</td>
+  <td class="pa"></td>
+</tr><tr class="inv" data-s="noble digital marketing ops c:\users\gene\documents\noble digital business / marketing"
+     data-cat="Business / Marketing" data-status="Active">
+  <td class="mark "></td>
+  <td><b>Noble Digital Marketing Ops</b>
+      <div class="ppath">C:\Users\gene\Documents\Noble Digital</div></td>
+  <td class="pa">Business / Marketing</td>
+  <td class="st">Active</td>
+  <td class="pa">2.3G</td>
+  <td class="warn pa">no tests</td>
+  <td class="pa">cd C:\Users\gene\Documents\Noble Digital &amp;&amp; python rewrite_process_rep</td>
+</tr><tr class="inv" data-s="noble process sheet — authority tab builder c:\coding\noble-process-sheet business / marketing"
+     data-cat="Business / Marketing" data-status="Dormant">
+  <td class="mark "></td>
+  <td><b>Noble Process Sheet — Authority Tab Builder</b>
+      <div class="ppath">C:\CODING\noble-process-sheet</div></td>
+  <td class="pa">Business / Marketing</td>
+  <td class="st">Dormant</td>
+  <td class="pa">0B</td>
+  <td class="mut pa">no git</td>
+  <td class="pa">python add_authority_tab.py</td>
+</tr><tr class="inv" data-s="noble semrush integration brief c:\coding\noble-semrush-brief business / marketing"
+     data-cat="Business / Marketing" data-status="Archive">
+  <td class="mark "></td>
+  <td><b>Noble SEMrush Integration Brief</b>
+      <div class="ppath">C:\CODING\noble-semrush-brief</div></td>
+  <td class="pa">Business / Marketing</td>
+  <td class="st">Archive</td>
+  <td class="pa">307.2K</td>
+  <td class="ok pa">npm test</td>
+  <td class="pa">cd C:\CODING\noble-semrush-brief</td>
+</tr><tr class="inv" data-s="price &amp; marketplace scraper collection c:\users\gene\research-repos business / marketing"
+     data-cat="Business / Marketing" data-status="Dormant">
+  <td class="mark "></td>
+  <td><b>Price &amp; Marketplace Scraper Collection</b>
+      <div class="ppath">C:\Users\gene\research-repos</div></td>
+  <td class="pa">Business / Marketing</td>
+  <td class="st">Dormant</td>
+  <td class="pa">3.2M</td>
+  <td class="mut pa">no git</td>
+  <td class="pa">Each subfolder is its own repo with its own README — open Amazon.com-Scrapers/</td>
+</tr><tr class="inv" data-s="replyengine lead magnet (idea stub) d:\coding\replyengine lead magent - idea from cc bizops business / marketing"
+     data-cat="Business / Marketing" data-status="Archive">
+  <td class="mark "></td>
+  <td><b>ReplyEngine Lead Magnet (idea stub)</b>
+      <div class="ppath">D:\coding\REPLYENGINE LEAD MAGENT - IDEA FROM CC BIZOPS</div></td>
+  <td class="pa">Business / Marketing</td>
+  <td class="st">Archive</td>
+  <td class="pa">0B</td>
+  <td class="mut pa">no git</td>
+  <td class="pa"></td>
+</tr><tr class="inv" data-s="smb ai consulting offer one-pager c:\coding\ai-consulting-blueprint business / marketing"
+     data-cat="Business / Marketing" data-status="Dormant">
+  <td class="mark "></td>
+  <td><b>SMB AI Consulting Offer One-Pager</b>
+      <div class="ppath">C:\CODING\ai-consulting-blueprint</div></td>
+  <td class="pa">Business / Marketing</td>
+  <td class="st">Dormant</td>
+  <td class="pa">307.2K</td>
+  <td class="mut pa">no git</td>
+  <td class="pa">python C:\CODING\ai-consulting-blueprint\build_doc.py</td>
+</tr><tr class="inv" data-s="saas tools inventory &amp; report c:\users\gene\documents\saas tools canvas business / marketing"
+     data-cat="Business / Marketing" data-status="Dormant">
+  <td class="mark "></td>
+  <td><b>SaaS Tools Inventory &amp; Report</b>
+      <div class="ppath">C:\Users\gene\Documents\SAAS TOOLS CANVAS</div></td>
+  <td class="pa">Business / Marketing</td>
+  <td class="st">Dormant</td>
+  <td class="pa">3.5M</td>
+  <td class="warn pa">no tests</td>
+  <td class="pa">cd C:\Users\gene\Documents\SAAS TOOLS CANVAS &amp;&amp; python generate_saas_r</td>
+</tr><tr class="inv" data-s="ship-or-die crew websites report c:\users\gene\documents\copycats business / marketing"
+     data-cat="Business / Marketing" data-status="Archive">
+  <td class="mark "></td>
+  <td><b>Ship-or-Die Crew Websites Report</b>
+      <div class="ppath">C:\Users\gene\Documents\COPYCATS</div></td>
+  <td class="pa">Business / Marketing</td>
+  <td class="st">Archive</td>
+  <td class="pa">409.6K</td>
+  <td class="warn pa">no tests</td>
+  <td class="pa"></td>
+</tr><tr class="inv" data-s="zip code ranker c:\users\gene\documents\zip code ranker business / marketing"
+     data-cat="Business / Marketing" data-status="Dormant">
+  <td class="mark "></td>
+  <td><b>Zip Code Ranker</b>
+      <div class="ppath">C:\Users\gene\Documents\Zip Code Ranker</div></td>
+  <td class="pa">Business / Marketing</td>
+  <td class="st">Dormant</td>
+  <td class="pa">292.1G</td>
+  <td class="mut pa">no git</td>
+  <td class="pa">See Zip Crime Data V6/README.md for the data build procedure</td>
+</tr><tr class="inv" data-s="fleet docs &amp; scripts c:\coding\fleet-docs fleet &amp; infrastructure"
+     data-cat="Fleet &amp; Infrastructure" data-status="Active">
+  <td class="mark "></td>
+  <td><b>Fleet Docs &amp; Scripts</b>
+      <div class="ppath">C:\CODING\fleet-docs</div></td>
+  <td class="pa">Fleet &amp; Infrastructure</td>
+  <td class="st">Active</td>
+  <td class="pa">102.4K</td>
+  <td class="mut pa">no git</td>
+  <td class="pa"></td>
+</tr><tr class="inv" data-s="fleet project — tauri fleet queue app d:\coding\fleet-project fleet &amp; infrastructure"
+     data-cat="Fleet &amp; Infrastructure" data-status="Dormant">
+  <td class="mark "></td>
+  <td><b>Fleet Project — Tauri Fleet Queue App</b>
+      <div class="ppath">D:\coding\fleet-project</div></td>
+  <td class="pa">Fleet &amp; Infrastructure</td>
+  <td class="st">Dormant</td>
+  <td class="pa">2.2G</td>
+  <td class="mut pa">no git</td>
+  <td class="pa">powershell -File run-dev.ps1</td>
+</tr><tr class="inv" data-s="fleet scanner c:\users\gene\fleet-scanner fleet &amp; infrastructure"
+     data-cat="Fleet &amp; Infrastructure" data-status="Dormant">
+  <td class="mark "></td>
+  <td><b>Fleet Scanner</b>
+      <div class="ppath">C:\Users\gene\fleet-scanner</div></td>
+  <td class="pa">Fleet &amp; Infrastructure</td>
+  <td class="st">Dormant</td>
+  <td class="pa">153.6M</td>
+  <td class="mut pa">no git</td>
+  <td class="pa">cd C:\Users\gene\fleet-scanner</td>
+</tr><tr class="inv" data-s="fleet scanner v2 c:\users\gene\fleet-scanner-v2 fleet &amp; infrastructure"
+     data-cat="Fleet &amp; Infrastructure" data-status="Dormant">
+  <td class="mark "></td>
+  <td><b>Fleet Scanner v2</b>
+      <div class="ppath">C:\Users\gene\fleet-scanner-v2</div></td>
+  <td class="pa">Fleet &amp; Infrastructure</td>
+  <td class="st">Dormant</td>
+  <td class="pa">409.6K</td>
+  <td class="mut pa">no git</td>
+  <td class="pa">cd C:\Users\gene\fleet-scanner-v2</td>
+</tr><tr class="inv" data-s="openclaude pill d:\coding\openclaude-pill fleet &amp; infrastructure"
+     data-cat="Fleet &amp; Infrastructure" data-status="Active">
+  <td class="mark "></td>
+  <td><b>OpenClaude Pill</b>
+      <div class="ppath">D:\coding\openclaude-pill</div></td>
+  <td class="pa">Fleet &amp; Infrastructure</td>
+  <td class="st">Active</td>
+  <td class="pa">12.7M</td>
+  <td class="warn pa">no tests</td>
+  <td class="pa">cd /d D:\coding\openclaude-pill &amp;&amp; launcher-config.json</td>
+</tr><tr class="inv" data-s="ops — fleet dashboard &amp; health checks c:\users\gene\ops fleet &amp; infrastructure"
+     data-cat="Fleet &amp; Infrastructure" data-status="Unknown">
+  <td class="mark "></td>
+  <td><b>Ops — Fleet Dashboard &amp; Health Checks</b>
+      <div class="ppath">C:\Users\gene\ops</div></td>
+  <td class="pa">Fleet &amp; Infrastructure</td>
+  <td class="st">Unknown</td>
+  <td class="pa">64.2K</td>
+  <td class="mut pa">no git</td>
+  <td class="pa"></td>
+</tr><tr class="inv" data-s="workdog push server c:\coding\workdog-push-server fleet &amp; infrastructure"
+     data-cat="Fleet &amp; Infrastructure" data-status="Dormant">
+  <td class="mark "></td>
+  <td><b>WorkDog Push Server</b>
+      <div class="ppath">C:\CODING\workdog-push-server</div></td>
+  <td class="pa">Fleet &amp; Infrastructure</td>
+  <td class="st">Dormant</td>
+  <td class="pa">0B</td>
+  <td class="warn pa">no tests</td>
+  <td class="pa">cd C:\CODING\workdog-push-server</td>
+</tr><tr class="inv" data-s="zcode desktop app resources d:\zcode\resources fleet &amp; infrastructure"
+     data-cat="Fleet &amp; Infrastructure" data-status="Active">
+  <td class="mark "></td>
+  <td><b>ZCode Desktop App Resources</b>
+      <div class="ppath">D:\ZCODE\resources</div></td>
+  <td class="pa">Fleet &amp; Infrastructure</td>
+  <td class="st">Active</td>
+  <td class="pa">238.3M</td>
+  <td class="mut pa">no git</td>
+  <td class="pa">D:\ZCODE\ZCode.exe</td>
+</tr><tr class="inv" data-s="legend of aeloria (enhanced) c:\users\gene\aeloria-enhanced game development"
+     data-cat="Game Development" data-status="Dormant">
+  <td class="mark "></td>
+  <td><b>Legend of Aeloria (Enhanced)</b>
+      <div class="ppath">C:\Users\gene\Aeloria-Enhanced</div></td>
+  <td class="pa">Game Development</td>
+  <td class="st">Dormant</td>
+  <td class="pa">819.2K</td>
+  <td class="mut pa">no git</td>
+  <td class="pa">cd C:\Users\gene\Aeloria-Enhanced</td>
+</tr><tr class="inv" data-s="legend of aeloria (qwencoder copy) c:\users\gene\aeloria-qwencoder game development"
+     data-cat="Game Development" data-status="Archive">
+  <td class="mark "></td>
+  <td><b>Legend of Aeloria (QwenCoder Copy)</b>
+      <div class="ppath">C:\Users\gene\Aeloria-QwenCoder</div></td>
+  <td class="pa">Game Development</td>
+  <td class="st">Archive</td>
+  <td class="pa">307.2K</td>
+  <td class="mut pa">no git</td>
+  <td class="pa">cd C:\Users\gene\Aeloria-QwenCoder</td>
+</tr><tr class="inv" data-s="minecraft clone d:\coding\minecraft game development"
+     data-cat="Game Development" data-status="Dormant">
+  <td class="mark "></td>
+  <td><b>Minecraft Clone</b>
+      <div class="ppath">D:\coding\minecraft</div></td>
+  <td class="pa">Game Development</td>
+  <td class="st">Dormant</td>
+  <td class="pa">409.6K</td>
+  <td class="warn pa">no tests</td>
+  <td class="pa">cd /d D:\coding\minecraft &amp;&amp; node server.js</td>
+</tr><tr class="inv" data-s="tetra smoke test c:\users\gene\tetra game development"
+     data-cat="Game Development" data-status="Archive">
+  <td class="mark "></td>
+  <td><b>Tetra Smoke Test</b>
+      <div class="ppath">C:\Users\gene\tetra</div></td>
+  <td class="pa">Game Development</td>
+  <td class="st">Archive</td>
+  <td class="pa">0B</td>
+  <td class="mut pa">no git</td>
+  <td class="pa">Double-click  C:\Users\gene\tetra\tetra.html</td>
+</tr><tr class="inv" data-s="tetris web game c:\users\gene\tetris game development"
+     data-cat="Game Development" data-status="Archive">
+  <td class="mark "></td>
+  <td><b>Tetris Web Game</b>
+      <div class="ppath">C:\Users\gene\tetris</div></td>
+  <td class="pa">Game Development</td>
+  <td class="st">Archive</td>
+  <td class="pa">0B</td>
+  <td class="mut pa">no git</td>
+  <td class="pa">Double-click  C:\Users\gene\tetris\index.html</td>
+</tr><tr class="inv" data-s="tic-tac-toe (modular) c:\users\gene\tictactoe game development"
+     data-cat="Game Development" data-status="Archive">
+  <td class="mark "></td>
+  <td><b>Tic-Tac-Toe (Modular)</b>
+      <div class="ppath">C:\Users\gene\tictactoe</div></td>
+  <td class="pa">Game Development</td>
+  <td class="st">Archive</td>
+  <td class="pa">0B</td>
+  <td class="mut pa">no git</td>
+  <td class="pa">Double-click  C:\Users\gene\tictactoe\tictactoe.html</td>
+</tr><tr class="inv" data-s="tic-tac-toe ultra c:\users\gene\tictactoe-ultra game development"
+     data-cat="Game Development" data-status="Archive">
+  <td class="mark "></td>
+  <td><b>Tic-Tac-Toe Ultra</b>
+      <div class="ppath">C:\Users\gene\tictactoe-ultra</div></td>
+  <td class="pa">Game Development</td>
+  <td class="st">Archive</td>
+  <td class="pa">0B</td>
+  <td class="mut pa">no git</td>
+  <td class="pa">Double-click  C:\Users\gene\tictactoe-ultra\index.html</td>
+</tr><tr class="inv" data-s="tiktoe c:\users\gene\tiktoe game development"
+     data-cat="Game Development" data-status="Archive">
+  <td class="mark "></td>
+  <td><b>Tiktoe</b>
+      <div class="ppath">C:\Users\gene\tiktoe</div></td>
+  <td class="pa">Game Development</td>
+  <td class="st">Archive</td>
+  <td class="pa">0B</td>
+  <td class="mut pa">no git</td>
+  <td class="pa">Double-click  C:\Users\gene\tiktoe\index.html</td>
+</tr><tr class="inv" data-s="tombs &amp; tyrants ai rpg d:\zcode\tombs and tyrants game development"
+     data-cat="Game Development" data-status="Active">
+  <td class="mark pin">● IN ROTATION</td>
+  <td><b>Tombs &amp; Tyrants AI RPG</b>
+      <div class="ppath">D:\ZCODE\TOMBS AND TYRANTS</div></td>
+  <td class="pa">Game Development</td>
+  <td class="st">Active</td>
+  <td class="pa">7.3G</td>
+  <td class="ok pa">python -m pytest -q</td>
+  <td class="pa">cd &quot;D:\ZCODE\TOMBS AND TYRANTS&quot;</td>
+</tr><tr class="inv" data-s="tombs &amp; tyrants — git bundle backup c:\coding\tt-backups game development"
+     data-cat="Game Development" data-status="Active">
+  <td class="mark "></td>
+  <td><b>Tombs &amp; Tyrants — Git Bundle Backup</b>
+      <div class="ppath">C:\CODING\tt-backups</div></td>
+  <td class="pa">Game Development</td>
+  <td class="st">Active</td>
+  <td class="pa">165.7M</td>
+  <td class="mut pa">no git</td>
+  <td class="pa">cd &lt;target-dir&gt;</td>
+</tr><tr class="inv" data-s="tombs &amp; tyrants — review findings harvest c:\coding\tt-harvest game development"
+     data-cat="Game Development" data-status="Active">
+  <td class="mark "></td>
+  <td><b>Tombs &amp; Tyrants — Review Findings Harvest</b>
+      <div class="ppath">C:\CODING\tt-harvest</div></td>
+  <td class="pa">Game Development</td>
+  <td class="st">Active</td>
+  <td class="pa">204.8K</td>
+  <td class="mut pa">no git</td>
+  <td class="pa"></td>
+</tr><tr class="inv" data-s="tombs and tyrants c:\users\gene\documents\tombs and tyrants game development"
+     data-cat="Game Development" data-status="Active">
+  <td class="mark "></td>
+  <td><b>Tombs and Tyrants</b>
+      <div class="ppath">C:\Users\gene\Documents\Tombs and Tyrants</div></td>
+  <td class="pa">Game Development</td>
+  <td class="st">Active</td>
+  <td class="pa">144.4M</td>
+  <td class="mut pa">no git</td>
+  <td class="pa">Open &quot;C:\Users\gene\Documents\Tombs and Tyrants\_backup_game.html&quot; d</td>
+</tr><tr class="inv" data-s="abl 3-minute video production c:\users\gene\documents\abl-3min-production-20260519-working media &amp; video"
+     data-cat="Media &amp; Video" data-status="Dormant">
+  <td class="mark "></td>
+  <td><b>ABL 3-Minute Video Production</b>
+      <div class="ppath">C:\Users\gene\Documents\ABL-3min-production-20260519-working</div></td>
+  <td class="pa">Media &amp; Video</td>
+  <td class="st">Dormant</td>
+  <td class="pa">478.5M</td>
+  <td class="mut pa">no git</td>
+  <td class="pa">Inspect C:\Users\gene\Documents\ABL-3min-production-20260519-working\final  fo</td>
+</tr><tr class="inv" data-s="abl video pipeline test c:\coding\abl-video-test media &amp; video"
+     data-cat="Media &amp; Video" data-status="Archive">
+  <td class="mark "></td>
+  <td><b>ABL Video Pipeline Test</b>
+      <div class="ppath">C:\CODING\ABL-video-test</div></td>
+  <td class="pa">Media &amp; Video</td>
+  <td class="st">Archive</td>
+  <td class="pa">65.7M</td>
+  <td class="mut pa">no git</td>
+  <td class="pa">python C:\CODING\ABL-video-test\monitor_and_assemble.py</td>
+</tr><tr class="inv" data-s="ace-step music generation ops c:\users\gene\documents\voice &amp; music media &amp; video"
+     data-cat="Media &amp; Video" data-status="Dormant">
+  <td class="mark "></td>
+  <td><b>ACE-Step Music Generation Ops</b>
+      <div class="ppath">C:\Users\gene\Documents\VOICE &amp; MUSIC</div></td>
+  <td class="pa">Media &amp; Video</td>
+  <td class="st">Dormant</td>
+  <td class="pa">11.0M</td>
+  <td class="warn pa">no tests</td>
+  <td class="pa">&quot;Start ACE-Step.cmd&quot;</td>
+</tr><tr class="inv" data-s="activated by light (abl) c:\coding\activated-by-light media &amp; video"
+     data-cat="Media &amp; Video" data-status="Dormant">
+  <td class="mark "></td>
+  <td><b>Activated by Light (ABL)</b>
+      <div class="ppath">C:\CODING\activated-by-light</div></td>
+  <td class="pa">Media &amp; Video</td>
+  <td class="st">Dormant</td>
+  <td class="pa">0B</td>
+  <td class="mut pa">no git</td>
+  <td class="pa"></td>
+</tr><tr class="inv" data-s="bookmarked podcast c:\coding\bookmarked-podcast media &amp; video"
+     data-cat="Media &amp; Video" data-status="Active">
+  <td class="mark "></td>
+  <td><b>Bookmarked Podcast</b>
+      <div class="ppath">C:\CODING\bookmarked-podcast</div></td>
+  <td class="pa">Media &amp; Video</td>
+  <td class="st">Active</td>
+  <td class="pa">986.4M</td>
+  <td class="mut pa">no git</td>
+  <td class="pa"></td>
+</tr><tr class="inv" data-s="bookmarked podcast tts parts c:\coding\tts_parts media &amp; video"
+     data-cat="Media &amp; Video" data-status="Dormant">
+  <td class="mark "></td>
+  <td><b>Bookmarked Podcast TTS Parts</b>
+      <div class="ppath">C:\CODING\tts_parts</div></td>
+  <td class="pa">Media &amp; Video</td>
+  <td class="st">Dormant</td>
+  <td class="pa">105.4M</td>
+  <td class="mut pa">no git</td>
+  <td class="pa"></td>
+</tr><tr class="inv" data-s="h3 video output gallery c:\users\gene\h3-output media &amp; video"
+     data-cat="Media &amp; Video" data-status="Active">
+  <td class="mark "></td>
+  <td><b>H3 Video Output Gallery</b>
+      <div class="ppath">C:\Users\gene\h3-output</div></td>
+  <td class="pa">Media &amp; Video</td>
+  <td class="st">Active</td>
+  <td class="pa">163.2M</td>
+  <td class="mut pa">no git</td>
+  <td class="pa">Inspect C:\Users\gene\h3-output for renders (e.g. clipA_golden_shore.mp4, h3_t</td>
+</tr><tr class="inv" data-s="h3 workflows — minimax h3 video api payloads c:\users\gene\h3-workflows media &amp; video"
+     data-cat="Media &amp; Video" data-status="Unknown">
+  <td class="mark "></td>
+  <td><b>H3 Workflows — MiniMax H3 Video API Payloads</b>
+      <div class="ppath">C:\Users\gene\h3-workflows</div></td>
+  <td class="pa">Media &amp; Video</td>
+  <td class="st">Unknown</td>
+  <td class="pa">743.9M</td>
+  <td class="mut pa">no git</td>
+  <td class="pa"></td>
+</tr><tr class="inv" data-s="hermes podcast episodes v2 — rendered podcast audio c:\users\gene\hermes-podcast-episodes-v2 media &amp; video"
+     data-cat="Media &amp; Video" data-status="Unknown">
+  <td class="mark "></td>
+  <td><b>Hermes Podcast Episodes v2 — Rendered Podcast Audio</b>
+      <div class="ppath">C:\Users\gene\hermes-podcast-episodes-v2</div></td>
+  <td class="pa">Media &amp; Video</td>
+  <td class="st">Unknown</td>
+  <td class="pa">956.3M</td>
+  <td class="mut pa">no git</td>
+  <td class="pa"></td>
+</tr><tr class="inv" data-s="hermes podcast scripts c:\users\gene\hermes-podcast-scripts media &amp; video"
+     data-cat="Media &amp; Video" data-status="Archive">
+  <td class="mark "></td>
+  <td><b>Hermes Podcast Scripts</b>
+      <div class="ppath">C:\Users\gene\hermes-podcast-scripts</div></td>
+  <td class="pa">Media &amp; Video</td>
+  <td class="st">Archive</td>
+  <td class="pa">614.4K</td>
+  <td class="mut pa">no git</td>
+  <td class="pa">Open C:\Users\gene\hermes-podcast-scripts\episode-26.txt</td>
+</tr><tr class="inv" data-s="hermes stories podcast wavs c:\users\gene\hermes-podcast-episodes media &amp; video"
+     data-cat="Media &amp; Video" data-status="Archive">
+  <td class="mark "></td>
+  <td><b>Hermes Stories Podcast WAVs</b>
+      <div class="ppath">C:\Users\gene\hermes-podcast-episodes</div></td>
+  <td class="pa">Media &amp; Video</td>
+  <td class="st">Archive</td>
+  <td class="pa">929.7M</td>
+  <td class="mut pa">no git</td>
+  <td class="pa">Play C:\Users\gene\hermes-podcast-episodes\hermes-stories-ep26.wav</td>
+</tr><tr class="inv" data-s="hyperframes d:\coding\hyperframes media &amp; video"
+     data-cat="Media &amp; Video" data-status="Active">
+  <td class="mark "></td>
+  <td><b>HyperFrames</b>
+      <div class="ppath">D:\coding\hyperframes</div></td>
+  <td class="pa">Media &amp; Video</td>
+  <td class="st">Active</td>
+  <td class="pa">286.6M</td>
+  <td class="ok pa">npm test</td>
+  <td class="pa">cd D:\coding\hyperframes</td>
+</tr><tr class="inv" data-s="minimax image output c:\users\gene\documents\minimax-output media &amp; video"
+     data-cat="Media &amp; Video" data-status="Dormant">
+  <td class="mark "></td>
+  <td><b>MiniMax Image Output</b>
+      <div class="ppath">C:\Users\gene\Documents\MiniMax-Output</div></td>
+  <td class="pa">Media &amp; Video</td>
+  <td class="st">Dormant</td>
+  <td class="pa">1.0M</td>
+  <td class="mut pa">no git</td>
+  <td class="pa"></td>
+</tr><tr class="inv" data-s="scriptvoiceover (partial copy) c:\users\gene\documents\scriptvoiceover-partial-full-copy-20260731-1555 media &amp; video"
+     data-cat="Media &amp; Video" data-status="Archive">
+  <td class="mark "></td>
+  <td><b>ScriptVoiceOver (partial copy)</b>
+      <div class="ppath">C:\Users\gene\Documents\ScriptVoiceOver-partial-full-copy-20260731-1555</div></td>
+  <td class="pa">Media &amp; Video</td>
+  <td class="st">Archive</td>
+  <td class="pa">7.6M</td>
+  <td class="mut pa">no git</td>
+  <td class="pa">cd &quot;C:\Users\gene\Documents\ScriptVoiceOver-partial-full-copy-20260731-15</td>
+</tr><tr class="inv" data-s="scriptvoiceover (portable copy attempt) c:\users\gene\documents\scriptvoiceover-portable-copy-attempt-20260731-1604 media &amp; video"
+     data-cat="Media &amp; Video" data-status="Dormant">
+  <td class="mark "></td>
+  <td><b>ScriptVoiceOver (portable copy attempt)</b>
+      <div class="ppath">C:\Users\gene\Documents\ScriptVoiceOver-portable-copy-attempt-20260731-1604</div></td>
+  <td class="pa">Media &amp; Video</td>
+  <td class="st">Dormant</td>
+  <td class="pa">14.3M</td>
+  <td class="ok pa">python -m pytest -q</td>
+  <td class="pa">install.bat</td>
+</tr><tr class="inv" data-s="tts voice tests c:\users\gene\tts-tests media &amp; video"
+     data-cat="Media &amp; Video" data-status="Archive">
+  <td class="mark "></td>
+  <td><b>TTS Voice Tests</b>
+      <div class="ppath">C:\Users\gene\tts-tests</div></td>
+  <td class="pa">Media &amp; Video</td>
+  <td class="st">Archive</td>
+  <td class="pa">3.3M</td>
+  <td class="mut pa">no git</td>
+  <td class="pa">Play C:\Users\gene\tts-tests\01_kokoro_bm_george.wav</td>
+</tr><tr class="inv" data-s="videos - experiments (media dump) d:\coding\videos - experiments media &amp; video"
+     data-cat="Media &amp; Video" data-status="Archive">
+  <td class="mark "></td>
+  <td><b>Videos - Experiments (media dump)</b>
+      <div class="ppath">D:\coding\VIDEOS - EXPERIMENTS</div></td>
+  <td class="pa">Media &amp; Video</td>
+  <td class="st">Archive</td>
+  <td class="pa">479.9M</td>
+  <td class="mut pa">no git</td>
+  <td class="pa"></td>
+</tr><tr class="inv" data-s="video-use d:\coding\video-use media &amp; video"
+     data-cat="Media &amp; Video" data-status="Active">
+  <td class="mark "></td>
+  <td><b>video-use</b>
+      <div class="ppath">D:\coding\video-use</div></td>
+  <td class="pa">Media &amp; Video</td>
+  <td class="st">Active</td>
+  <td class="pa">1.2M</td>
+  <td class="warn pa">no tests</td>
+  <td class="pa">cd D:\coding\video-use</td>
+</tr><tr class="inv" data-s="anythingllm desktop (installed app) d:\coding\anythingllm model &amp; inference"
+     data-cat="Model &amp; Inference" data-status="Archive">
+  <td class="mark "></td>
+  <td><b>AnythingLLM Desktop (installed app)</b>
+      <div class="ppath">D:\coding\ANYTHINGLLM</div></td>
+  <td class="pa">Model &amp; Inference</td>
+  <td class="st">Archive</td>
+  <td class="pa">247.6M</td>
+  <td class="mut pa">no git</td>
+  <td class="pa">AnythingLLM.exe</td>
+</tr><tr class="inv" data-s="codex portable app (chatgpt/codex runtime) c:\codexportable\app model &amp; inference"
+     data-cat="Model &amp; Inference" data-status="Active">
+  <td class="mark "></td>
+  <td><b>Codex Portable App (ChatGPT/Codex Runtime)</b>
+      <div class="ppath">C:\CodexPortable\app</div></td>
+  <td class="pa">Model &amp; Inference</td>
+  <td class="st">Active</td>
+  <td class="pa">1.6G</td>
+  <td class="mut pa">no git</td>
+  <td class="pa">C:\CodexPortable\Start-Codex.cmd</td>
+</tr><tr class="inv" data-s="dsv41 confidence geometry recovery c:\coding\dsv41-recovery model &amp; inference"
+     data-cat="Model &amp; Inference" data-status="Dormant">
+  <td class="mark "></td>
+  <td><b>DSv41 Confidence Geometry Recovery</b>
+      <div class="ppath">C:\CODING\dsv41-recovery</div></td>
+  <td class="pa">Model &amp; Inference</td>
+  <td class="st">Dormant</td>
+  <td class="pa">409.6K</td>
+  <td class="mut pa">no git</td>
+  <td class="pa">python C:\CODING\dsv41-recovery\run_candidate_bench.py</td>
+</tr><tr class="inv" data-s="glm-5.3 benchmark shell scripts c:\coding\tmp model &amp; inference"
+     data-cat="Model &amp; Inference" data-status="Active">
+  <td class="mark "></td>
+  <td><b>GLM-5.3 Benchmark Shell Scripts</b>
+      <div class="ppath">C:\CODING\tmp</div></td>
+  <td class="pa">Model &amp; Inference</td>
+  <td class="st">Active</td>
+  <td class="pa">0B</td>
+  <td class="mut pa">no git</td>
+  <td class="pa">bash glm53-warmbench.sh</td>
+</tr><tr class="inv" data-s="honeycomb home gpu fleet gateway c:\users\gene\honeycomb-lab model &amp; inference"
+     data-cat="Model &amp; Inference" data-status="Dormant">
+  <td class="mark "></td>
+  <td><b>Honeycomb Home GPU Fleet Gateway</b>
+      <div class="ppath">C:\Users\gene\honeycomb-lab</div></td>
+  <td class="pa">Model &amp; Inference</td>
+  <td class="st">Dormant</td>
+  <td class="pa">7.0M</td>
+  <td class="warn pa">no tests</td>
+  <td class="pa">cd C:\Users\gene\honeycomb-lab</td>
+</tr><tr class="inv" data-s="kokoro tts server d:\zcode\kokoro-tts model &amp; inference"
+     data-cat="Model &amp; Inference" data-status="Active">
+  <td class="mark "></td>
+  <td><b>Kokoro TTS Server</b>
+      <div class="ppath">D:\ZCODE\kokoro-tts</div></td>
+  <td class="pa">Model &amp; Inference</td>
+  <td class="st">Active</td>
+  <td class="pa">0B</td>
+  <td class="mut pa">no git</td>
+  <td class="pa">cd D:\ZCODE\kokoro-tts</td>
+</tr><tr class="inv" data-s="lm studio (application install) d:\lmstudio\lm studio model &amp; inference"
+     data-cat="Model &amp; Inference" data-status="Active">
+  <td class="mark "></td>
+  <td><b>LM Studio (Application Install)</b>
+      <div class="ppath">D:\lmstudio\LM Studio</div></td>
+  <td class="pa">Model &amp; Inference</td>
+  <td class="st">Active</td>
+  <td class="pa">740.3M</td>
+  <td class="mut pa">no git</td>
+  <td class="pa"></td>
+</tr><tr class="inv" data-s="local model artifacts &amp; breeze ui staging d:\zcode\local models model &amp; inference"
+     data-cat="Model &amp; Inference" data-status="Dormant">
+  <td class="mark "></td>
+  <td><b>Local Model Artifacts &amp; Breeze UI Staging</b>
+      <div class="ppath">D:\ZCODE\LOCAL MODELS</div></td>
+  <td class="pa">Model &amp; Inference</td>
+  <td class="st">Dormant</td>
+  <td class="pa">0B</td>
+  <td class="mut pa">no git</td>
+  <td class="pa">python &quot;D:/ZCODE/LOCAL MODELS/breeze-ui-staging/server.py&quot;</td>
+</tr><tr class="inv" data-s="local model weights store c:\ai\models model &amp; inference"
+     data-cat="Model &amp; Inference" data-status="Active">
+  <td class="mark "></td>
+  <td><b>Local Model Weights Store</b>
+      <div class="ppath">C:\AI\models</div></td>
+  <td class="pa">Model &amp; Inference</td>
+  <td class="st">Active</td>
+  <td class="pa">77.6G</td>
+  <td class="mut pa">no git</td>
+  <td class="pa"></td>
+</tr><tr class="inv" data-s="music3 + qwen3.8 server setup (d6d7) d:\coding\_d6d7_music3_setup model &amp; inference"
+     data-cat="Model &amp; Inference" data-status="Dormant">
+  <td class="mark "></td>
+  <td><b>Music3 + Qwen3.8 Server Setup (d6d7)</b>
+      <div class="ppath">D:\coding\_d6d7_music3_setup</div></td>
+  <td class="pa">Model &amp; Inference</td>
+  <td class="st">Dormant</td>
+  <td class="pa">0B</td>
+  <td class="mut pa">no git</td>
+  <td class="pa">bash D:/coding/_d6d7_music3_setup/install.sh</td>
+</tr><tr class="inv" data-s="nudge launcher d:\coding\nudge-launcher model &amp; inference"
+     data-cat="Model &amp; Inference" data-status="Active">
+  <td class="mark "></td>
+  <td><b>Nudge Launcher</b>
+      <div class="ppath">D:\coding\Nudge-Launcher</div></td>
+  <td class="pa">Model &amp; Inference</td>
+  <td class="st">Active</td>
+  <td class="pa">35.8M</td>
+  <td class="ok pa">python -m pytest -q</td>
+  <td class="pa">cd D:\coding\Nudge-Launcher</td>
+</tr><tr class="inv" data-s="opencode proxy log — aeon qwen3.6 nvfp4 dflash (lan 192.168.1.127:8892) d:\opencode-pill-home\192-168-1-127-8892-aeon-qwen36-nvfp4-dflash model &amp; inference"
+     data-cat="Model &amp; Inference" data-status="Archive">
+  <td class="mark "></td>
+  <td><b>OpenCode Proxy Log — AEON Qwen3.6 NVFP4 DFlash (LAN 192.168.1.127:8892)</b>
+      <div class="ppath">D:\OpenCode-Pill-Home\192-168-1-127-8892-aeon-qwen36-nvfp4-dflash</div></td>
+  <td class="pa">Model &amp; Inference</td>
+  <td class="st">Archive</td>
+  <td class="pa">102.4K</td>
+  <td class="mut pa">no git</td>
+  <td class="pa"></td>
+</tr><tr class="inv" data-s="opencode proxy log — deepseek v4 flash (lan 192.168.1.127:8000) d:\opencode-pill-home\192-168-1-127-8000-deepseek-v4-flash model &amp; inference"
+     data-cat="Model &amp; Inference" data-status="Archive">
+  <td class="mark "></td>
+  <td><b>OpenCode Proxy Log — DeepSeek V4 Flash (LAN 192.168.1.127:8000)</b>
+      <div class="ppath">D:\OpenCode-Pill-Home\192-168-1-127-8000-deepseek-v4-flash</div></td>
+  <td class="pa">Model &amp; Inference</td>
+  <td class="st">Archive</td>
+  <td class="pa">204.8K</td>
+  <td class="mut pa">no git</td>
+  <td class="pa"></td>
+</tr><tr class="inv" data-s="opencode proxy log — glm-5.2 ud-iq2_m on dgx spark (lan 192.168.1.127:8895) d:\opencode-pill-home\192-168-1-127-8895-glm-5-2-ud-iq2-m-3spark-16k model &amp; inference"
+     data-cat="Model &amp; Inference" data-status="Archive">
+  <td class="mark "></td>
+  <td><b>OpenCode Proxy Log — GLM-5.2 UD-IQ2_M on DGX Spark (LAN 192.168.1.127:8895)</b>
+      <div class="ppath">D:\OpenCode-Pill-Home\192-168-1-127-8895-glm-5-2-ud-iq2-m-3spark-16k</div></td>
+  <td class="pa">Model &amp; Inference</td>
+  <td class="st">Archive</td>
+  <td class="pa">0B</td>
+  <td class="mut pa">no git</td>
+  <td class="pa"></td>
+</tr><tr class="inv" data-s="opencode proxy log — grm-2.6-plus bf16 (remote 100.88.23.121:8085) d:\opencode-pill-home\100-88-23-121-8085-grm-2-6-plus-bf16-gguf model &amp; inference"
+     data-cat="Model &amp; Inference" data-status="Archive">
+  <td class="mark "></td>
+  <td><b>OpenCode Proxy Log — GRM-2.6-Plus BF16 (remote 100.88.23.121:8085)</b>
+      <div class="ppath">D:\OpenCode-Pill-Home\100-88-23-121-8085-grm-2-6-plus-bf16-gguf</div></td>
+  <td class="pa">Model &amp; Inference</td>
+  <td class="st">Archive</td>
+  <td class="pa">0B</td>
+  <td class="mut pa">no git</td>
+  <td class="pa"></td>
+</tr><tr class="inv" data-s="opencode proxy log — gemma4 31b qat+mtp (lan 192.168.1.127:7901) d:\opencode-pill-home\192-168-1-127-7901-gemma4-31b-qat-mtp model &amp; inference"
+     data-cat="Model &amp; Inference" data-status="Archive">
+  <td class="mark "></td>
+  <td><b>OpenCode Proxy Log — Gemma4 31B QAT+MTP (LAN 192.168.1.127:7901)</b>
+      <div class="ppath">D:\OpenCode-Pill-Home\192-168-1-127-7901-gemma4-31b-qat-mtp</div></td>
+  <td class="pa">Model &amp; Inference</td>
+  <td class="st">Archive</td>
+  <td class="pa">1.8M</td>
+  <td class="mut pa">no git</td>
+  <td class="pa"></td>
+</tr><tr class="inv" data-s="opencode proxy log — lovedheart/qwen agentworld-3 (lan 192.168.1.159:8001) d:\opencode-pill-home\192-168-1-159-8001-lovedheart-qwen-agentworld-3 model &amp; inference"
+     data-cat="Model &amp; Inference" data-status="Archive">
+  <td class="mark "></td>
+  <td><b>OpenCode Proxy Log — LovedHeart/Qwen AgentWorld-3 (LAN 192.168.1.159:8001)</b>
+      <div class="ppath">D:\OpenCode-Pill-Home\192-168-1-159-8001-lovedheart-qwen-agentworld-3</div></td>
+  <td class="pa">Model &amp; Inference</td>
+  <td class="st">Archive</td>
+  <td class="pa">0B</td>
+  <td class="mut pa">no git</td>
+  <td class="pa"></td>
+</tr><tr class="inv" data-s="opencode proxy log — lovedheart/qwen agentworld-3 (remote 100.94.62.34:8001) d:\opencode-pill-home\100-94-62-34-8001-lovedheart-qwen-agentworld-3 model &amp; inference"
+     data-cat="Model &amp; Inference" data-status="Archive">
+  <td class="mark "></td>
+  <td><b>OpenCode Proxy Log — LovedHeart/Qwen AgentWorld-3 (remote 100.94.62.34:8001)</b>
+      <div class="ppath">D:\OpenCode-Pill-Home\100-94-62-34-8001-lovedheart-qwen-agentworld-3</div></td>
+  <td class="pa">Model &amp; Inference</td>
+  <td class="st">Archive</td>
+  <td class="pa">102.4K</td>
+  <td class="mut pa">no git</td>
+  <td class="pa"></td>
+</tr><tr class="inv" data-s="opencode proxy log — qwen3-6 27b q6_k (remote 100.88.23.121:8081) d:\opencode-pill-home\100-88-23-121-8081-qwen3-6-27b-q6-k-mtp-gguf model &amp; inference"
+     data-cat="Model &amp; Inference" data-status="Archive">
+  <td class="mark "></td>
+  <td><b>OpenCode Proxy Log — Qwen3-6 27B Q6_K (remote 100.88.23.121:8081)</b>
+      <div class="ppath">D:\OpenCode-Pill-Home\100-88-23-121-8081-qwen3-6-27b-q6-k-mtp-gguf</div></td>
+  <td class="pa">Model &amp; Inference</td>
+  <td class="st">Archive</td>
+  <td class="pa">0B</td>
+  <td class="mut pa">no git</td>
+  <td class="pa"></td>
+</tr><tr class="inv" data-s="opencode proxy log — qwen3.6-27b fp8 (lan 192.168.1.159:8891) d:\opencode-pill-home\192-168-1-159-8891-qwen3-6-27b-fp8 model &amp; inference"
+     data-cat="Model &amp; Inference" data-status="Archive">
+  <td class="mark "></td>
+  <td><b>OpenCode Proxy Log — Qwen3.6-27B FP8 (LAN 192.168.1.159:8891)</b>
+      <div class="ppath">D:\OpenCode-Pill-Home\192-168-1-159-8891-qwen3-6-27b-fp8</div></td>
+  <td class="pa">Model &amp; Inference</td>
+  <td class="st">Archive</td>
+  <td class="pa">204.8K</td>
+  <td class="mut pa">no git</td>
+  <td class="pa"></td>
+</tr><tr class="inv" data-s="opencode proxy log — qwen3.6-27b mtp-tq3 4s gguf (lan 192.168.1.159:8893) d:\opencode-pill-home\192-168-1-159-8893-qwen3-6-27b-mtp-tq3-4s-gguf model &amp; inference"
+     data-cat="Model &amp; Inference" data-status="Archive">
+  <td class="mark "></td>
+  <td><b>OpenCode Proxy Log — Qwen3.6-27B MTP-TQ3 4s GGUF (LAN 192.168.1.159:8893)</b>
+      <div class="ppath">D:\OpenCode-Pill-Home\192-168-1-159-8893-qwen3-6-27b-mtp-tq3-4s-gguf</div></td>
+  <td class="pa">Model &amp; Inference</td>
+  <td class="st">Archive</td>
+  <td class="pa">102.4K</td>
+  <td class="mut pa">no git</td>
+  <td class="pa"></td>
+</tr><tr class="inv" data-s="opencode proxy log — qwen3.6-35b-a3b mtp (lan 192.168.1.127:7902) d:\opencode-pill-home\192-168-1-127-7902-qwen3-6-35b-a3b-mtp model &amp; inference"
+     data-cat="Model &amp; Inference" data-status="Archive">
+  <td class="mark "></td>
+  <td><b>OpenCode Proxy Log — Qwen3.6-35B-A3B MTP (LAN 192.168.1.127:7902)</b>
+      <div class="ppath">D:\OpenCode-Pill-Home\192-168-1-127-7902-qwen3-6-35b-a3b-mtp</div></td>
+  <td class="pa">Model &amp; Inference</td>
+  <td class="st">Archive</td>
+  <td class="pa">4.6M</td>
+  <td class="mut pa">no git</td>
+  <td class="pa"></td>
+</tr><tr class="inv" data-s="opencode proxy log — unnamed local model (lan 192.168.1.159:8894) d:\opencode-pill-home\192-168-1-159-8894-model model &amp; inference"
+     data-cat="Model &amp; Inference" data-status="Archive">
+  <td class="mark "></td>
+  <td><b>OpenCode Proxy Log — Unnamed Local Model (LAN 192.168.1.159:8894)</b>
+      <div class="ppath">D:\OpenCode-Pill-Home\192-168-1-159-8894-model</div></td>
+  <td class="pa">Model &amp; Inference</td>
+  <td class="st">Archive</td>
+  <td class="pa">512.0K</td>
+  <td class="mut pa">no git</td>
+  <td class="pa"></td>
+</tr><tr class="inv" data-s="opencode proxy log — vibethinker 3b q8 (remote 100.89.46.104:8091) d:\opencode-pill-home\100-89-46-104-8091-vibethinker-3b-q8-0-gguf model &amp; inference"
+     data-cat="Model &amp; Inference" data-status="Archive">
+  <td class="mark "></td>
+  <td><b>OpenCode Proxy Log — VibeThinker 3B Q8 (remote 100.89.46.104:8091)</b>
+      <div class="ppath">D:\OpenCode-Pill-Home\100-89-46-104-8091-vibethinker-3b-q8-0-gguf</div></td>
+  <td class="pa">Model &amp; Inference</td>
+  <td class="st">Archive</td>
+  <td class="pa">0B</td>
+  <td class="mut pa">no git</td>
+  <td class="pa"></td>
+</tr><tr class="inv" data-s="qwen mtp research charts c:\users\gene\qwen_research model &amp; inference"
+     data-cat="Model &amp; Inference" data-status="Archive">
+  <td class="mark "></td>
+  <td><b>Qwen MTP Research Charts</b>
+      <div class="ppath">C:\Users\gene\qwen_research</div></td>
+  <td class="pa">Model &amp; Inference</td>
+  <td class="st">Archive</td>
+  <td class="pa">614.4K</td>
+  <td class="mut pa">no git</td>
+  <td class="pa"></td>
+</tr><tr class="inv" data-s="vllm perf scratch tests c:\users\gene\hermes_tmp model &amp; inference"
+     data-cat="Model &amp; Inference" data-status="Dormant">
+  <td class="mark "></td>
+  <td><b>vLLM Perf Scratch Tests</b>
+      <div class="ppath">C:\Users\gene\hermes_tmp</div></td>
+  <td class="pa">Model &amp; Inference</td>
+  <td class="st">Dormant</td>
+  <td class="pa">102.4K</td>
+  <td class="mut pa">no git</td>
+  <td class="pa">cd C:/Users/gene/hermes_tmp &amp;&amp; python ttft_test.py</td>
+</tr><tr class="inv" data-s="hermes secondbrain integration c:\users\gene\hermes-secondbrain personal life system"
+     data-cat="Personal Life System" data-status="Dormant">
+  <td class="mark "></td>
+  <td><b>Hermes SecondBrain Integration</b>
+      <div class="ppath">C:\Users\gene\hermes-secondbrain</div></td>
+  <td class="pa">Personal Life System</td>
+  <td class="st">Dormant</td>
+  <td class="pa">0B</td>
+  <td class="warn pa">no tests</td>
+  <td class="pa">cd C:\Users\gene\hermes-secondbrain</td>
+</tr><tr class="inv" data-s="life assistant — kb ingest &amp; secondbrain client c:\coding\life-assistant personal life system"
+     data-cat="Personal Life System" data-status="Dormant">
+  <td class="mark "></td>
+  <td><b>Life Assistant — KB Ingest &amp; SecondBrain Client</b>
+      <div class="ppath">C:\CODING\life-assistant</div></td>
+  <td class="pa">Personal Life System</td>
+  <td class="st">Dormant</td>
+  <td class="pa">0B</td>
+  <td class="mut pa">no git</td>
+  <td class="pa">cd C:\CODING\life-assistant</td>
+</tr><tr class="inv" data-s="life knowledge base c:\coding\life-knowledge-base personal life system"
+     data-cat="Personal Life System" data-status="Active">
+  <td class="mark "></td>
+  <td><b>Life Knowledge Base</b>
+      <div class="ppath">C:\CODING\life-knowledge-base</div></td>
+  <td class="pa">Personal Life System</td>
+  <td class="st">Active</td>
+  <td class="pa">102.4K</td>
+  <td class="warn pa">no tests</td>
+  <td class="pa">Open C:\CODING\life-knowledge-base\readme.md to browse the hierarchy</td>
+</tr><tr class="inv" data-s="life story — sms &amp; gmail corpus harvest c:\coding\lifestory personal life system"
+     data-cat="Personal Life System" data-status="Dormant">
+  <td class="mark "></td>
+  <td><b>Life Story — SMS &amp; Gmail Corpus Harvest</b>
+      <div class="ppath">C:\CODING\lifestory</div></td>
+  <td class="pa">Personal Life System</td>
+  <td class="st">Dormant</td>
+  <td class="pa">262.2M</td>
+  <td class="mut pa">no git</td>
+  <td class="pa">python harvest_sms_v2.py</td>
+</tr><tr class="inv" data-s="life tracker (archived, merged into second brain) c:\coding\life-tracker personal life system"
+     data-cat="Personal Life System" data-status="Archive">
+  <td class="mark "></td>
+  <td><b>Life Tracker (archived, merged into Second Brain)</b>
+      <div class="ppath">C:\CODING\life-tracker</div></td>
+  <td class="pa">Personal Life System</td>
+  <td class="st">Archive</td>
+  <td class="pa">409.6K</td>
+  <td class="warn pa">no tests</td>
+  <td class="pa">cd C:\CODING\life-tracker</td>
+</tr><tr class="inv" data-s="research knowledge base c:\users\gene\research personal life system"
+     data-cat="Personal Life System" data-status="Active">
+  <td class="mark "></td>
+  <td><b>Research Knowledge Base</b>
+      <div class="ppath">C:\Users\gene\research</div></td>
+  <td class="pa">Personal Life System</td>
+  <td class="st">Active</td>
+  <td class="pa">6.4M</td>
+  <td class="mut pa">no git</td>
+  <td class="pa">Browse C:\Users\gene\research\briefs for the latest briefs</td>
+</tr><tr class="inv" data-s="secondbrain c:\users\gene\android notes like genspark personal life system"
+     data-cat="Personal Life System" data-status="Active">
+  <td class="mark mut">○ parked</td>
+  <td><b>SecondBrain</b>
+      <div class="ppath">C:\Users\gene\ANDROID NOTES LIKE GENSPARK</div></td>
+  <td class="pa">Personal Life System</td>
+  <td class="st">Active</td>
+  <td class="pa">1.6G</td>
+  <td class="warn pa">no tests</td>
+  <td class="pa">cd &quot;C:\Users\gene\ANDROID NOTES LIKE GENSPARK\server&quot;</td>
+</tr><tr class="inv" data-s="ai project index c:\coding\ai-project-index utility / script"
+     data-cat="Utility / Script" data-status="Active">
+  <td class="mark "></td>
+  <td><b>AI Project Index</b>
+      <div class="ppath">C:\CODING\ai-project-index</div></td>
+  <td class="pa">Utility / Script</td>
+  <td class="st">Active</td>
+  <td class="pa">0B</td>
+  <td class="mut pa">no git</td>
+  <td class="pa">python C:\CODING\ai-project-index\scan.py</td>
+</tr><tr class="inv" data-s="automations — harnessbattle watchers c:\automations utility / script"
+     data-cat="Utility / Script" data-status="Unknown">
+  <td class="mark "></td>
+  <td><b>Automations — HarnessBattle Watchers</b>
+      <div class="ppath">C:\automations</div></td>
+  <td class="pa">Utility / Script</td>
+  <td class="st">Unknown</td>
+  <td class="pa">0B</td>
+  <td class="mut pa">no git</td>
+  <td class="pa"></td>
+</tr><tr class="inv" data-s="batchpilot (installed app) c:\users\gene\desktop\batchpilot utility / script"
+     data-cat="Utility / Script" data-status="Archive">
+  <td class="mark "></td>
+  <td><b>BatchPilot (Installed App)</b>
+      <div class="ppath">C:\Users\gene\Desktop\BatchPilot</div></td>
+  <td class="pa">Utility / Script</td>
+  <td class="st">Archive</td>
+  <td class="pa">40.9M</td>
+  <td class="mut pa">no git</td>
+  <td class="pa">C:\Users\gene\Desktop\BatchPilot\BatchPilot.exe</td>
+</tr><tr class="inv" data-s="codex install logs c:\coding\codex-install-logs utility / script"
+     data-cat="Utility / Script" data-status="Dormant">
+  <td class="mark "></td>
+  <td><b>Codex Install Logs</b>
+      <div class="ppath">C:\CODING\codex-install-logs</div></td>
+  <td class="pa">Utility / Script</td>
+  <td class="st">Dormant</td>
+  <td class="pa">0B</td>
+  <td class="mut pa">no git</td>
+  <td class="pa"></td>
+</tr><tr class="inv" data-s="codex portable app assets c:\codexportable\assets utility / script"
+     data-cat="Utility / Script" data-status="Archive">
+  <td class="mark "></td>
+  <td><b>Codex Portable App Assets</b>
+      <div class="ppath">C:\CodexPortable\assets</div></td>
+  <td class="pa">Utility / Script</td>
+  <td class="st">Archive</td>
+  <td class="pa">102.4K</td>
+  <td class="mut pa">no git</td>
+  <td class="pa"></td>
+</tr><tr class="inv" data-s="codex portable appx metadata c:\codexportable\appxmetadata utility / script"
+     data-cat="Utility / Script" data-status="Archive">
+  <td class="mark "></td>
+  <td><b>Codex Portable AppX Metadata</b>
+      <div class="ppath">C:\CodexPortable\AppxMetadata</div></td>
+  <td class="pa">Utility / Script</td>
+  <td class="st">Archive</td>
+  <td class="pa">0B</td>
+  <td class="mut pa">no git</td>
+  <td class="pa"></td>
+</tr><tr class="inv" data-s="compressibility brief c:\coding\compressibility utility / script"
+     data-cat="Utility / Script" data-status="Dormant">
+  <td class="mark "></td>
+  <td><b>Compressibility Brief</b>
+      <div class="ppath">C:\CODING\compressibility</div></td>
+  <td class="pa">Utility / Script</td>
+  <td class="st">Dormant</td>
+  <td class="pa">0B</td>
+  <td class="mut pa">no git</td>
+  <td class="pa"></td>
+</tr><tr class="inv" data-s="conexant flow removal record c:\coding\flow-removal-backup utility / script"
+     data-cat="Utility / Script" data-status="Archive">
+  <td class="mark "></td>
+  <td><b>Conexant Flow Removal Record</b>
+      <div class="ppath">C:\CODING\flow-removal-backup</div></td>
+  <td class="pa">Utility / Script</td>
+  <td class="st">Archive</td>
+  <td class="pa">0B</td>
+  <td class="mut pa">no git</td>
+  <td class="pa"></td>
+</tr><tr class="inv" data-s="device price hunter c:\users\gene\device-price-hunter utility / script"
+     data-cat="Utility / Script" data-status="Dormant">
+  <td class="mark "></td>
+  <td><b>Device Price Hunter</b>
+      <div class="ppath">C:\Users\gene\device-price-hunter</div></td>
+  <td class="pa">Utility / Script</td>
+  <td class="st">Dormant</td>
+  <td class="pa">819.2K</td>
+  <td class="mut pa">no git</td>
+  <td class="pa">cd &quot;C:\Users\gene\device-price-hunter&quot; &amp;&amp; python price_hunte</td>
+</tr><tr class="inv" data-s="drivedoctor — disk space diagnostic &amp; cleanup toolkit d:\claude cowork\drivedoctor utility / script"
+     data-cat="Utility / Script" data-status="Dormant">
+  <td class="mark "></td>
+  <td><b>DriveDoctor — Disk Space Diagnostic &amp; Cleanup Toolkit</b>
+      <div class="ppath">D:\CLAUDE COWORK\DriveDoctor</div></td>
+  <td class="pa">Utility / Script</td>
+  <td class="st">Dormant</td>
+  <td class="pa">102.4K</td>
+  <td class="mut pa">no git</td>
+  <td class="pa">powershell -ExecutionPolicy Bypass -File &quot;D:\CLAUDE COWORK\DriveDoctor\Sc</td>
+</tr><tr class="inv" data-s="hermes tts backup c:\coding\hermes-tts-backup utility / script"
+     data-cat="Utility / Script" data-status="Archive">
+  <td class="mark "></td>
+  <td><b>Hermes TTS Backup</b>
+      <div class="ppath">C:\CODING\hermes-tts-backup</div></td>
+  <td class="pa">Utility / Script</td>
+  <td class="st">Archive</td>
+  <td class="pa">7.1M</td>
+  <td class="mut pa">no git</td>
+  <td class="pa"></td>
+</tr><tr class="inv" data-s="prime agent test scratch c:\users\gene\prime-agent-test utility / script"
+     data-cat="Utility / Script" data-status="Archive">
+  <td class="mark "></td>
+  <td><b>Prime Agent Test Scratch</b>
+      <div class="ppath">C:\Users\gene\prime-agent-test</div></td>
+  <td class="pa">Utility / Script</td>
+  <td class="st">Archive</td>
+  <td class="pa">0B</td>
+  <td class="mut pa">no git</td>
+  <td class="pa">cd C:\Users\gene\prime-agent-test</td>
+</tr><tr class="inv" data-s="proxyhiveexporthelper — registry hive capture scripts d:\proxyhiveexporthelper utility / script"
+     data-cat="Utility / Script" data-status="Unknown">
+  <td class="mark "></td>
+  <td><b>ProxyHiveExportHelper — Registry Hive Capture Scripts</b>
+      <div class="ppath">D:\ProxyHiveExportHelper</div></td>
+  <td class="pa">Utility / Script</td>
+  <td class="st">Unknown</td>
+  <td class="pa">2.5K</td>
+  <td class="mut pa">no git</td>
+  <td class="pa"></td>
+</tr><tr class="inv" data-s="skill evaluator quality report c:\coding\reports utility / script"
+     data-cat="Utility / Script" data-status="Archive">
+  <td class="mark "></td>
+  <td><b>Skill Evaluator Quality Report</b>
+      <div class="ppath">C:\CODING\reports</div></td>
+  <td class="pa">Utility / Script</td>
+  <td class="st">Archive</td>
+  <td class="pa">0B</td>
+  <td class="mut pa">no git</td>
+  <td class="pa"></td>
+</tr><tr class="inv" data-s="stock watcher d:\coding\stock-watcher utility / script"
+     data-cat="Utility / Script" data-status="Active">
+  <td class="mark "></td>
+  <td><b>Stock Watcher</b>
+      <div class="ppath">D:\coding\stock-watcher</div></td>
+  <td class="pa">Utility / Script</td>
+  <td class="st">Active</td>
+  <td class="pa">152.9M</td>
+  <td class="mut pa">no git</td>
+  <td class="pa">cd D:\coding\stock-watcher</td>
+</tr><tr class="inv" data-s="tombs &amp; tyrants — duplicate pinned row bug c:\coding\tombs-pin-bug utility / script"
+     data-cat="Utility / Script" data-status="Archive">
+  <td class="mark "></td>
+  <td><b>Tombs &amp; Tyrants — Duplicate Pinned Row Bug</b>
+      <div class="ppath">C:\CODING\tombs-pin-bug</div></td>
+  <td class="pa">Utility / Script</td>
+  <td class="st">Archive</td>
+  <td class="pa">0B</td>
+  <td class="mut pa">no git</td>
+  <td class="pa">cd D:\ZCODE\TOMBS AND TYRANTS</td>
+</tr><tr class="inv" data-s="vin imaginaire c:\users\gene\vin-imaginaire utility / script"
+     data-cat="Utility / Script" data-status="Archive">
+  <td class="mark "></td>
+  <td><b>Vin Imaginaire</b>
+      <div class="ppath">C:\Users\gene\vin-imaginaire</div></td>
+  <td class="pa">Utility / Script</td>
+  <td class="st">Archive</td>
+  <td class="pa">0B</td>
+  <td class="mut pa">no git</td>
+  <td class="pa">Double-click  C:\Users\gene\vin-imaginaire\index.html</td>
+</tr><tr class="inv" data-s="voice hotkey (portable) c:\users\gene\documents\voice-hotkey-portable utility / script"
+     data-cat="Utility / Script" data-status="Active">
+  <td class="mark "></td>
+  <td><b>Voice Hotkey (portable)</b>
+      <div class="ppath">C:\Users\gene\Documents\voice-hotkey-portable</div></td>
+  <td class="pa">Utility / Script</td>
+  <td class="st">Active</td>
+  <td class="pa">133.1M</td>
+  <td class="mut pa">no git</td>
+  <td class="pa">cd &quot;C:\Users\gene\Documents\voice-hotkey-portable\voice-hotkey&quot;</td>
+</tr><tr class="inv" data-s="voice hotkey dictation c:\coding\voice-hotkey utility / script"
+     data-cat="Utility / Script" data-status="Dormant">
+  <td class="mark "></td>
+  <td><b>Voice Hotkey Dictation</b>
+      <div class="ppath">C:\CODING\voice-hotkey</div></td>
+  <td class="pa">Utility / Script</td>
+  <td class="st">Dormant</td>
+  <td class="pa">102.4K</td>
+  <td class="mut pa">no git</td>
+  <td class="pa">cd C:\CODING\voice-hotkey</td>
+</tr><tr class="inv" data-s="wemo rescue c:\coding\wemo-rescue utility / script"
+     data-cat="Utility / Script" data-status="Dormant">
+  <td class="mark "></td>
+  <td><b>WeMo Rescue</b>
+      <div class="ppath">C:\CODING\wemo-rescue</div></td>
+  <td class="pa">Utility / Script</td>
+  <td class="st">Dormant</td>
+  <td class="pa">0B</td>
+  <td class="mut pa">no git</td>
+  <td class="pa">cd C:\CODING\wemo-rescue</td>
+</tr><tr class="inv" data-s="zcode desktop app data directory d:\zcode\.zcode utility / script"
+     data-cat="Utility / Script" data-status="Active">
+  <td class="mark "></td>
+  <td><b>ZCode Desktop App Data Directory</b>
+      <div class="ppath">D:\ZCODE\.zcode</div></td>
+  <td class="pa">Utility / Script</td>
+  <td class="st">Active</td>
+  <td class="pa">55.4M</td>
+  <td class="mut pa">no git</td>
+  <td class="pa">D:\ZCODE\ZCode.exe</td>
+</tr><tr class="inv" data-s="ai consultancy website c:\users\gene\ai-consultancy web app / saas"
+     data-cat="Web App / SaaS" data-status="Dormant">
+  <td class="mark "></td>
+  <td><b>AI Consultancy Website</b>
+      <div class="ppath">C:\Users\gene\ai-consultancy</div></td>
+  <td class="pa">Web App / SaaS</td>
+  <td class="st">Dormant</td>
+  <td class="pa">512.0K</td>
+  <td class="warn pa">no tests</td>
+  <td class="pa">cd C:\Users\gene\ai-consultancy</td>
+</tr><tr class="inv" data-s="biz builder test c:\users\gene\desktop\biz builder test web app / saas"
+     data-cat="Web App / SaaS" data-status="Archive">
+  <td class="mark "></td>
+  <td><b>Biz Builder Test</b>
+      <div class="ppath">C:\Users\gene\Desktop\BIZ BUILDER TEST</div></td>
+  <td class="pa">Web App / SaaS</td>
+  <td class="st">Archive</td>
+  <td class="pa">0B</td>
+  <td class="mut pa">no git</td>
+  <td class="pa">Open C:\Users\gene\Desktop\BIZ BUILDER TEST\index.html in a browser</td>
+</tr><tr class="inv" data-s="flipbook plugin (standalone php) c:\coding\flipbook-plugin web app / saas"
+     data-cat="Web App / SaaS" data-status="Archive">
+  <td class="mark "></td>
+  <td><b>Flipbook Plugin (Standalone PHP)</b>
+      <div class="ppath">C:\CODING\flipbook-plugin</div></td>
+  <td class="pa">Web App / SaaS</td>
+  <td class="st">Archive</td>
+  <td class="pa">1.2M</td>
+  <td class="warn pa">no tests</td>
+  <td class="pa"></td>
+</tr><tr class="inv" data-s="flipbook system (live deployment workspace) c:\coding\flipbook-system web app / saas"
+     data-cat="Web App / SaaS" data-status="Archive">
+  <td class="mark "></td>
+  <td><b>Flipbook System (Live Deployment Workspace)</b>
+      <div class="ppath">C:\CODING\Flipbook-System</div></td>
+  <td class="pa">Web App / SaaS</td>
+  <td class="st">Archive</td>
+  <td class="pa">616.2M</td>
+  <td class="warn pa">no tests</td>
+  <td class="pa"></td>
+</tr><tr class="inv" data-s="flipbook with music (wordpress plugin) c:\coding\flipbook-plugin-wordpress web app / saas"
+     data-cat="Web App / SaaS" data-status="Archive">
+  <td class="mark "></td>
+  <td><b>Flipbook with Music (WordPress Plugin)</b>
+      <div class="ppath">C:\CODING\flipbook-plugin-wordpress</div></td>
+  <td class="pa">Web App / SaaS</td>
+  <td class="st">Archive</td>
+  <td class="pa">102.4K</td>
+  <td class="warn pa">no tests</td>
+  <td class="pa"></td>
+</tr><tr class="inv" data-s="flowmark — forward-deployed ai engineering site c:\users\gene\flowmark web app / saas"
+     data-cat="Web App / SaaS" data-status="Dormant">
+  <td class="mark "></td>
+  <td><b>Flowmark — Forward-Deployed AI Engineering Site</b>
+      <div class="ppath">C:\Users\gene\flowmark</div></td>
+  <td class="pa">Web App / SaaS</td>
+  <td class="st">Dormant</td>
+  <td class="pa">512.0K</td>
+  <td class="warn pa">no tests</td>
+  <td class="pa">cd C:\Users\gene\flowmark</td>
+</tr><tr class="inv" data-s="harnessbattle.com c:\users\gene\documents\harnessbattle.com web app / saas"
+     data-cat="Web App / SaaS" data-status="Dormant">
+  <td class="mark "></td>
+  <td><b>HarnessBattle.com</b>
+      <div class="ppath">C:\Users\gene\Documents\HarnessBattle.com</div></td>
+  <td class="pa">Web App / SaaS</td>
+  <td class="st">Dormant</td>
+  <td class="pa">11.0G</td>
+  <td class="ok pa">npm test</td>
+  <td class="pa">cd &quot;C:\Users\gene\Documents\HarnessBattle.com&quot;</td>
+</tr><tr class="inv" data-s="larger than life — author website &amp; flipbook system c:\coding\larger then life mockup web app / saas"
+     data-cat="Web App / SaaS" data-status="Dormant">
+  <td class="mark "></td>
+  <td><b>Larger Than Life — Author Website &amp; Flipbook System</b>
+      <div class="ppath">C:\CODING\LARGER THEN LIFE MOCKUP</div></td>
+  <td class="pa">Web App / SaaS</td>
+  <td class="st">Dormant</td>
+  <td class="pa">804.3M</td>
+  <td class="warn pa">no tests</td>
+  <td class="pa">Open C:\CODING\LARGER THEN LIFE MOCKUP\index.html in a browser</td>
+</tr><tr class="inv" data-s="pi quantum site d:\coding\pi_quantum_site_version web app / saas"
+     data-cat="Web App / SaaS" data-status="Dormant">
+  <td class="mark "></td>
+  <td><b>Pi Quantum Site</b>
+      <div class="ppath">D:\coding\PI_QUANTUM_SITE_VERSION</div></td>
+  <td class="pa">Web App / SaaS</td>
+  <td class="st">Dormant</td>
+  <td class="pa">102.4K</td>
+  <td class="mut pa">no git</td>
+  <td class="pa">Open D:\coding\PI_QUANTUM_SITE_VERSION\index.html in a browser</td>
+</tr><tr class="inv" data-s="scriptvoiceover (script to voice rebuild) c:\users\gene\documents\scriptvoiceover web app / saas"
+     data-cat="Web App / SaaS" data-status="Active">
+  <td class="mark "></td>
+  <td><b>ScriptVoiceOver (Script to Voice REBUILD)</b>
+      <div class="ppath">C:\Users\gene\Documents\ScriptVoiceOver</div></td>
+  <td class="pa">Web App / SaaS</td>
+  <td class="st">Active</td>
+  <td class="pa">2.9G</td>
+  <td class="ok pa">python -m pytest -q</td>
+  <td class="pa">cd &quot;C:\Users\gene\Documents\ScriptVoiceOver&quot;</td>
+</tr><tr class="inv" data-s="zcode / hermex for android d:\coding\zcode web app / saas"
+     data-cat="Web App / SaaS" data-status="Dormant">
+  <td class="mark "></td>
+  <td><b>ZCode / Hermex for Android</b>
+      <div class="ppath">D:\coding\zcode</div></td>
+  <td class="pa">Web App / SaaS</td>
+  <td class="st">Dormant</td>
+  <td class="pa">70.2M</td>
+  <td class="mut pa">no git</td>
+  <td class="pa">Open D:\coding\zcode\Hermes Android in Android Studio and build</td>
+</tr>
+</table>
+
+<script>
+function apply(){
+  const q=document.getElementById('q').value.toLowerCase();
+  const fc=document.getElementById('fc').value;
+  const fs=document.getElementById('fs').value;
+  const fv=document.getElementById('fv').value;
+  let shown=0;
+  document.querySelectorAll('tr.inv').forEach(tr=>{
+    let ok = !q || tr.dataset.s.includes(q);
+    if(ok && fc) ok = tr.dataset.cat===fc;
+    if(ok && fs) ok = tr.dataset.status===fs;
+    if(ok && fv==='pin') ok = tr.querySelector('.pin')!==null;
+    if(ok && fv==='git') ok = !/no git/.test(tr.textContent);
+    if(ok && fv==='tested') ok = tr.querySelector('.ok2,td.ok')!==null;
+    if(ok && fv==='live') ok = !/gone/.test(tr.textContent);
+    tr.style.display = ok?'':'none';
+    if(ok) shown++;
+  });
+  document.getElementById('cnt').textContent = shown+' of '+document.querySelectorAll('tr.inv').length+' shown';
+}
+['q','fc','fs','fv'].forEach(id=>document.getElementById(id).addEventListener('input',apply));
+apply();
+</script>

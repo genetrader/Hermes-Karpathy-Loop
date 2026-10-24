@@ -29,7 +29,7 @@ SKIP_DIRS = {
 SKIP_DIRS |= {
     "artwork", "artwork_preview", "art-preview", "assets", "artgen",
     ".worktrees", "images", "media", "sprites", "fonts",
-    # Backup/vendor dumps: project-c carries data/backups/ copies of its own
+    # Backup/vendor dumps: zip-code-ranker carries data/backups/ copies of its own
     # source, which would otherwise appear as duplicate entry points and inflate
     # the file count with stale code.
     "backups", "backup", "old", "archive", "vendor", "third_party",
@@ -172,9 +172,9 @@ def _port_hints(root: Path, manifests: dict) -> list[str]:
 
 
 def _multi_surface(root: Path, top_dirs: dict) -> list[str]:
-    """Detect repos that ship MORE THAN ONE deliverable (Project B: server/ +
+    """Detect repos that ship MORE THAN ONE deliverable (SecondBrain: server/ +
     android/ + chrome-extension/). This is why a round can improve one surface
-    while another sits untouched -- and the operator needs to SEE that."""
+    while another sits untouched -- and Gene needs to SEE that."""
     known = ("server", "android", "chrome-extension", "web", "app", "client",
              "backend", "frontend", "mobile", "extension", "api")
     return [d for d in known if d in top_dirs and top_dirs[d] > 0]

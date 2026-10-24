@@ -1,12 +1,11 @@
 import sys
 from pathlib import Path
-ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT))
+sys.path.insert(0, str(Path(r"C:\CODING\project-improver")))
 import round_prompt
 
 
 def test_includes_angle_and_gate():
-    p = round_prompt.build("project-a",
+    p = round_prompt.build("tombs-and-tyrants",
                            angle={"id": "unsafe-none", "text": "Find the optional treated as guaranteed."},
                            gate="pytest -q", round_no=4, prior={"rounds": 3})
     assert "unsafe-none" in p
@@ -17,7 +16,7 @@ def test_includes_angle_and_gate():
     # the RUNNER will take instead of instructing the child to create it.
     assert "Tag the accepted round" not in p
     assert "Do NOT create git tags" in p
-    assert "kp/project-a/r04" in p
+    assert "kp/tombs-and-tyrants/r04" in p
 
 
 def test_reset_frame_beats_thread_memory():

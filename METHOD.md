@@ -10,7 +10,7 @@ Two additions since the last handoff: **the panel** (your base platform) and
 The whole inventory is the working surface, with the rotation on top.
 
 ```
-panel.html                                ← open this (in the loop's folder)
+C:\CODING\project-improver\panel.html     ← open this
 python control_panel.py --open            ← rebuild + open
 ```
 
@@ -64,7 +64,7 @@ restarts at S1 with fresh eyes.
 
 ---
 
-## 3. Live state — project-a
+## 3. Live state — tombs-and-tyrants
 
 **Objective (re-scoped 2026-09-22 to the engine-refusal problem):** make the
 game engine accept natural-language player intent instead of refusing it before

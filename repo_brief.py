@@ -2,7 +2,7 @@
 """
 repo_brief.py -- ONE-TIME per-repo description, generated from a bounded survey.
 
-the operator's decision (2026-09-28): the description is a **one-time pass per repo**, not
+Gene's decision (2026-09-28): the description is a **one-time pass per repo**, not
 refreshed per round. Refreshing it every round would spend a quarter of the round
 budget re-describing a project that has not changed.
 
@@ -12,9 +12,9 @@ call fails, we still emit a deterministic brief built from the survey alone --
 a factual brief with no prose beats no brief, and a fabricated brief is worse
 than both.
 
-    python repo_brief.py --one project-a
+    python repo_brief.py --one tombs-and-tyrants
     python repo_brief.py --all
-    python repo_brief.py --show project-b
+    python repo_brief.py --show secondbrain
 """
 
 from __future__ import annotations
@@ -39,18 +39,13 @@ def _py() -> str:
 
 
 def _hermes_py() -> Path:
-    import settings as _S
-    return _S.hermes_python()
+    return Path(r"C:\Users\gene\AppData\Local\hermes\hermes-agent\venv\Scripts\python.exe")
 
 
 # One-time briefs use the coordinator-class model: this is analysis over a
-# summary, not a volume job, and it runs ONCE per repo. The model name comes
-# from settings (models.brief_model / env KL_BRIEF_MODEL) -- nothing here
-# ships with anyone's fleet topology. Empty brief_model => no model pass,
-# deterministic facts-only brief.
-import settings as _S
-BRIEF_MODEL = _S.brief_model()
-PROFILE = _S.brief_profile()
+# summary, not a volume job, and it runs ONCE per repo.
+BRIEF_MODEL = os.environ.get("KL_BRIEF_MODEL", "glm53-flash-2x-spark/GLM-5.3-Flash-EXL3")
+PROFILE = os.environ.get("KL_BRIEF_PROFILE", "default")
 
 PROMPT = """You are writing a ONE-PAGE brief about a software project, for its owner.
 
@@ -143,13 +138,13 @@ def _fallback_brief(proj: dict, s: dict) -> dict:
 def _ask_model(facts: str) -> dict | None:
     """One headless call. Returns parsed JSON or None -- never raises."""
     hp = _hermes_py()
-    if not hp.exists() or not BRIEF_MODEL:
+    if not hp.exists():
         return None
     try:
         r = subprocess.run(
             [str(hp), "-m", "hermes_cli.main", "-p", PROFILE,
              "--model", BRIEF_MODEL, "-z", PROMPT + facts],
-            cwd=str(_hermes_py().parent.parent),
+            cwd=str(Path(r"C:\Users\gene\AppData\Local\hermes\hermes-agent")),
             capture_output=True, text=True, timeout=900, errors="replace",
             creationflags=0x08000000)
     except Exception:

@@ -47,29 +47,13 @@ AGENT_HOMES = [
     ("Codex Desktop docs", Path(os.path.expanduser("~")) / "Documents" / "Codex"),
 ]
 
-# roots worth sweeping for new codebases. Default: the user's home (+ their
-# standard code folders if present). Set more with KL_SWEEP_ROOTS
-# (os.pathsep-separated) -- nothing here ships with anyone's drive letters.
+# roots worth sweeping for new codebases
 SWEEP_ROOTS = [
-    Path(os.path.expanduser("~")),
+    Path("C:/CODING"), Path("D:/coding"), Path("D:/ZCODE"),
     Path(os.path.expanduser("~")) / "Documents",
-    Path(os.path.expanduser("~")) / "coding",
-    Path(os.path.expanduser("~")) / "Coding",
-    Path(os.path.expanduser("~")) / "CODING",
+    Path(os.path.expanduser("~")),
+    Path("D:/"),
 ]
-_extra = os.environ.get("KL_SWEEP_ROOTS")
-if _extra:
-    SWEEP_ROOTS = [Path(p) for p in _extra.split(os.pathsep) if p.strip()]
-# The settings layer (projects.sweep_roots in settings.yaml / local / env)
-# wins over the historical env-only path above, so discovery roots are a
-# SETTING now, not an export someone has to remember.
-try:
-    import settings as _S
-    _sr = _S.sweep_roots()
-    if _sr:
-        SWEEP_ROOTS = [Path(p) for p in _sr]
-except Exception:
-    pass
 
 PROJECT_MARKERS = ("requirements.txt", "package.json", "pyproject.toml", "go.mod",
                    "Cargo.toml", "composer.json", "Gemfile", "pom.xml", "build.gradle")
@@ -273,12 +257,7 @@ def run(do_threads=True, do_sweep=True, do_refresh=True) -> dict:
     disc["runs"] = disc.get("runs", 0) + 1
     disc["last_run"] = _now()
 
-    try:
-        import settings as _S
-        _rows_p = _S.index_rows_path()
-    except Exception:
-        _rows_p = None
-    rows = load(_rows_p, []) if _rows_p else []
+    rows = load(Path(r"C:\CODING\ai-project-index\raw\rows.json"), [])
     if isinstance(rows, dict):
         rows = rows.get("rows", [])
     known_paths = {str(r.get("path", "")).lower() for r in rows if r.get("path")}

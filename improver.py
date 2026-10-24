@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-karpathy-loop / improver.py — the ROTATOR
+project-improver / improver.py — the ROTATOR
 
 Walks the enabled projects in improve.yaml on a schedule. For each project whose
 turn is up, it creates ONE goal-mode kanban card (a full OS process that survives
@@ -30,20 +30,14 @@ import angle_pick as ap
 import loopctl
 
 ROOT = Path(__file__).resolve().parent
-sys.path.insert(0, str(ROOT))
-import settings as _S  # noqa: E402  machine config comes from settings.py only
-
 STATE = ROOT / "state" / "rotation.json"
-MANIFEST = _S.manifest_path()
+MANIFEST = ROOT / "improve.yaml"
 # Where kanban boards live. Each board dir holds board.json (slug, name,
 # default_workdir) next to its kanban.db. A card created on a board with no
 # default_workdir can never start -- see board_workdir().
-BOARD_HOME = _S.hermes_home() / "kanban" / "boards"
-HERMES_PY = _S.hermes_python()
-HERMES_MAIN = _S.hermes_home() / "hermes-agent" / "hermes_cli" / "main.py"
-
-# The command the worker cards use to reach the operator (path stays generic).
-DN_CMD = str(ROOT / "discord_notify.py")
+BOARD_HOME = Path(r"C:\Users\gene\AppData\Local\hermes\kanban\boards")
+HERMES_PY = Path(r"C:\Users\gene\AppData\Local\hermes\hermes-agent\venv\Scripts\python.exe")
+HERMES_MAIN = Path(r"C:\Users\gene\AppData\Local\hermes\hermes-agent\hermes_cli\main.py")
 
 
 # ---------------------------------------------------------------- manifest
@@ -82,7 +76,7 @@ def upsert_missing(m: dict, lc: dict) -> list[str]:
     objectives are written later in the UI. But a picker save can leave a name in
     loop.json with no manifest block (the manifest half of the save failed), and
     the rotator -- which reads ONLY improve.yaml -- then never gives that repo a
-    turn (the 2026-09-26 project-d bug). Rather than shout and skip,
+    turn (the 2026-09-26 ai-consultancy-website bug). Rather than shout and skip,
     upsert the missing names so the selection always rotates. Existing blocks and
     hand-written objectives are never touched.
 
@@ -271,7 +265,7 @@ def stuck_card(board: str) -> dict | None:
     finish on its own and is holding the rotation hostage.
 
     The rotator cannot clear it automatically (a needs_input block may be waiting
-    on the operator), but it must not let it stall everyone else either. Callers use this
+    on Gene), but it must not let it stall everyone else either. Callers use this
     to report the stall and move on.
     """
     for t in list_tasks(board):
@@ -389,13 +383,13 @@ WRAP-UP (mandatory, and it comes BEFORE the budget runs out):
   The previous card hit its cap mid-round, exited rc=1, and left the rotation
   frozen -- do not repeat that. Always leave the branch consistent and the gate
   green before you finish, even if that means reporting fewer rounds than asked.
-- If you hit a decision only the operator can make, STOP and post ONE question
-  (one question at a time, never two) via: python {DN_CMD} ask "{proj['name']}" "<question>"
+- If you hit a decision only Gene can make, STOP and post ONE question
+  (one question at a time, never two) via: python C:\\CODING\\project-improver\\discord_notify.py ask "{proj['name']}" "<question>"
   then call kanban_block with kind=needs_input. Resume when unblocked.
 - Report each round with:
-  python {DN_CMD} progress "{proj['name']}" "round N/{loops}: angle {angle['angle']} - <what changed>, gate <pass/fail>, commit <hash>"
+  python C:\\CODING\\project-improver\\discord_notify.py progress "{proj['name']}" "round N/{loops}: angle {angle['angle']} - <what changed>, gate <pass/fail>, commit <hash>"
 - Record the angle outcome when done:
-  python {ROOT / "angle_pick.py"} mark --angle {angle['angle']} --project {proj['name']} --family {angle['family']} --result accepted
+  python C:\\CODING\\project-improver\\angle_pick.py mark --angle {angle['angle']} --project {proj['name']} --family {angle['family']} --result accepted
 - Do NOT merge to main. Do NOT push to a shared branch. Checkpoint branches only.
 """
     else:
@@ -421,13 +415,13 @@ Loop contract:
   fails, repair and retry; if it passes, commit a checkpoint.
 - ONE backlog item per loop. Do not batch multiple items into one unverified commit.
 - Commit EVERY passing round as its own commit on this task's branch.
-- If you hit a decision only the operator can make, STOP and post ONE question
-  (one question at a time, never two) via: python {DN_CMD} ask "{proj['name']}" "<question>"
+- If you hit a decision only Gene can make, STOP and post ONE question
+  (one question at a time, never two) via: python C:\\CODING\\project-improver\\discord_notify.py ask "{proj['name']}" "<question>"
   then call kanban_block with kind=needs_input. Resume when unblocked.
 - Report each round with:
-  python {DN_CMD} progress "{proj['name']}" "round N/{loops}: <what changed>, gate <pass/fail>, commit <hash>"
+  python C:\\CODING\\project-improver\\discord_notify.py progress "{proj['name']}" "round N/{loops}: <what changed>, gate <pass/fail>, commit <hash>"
 - When the stage is finished, record it:
-  python {ROOT / "method.py"} advance "{proj['name']}" {key} ok
+  python C:\\CODING\\project-improver\\method.py advance "{proj['name']}" {key} ok
 - Do NOT merge to main. Do NOT push to a shared branch. Checkpoint branches only.
 """
     args = [
@@ -510,7 +504,7 @@ def repo_facts(proj: dict) -> dict:
 
 def surfaces_for(proj: dict) -> list[str]:
     """
-    Canonical surface slugs for a project, from the manifest (the operator, 2026-09-28:
+    Canonical surface slugs for a project, from the manifest (Gene, 2026-09-28:
     the manifest is authoritative -- anything the rotation consumes must live in
     improve.yaml or it breaks "the runner reads improve.yaml only").
 
@@ -558,8 +552,8 @@ def surface_see_for(proj: dict) -> dict:
     """
     Per-surface viewability, from the manifest's `see.surface_see` map.
 
-    the operator, 2026-09-28: "each surface can be looked at." The surfaces of one repo
-    are NOT equally viewable -- project-b's web server answers on :8823, its
+    Gene, 2026-09-28: "each surface can be looked at." The surfaces of one repo
+    are NOT equally viewable -- secondbrain's web server answers on :8823, its
     web app is a page INSIDE that server, its Chrome extension is not
     URL-addressable at all, and its two Android apps are device installs. One
     project-level `see:` block cannot say that, so each surface may carry its own.
@@ -683,7 +677,7 @@ def _cmd_run_retired():
     #
     # FAILURE 2026-09-23: `run` was invoked twice (a timed-out call whose child
     # process kept going, then a second launch). Both passes read the board as
-    # free, both created a card for project-c, and TWO workers ended up
+    # free, both created a card for zip-code-ranker, and TWO workers ended up
     # editing one repo on two branches. The old guard -- "is a card open?" --
     # is check-then-act and has no lock between the check and the create, so it
     # cannot prevent this. Serialize the ENTIRE run instead: the lock is held
@@ -760,9 +754,9 @@ def _run_locked(m, s, projs):
     # A STUCK (blocked) card must NOT stall the whole fleet. Skip that project
     # and give the turn to the next one; report the stall so it is visible
     # rather than silent. This is the fix for the starvation that left
-    # project-c and project-b on 0 rounds for hours.
+    # zip-code-ranker and secondbrain on 0 rounds for hours.
     # A BLOCKED card means a HUMAN is needed. Skipping it silently and looping
-    # forever is the bug the operator reported: Discord got the same "skipping stuck
+    # forever is the bug Gene reported: Discord got the same "skipping stuck
     # board(s)" line over and over and NOTHING ever asked him the actual
     # question. `discord_notify.ask()` exists and pages him until answered --
     # use it. Ask ONCE per stuck card (tracked in state/asked.json), then keep
@@ -816,11 +810,11 @@ def _run_locked(m, s, projs):
             pass
 
     if question_sent:
-        print("asked the operator about: " + ", ".join(question_sent))
+        print("asked Gene about: " + ", ".join(question_sent))
 
     # A project with a LIVE card is busy, not stuck. The rotator used to `return`
     # on the FIRST busy project, which meant one running round froze the whole
-    # fleet: project-c held the turn and project-b/T&T could not start
+    # fleet: zip-code-ranker held the turn and secondbrain/T&T could not start
     # even though their boards were idle. Skip busy projects and start the next
     # runnable one instead — the whole point of a rotator is that it keeps
     # handing out turns while other work is in flight.
@@ -857,7 +851,7 @@ def _run_locked(m, s, projs):
             p, idx = picked
 
         # --- the 2-round rule -------------------------------------------
-        # the operator's standing rule: at most TWO rounds on a project before rotating
+        # Gene's standing rule: at most TWO rounds on a project before rotating
         # on. `loops` in improve.yaml is a turn ceiling, NOT the rotation rule --
         # conflating them is what let T&T take three rounds inside one card.
         #
@@ -927,8 +921,7 @@ def _run_locked(m, s, projs):
             angle = ap.pick(p["name"], facts)
             dn.progress(p["name"],
                         f"round {lc.get('rounds_done', 0) + 1} — angle "
-                        f"`{angle['angle']}` ({angle['family']}): {angle['lens']}",
-                        round_no=lc.get("rounds_done", 0) + 1)
+                        f"`{angle['angle']}` ({angle['family']}): {angle['lens']}")
             print(f"angle: {angle['angle']} ({angle['family']})")
         else:
             stage = next_stage(p["name"])
@@ -942,7 +935,7 @@ def _run_locked(m, s, projs):
         # --- CHECKPOINT ENGINE (wired) ---
         # Before an agent touches a byte: guarantee a SAFE push target and lay
         # down a START checkpoint. Rollback target = kp/<project>/r<NN>-start.
-        # Locked policy (the operator 2026-09-22):
+        # Locked policy (Gene 2026-09-22):
         #   public upstream -> fork to the user's account, never push upstream
         #   no remote       -> create a PRIVATE repo and push
         #   private own     -> use it

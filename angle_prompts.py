@@ -16,7 +16,7 @@ So each angle gets 4 PROMPTS. A prompt is a full, prescriptive work order:
   evidence      -- the exact artifact the round must produce
   not_applicable-- the clean exit (consume the prompt, invent nothing)
 
-Cycle semantics (the operator, 2026-09-27 -- locked):
+Cycle semantics (Gene, 2026-09-27 -- locked):
   * PER-REPO cycle. Each repo walks its own pass over angle x prompt.
   * CONSUME ON ATTEMPT. A prompt is spent when it is issued, including when the
     round comes back not-applicable. A dead prompt must not be re-issued forever
@@ -73,85 +73,55 @@ def load_prompts(path: Path = PROMPTS_YAML) -> dict:
               hunt: |
                 <text>
               ...
+
+    Uses yaml.safe_load so BOTH block scalars (`|`) and quoted multi-line
+    scalars ('text\nmore text') parse correctly. The previous hand-rolled
+    line parser truncated quoted multi-line scalars at the first newline
+    (hunt went 304 -> 74 chars on lying-comment.3).
     """
     out: dict[str, list[dict]] = {}
     if not path.exists():
         return out
 
-    cur_angle: str | None = None
-    cur: dict | None = None
-    block_key: str | None = None
-    block_lines: list[str] = []
+    # Imported here (not at module top) to match the house style used by
+    # improver.py / checkpoint.py: PyYAML is optional for every other code
+    # path, and a missing yaml must not make this module unimportable.
+    import yaml
 
-    def _flush():
-        nonlocal block_key, block_lines, cur
-        if cur is not None and block_key:
-            cur[block_key] = "\n".join(block_lines).strip()
-        block_key, block_lines = None, []
+    try:
+        data = yaml.safe_load(path.read_text(encoding="utf-8"))
+    except yaml.YAMLError as exc:
+        raise ValueError(f"angle_prompts.yaml failed to parse: {exc}") from exc
 
-    for raw in path.read_text(encoding="utf-8").splitlines():
-        line = raw.rstrip()
-        stripped = line.strip()
-        if not stripped or stripped.startswith("#"):
+    angles = data.get("angles") if isinstance(data, dict) else None
+    if not isinstance(angles, dict):
+        return out
+
+    for angle_id, items in angles.items():
+        if not isinstance(items, list):
             continue
-        indent = len(line) - len(line.lstrip())
-
-        # angle heading: two-space indent, "id:" and not a list item
-        if indent == 2 and stripped.endswith(":") and not stripped.startswith("-"):
-            _flush()
-            if cur is not None:
-                out.setdefault(cur_angle, []).append(cur)
-                cur = None
-            cur_angle = stripped[:-1].strip()
-            out.setdefault(cur_angle, [])
-            continue
-
-        # prompt entry start: "- id: x"
-        if stripped.startswith("- id:"):
-            _flush()
-            if cur is not None:
-                out.setdefault(cur_angle, []).append(cur)
-            cur = {"id": _strip_scalar(stripped.split(":", 1)[1])}
-            continue
-
-        if cur is None:
-            continue
-
-        # KEY vs CONTENT -- the crucial distinction.
-        # Inside a prompt, keys sit at indent 6 ("      applies_when: |") and their
-        # block-scalar bodies sit at indent 8+.  A body line can itself contain a
-        # colon (e.g. "The repo reads ... more than once: a config file,"), so
-        # partitioning on ":" alone mis-read that prose as a new key and blanked
-        # the field. Only treat a line as a key when its indent is ≤ the entry
-        # indent AND it carries an inline value or a block-scalar marker.
-        if block_key and indent > KEY_INDENT:
-            block_lines.append(stripped)
-            continue
-
-        if ":" in stripped:
-            k, _, v = stripped.partition(":")
-            k, v = k.strip(), v.strip()
-            if v in ("|", ">"):
-                _flush()
-                block_key = k
-                block_lines = []
+        prompts = []
+        for item in items:
+            if not isinstance(item, dict):
                 continue
-            if v == "":
-                _flush()
-                cur[k] = []
+            # normalise: id required; scalar fields coerced to str
+            pid = item.get("id")
+            if not pid:
                 continue
-            _flush()
-            cur[k] = _strip_scalar(v)
-            continue
+            entry = {"id": str(pid)}
+            for field in ("applies_when", "hunt", "evidence", "not_applicable"):
+                val = item.get(field)
+                if val is None:
+                    entry[field] = ""
+                elif isinstance(val, list):
+                    entry[field] = "\n".join(str(x) for x in val).strip()
+                else:
+                    entry[field] = str(val).strip()
+            prompts.append(entry)
+        if prompts:
+            out[str(angle_id)] = prompts
 
-        if stripped.startswith("- ") and block_key:
-            block_lines.append(stripped[2:])
-            continue
-
-    _flush()
-    if cur is not None:
-        out.setdefault(cur_angle, []).append(cur)
-    return {k: v for k, v in out.items() if v}
+    return out
 
 
 def prompts_for(angle_id: str) -> list[dict]:

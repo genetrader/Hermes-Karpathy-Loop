@@ -119,7 +119,7 @@ def test_campaign_advance_reaches_the_real_module():
         "CROSS_CUTTING: server,android :: add the field\n"
         "SURFACE-DONE: server :: done -- shipped")
     before = scope.summary_line(entry.get("campaign"))
-    prop = scope.propose(entry, round_scope, "project-b")
+    prop = scope.propose(entry, round_scope, "secondbrain")
     camp = scope.commit(entry, prop, accepted=True)
     assert camp is not None, "a cross-cutting round must OPEN a campaign"
     now = scope.summary_line(entry.get("campaign"))
@@ -259,9 +259,12 @@ def test_checkpoint_is_gated_on_round_success():
     # ordering rules is deliberately long, and pushed the publish guard past
     # the old fixed windows. F3 added the integration branch (ff-merge +
     # post-merge gate), moving the reject branch further still (measured:
-    # guard ~12.5k; reject-branch anchor 15,788; first SKIPPED 16,025). The
-    # window is a measured margin -- every assertion keeps its strictness.
-    block = s[i:i + 18500]
+    # guard ~12.5k; reject-branch anchor 15,788; first SKIPPED 16,025).
+    # W6 (2026-10-23) added the merge-eligibility decision + branch+tag stop
+    # inside the accept branch, moving the reject branch to 19,729 and the
+    # first SKIPPED to 20,040 (measured). The window is a measured margin --
+    # every assertion keeps its strictness.
+    block = s[i:i + 24000]
     assert "if _round_ok and state_persisted" in block, \
         ("publishing must require BOTH acceptance and a persisted state, got "
          "neither guard")

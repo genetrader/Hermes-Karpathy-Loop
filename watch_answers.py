@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 """
-karpathy-loop / watch_answers.py
+project-improver / watch_answers.py
 
 Two jobs, run every minute by the watcher task:
   1. send the next reminder ping for an unanswered question (nag loop)
-  2. listen for the operator's reply in the improver channel and hand it to the worker
+  2. listen for Gene's reply in the improver channel and hand it to the worker
 
 Reply detection: reads messages posted in the improver channel AFTER the
 question was asked, from a non-bot author. The first such message is the answer.
@@ -34,11 +34,9 @@ def _mark(mid: str) -> None:
 
 
 def fetch_recent(limit: int = 20) -> list[dict]:
-    """Recent messages from the configured sender's channel. The sender
-    interface owns the platform details; with notifications off this returns
-    [] and the watcher idles instead of erroring."""
-    import notify_senders
-    return notify_senders.current_sender().fetch_recent(limit)
+    ch = dn.channel_id()
+    msgs = dn._req("GET", f"/channels/{ch}/messages?limit={limit}")
+    return msgs if isinstance(msgs, list) else []
 
 
 def check_reply() -> str:
@@ -73,7 +71,7 @@ def check_reply() -> str:
         text = (m.get("content") or "").strip()
         if not text:
             continue
-        who = (m.get("author") or {}).get("username", "operator")
+        who = (m.get("author") or {}).get("username", "gene")
         dn.answer(text, answered_by=who)
         # write the answer where the worker reads it
         (ROOT / "state" / "answer.json").write_text(

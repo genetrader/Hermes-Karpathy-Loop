@@ -25,7 +25,7 @@ STATE = ROOT / "state" / "threads.json"
 # Every loop thread is titled with this prefix so they are easy to find in the
 # desktop sidebar and in `sessions` queries.
 #
-# The leading yellow square is a deliberate VISUAL marker (the operator, 2026-09-26):
+# The leading yellow square is a deliberate VISUAL marker (Gene, 2026-09-26):
 # the sidebar highlight he wanted is native desktop UI with no plugin hook, so
 # the marker rides in the title instead -- scannable in the pinned list, zero
 # app-rebuild risk, and it survives restarts because it is real persisted data.
@@ -37,12 +37,11 @@ PREFIX = "\U0001F7E8 KL :: "
 # instead of producing "\U0001F7E8 KL :: \U0001F7E8 KL :: <name>".
 _LEGACY_PREFIXES = ("\U0001F7E8 KL :: ", "KL :: ")
 
-import settings as _S   # noqa: E402  machine config: settings.py is the source
-
-HERMES_HOME = _S.hermes_home()
+HERMES_HOME = Path(os.environ.get("HERMES_HOME")
+                   or (Path.home() / "AppData" / "Local" / "hermes"))
 STATE_DB = HERMES_HOME / "state.db"
-HERMES_PY = _S.hermes_python()
-PROFILE = _S.hermes_profile() or "default"
+HERMES_PY = HERMES_HOME / "hermes-agent" / "venv" / "Scripts" / "python.exe"
+PROFILE = "default"
 
 
 def _seat_model_name() -> str:
@@ -78,39 +77,180 @@ def title_for(project: str) -> str:
     return PREFIX + name.strip()
 
 
-def load() -> dict:
-    """Load the registry. A CORRUPT file is never silently reset: the damaged
-    file is moved aside with a timestamp so the data is recoverable, and the
-    loss is loud in the log. (Old triage B5: load()'s bare `except: return {}`
-    turned one torn write into a wiped registry on the next save.)"""
+class RegistryCorrupt(RuntimeError):
+    """The registry exists but cannot be parsed (W4: fail closed, never {})."""
+
+
+LOCK = STATE.with_suffix(".lock")
+LOCK_STALE_SEC = 900          # 15 min: longer than any single round
+
+
+def _pid_alive(pid: int) -> bool:
+    """Is this pid a live process on THIS host? (cheap, no psutil)"""
+    if pid <= 0:
+        return False
+    try:
+        if os.name == "nt":
+            import ctypes
+            h = ctypes.windll.kernel32.OpenProcess(0x1000, False, pid)
+            if not h:
+                return False
+            code = ctypes.c_ulong()
+            ctypes.windll.kernel32.GetExitCodeProcess(h, ctypes.byref(code))
+            ctypes.windll.kernel32.CloseHandle(h)
+            return code.value == 259        # STILL_ACTIVE
+        os.kill(pid, 0)
+        return True
+    except Exception:
+        return False
+
+
+def acquire_lock(timeout: float = 20.0, poll: float = 0.15) -> bool:
+    """Single-writer lock (W4). Returns True if held, False on timeout.
+
+    A lock FILE carrying pid+timestamp rather than an OS lock: a killed runner
+    must not wedge the loop forever. A lock whose holder is dead, or that is
+    older than LOCK_STALE_SEC, is broken with a warning.
+    """
+    deadline = time.time() + timeout
+    while True:
+        try:
+            fd = os.open(str(LOCK), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+            os.write(fd, json.dumps({"pid": os.getpid(),
+                                     "at": time.time()}).encode())
+            os.close(fd)
+            return True
+        except FileExistsError:
+            holder, age = 0, 0.0
+            try:
+                info = json.loads(LOCK.read_text(encoding="utf-8"))
+                holder = int(info.get("pid") or 0)
+                age = time.time() - float(info.get("at") or 0)
+            except Exception:
+                age = LOCK_STALE_SEC + 1     # unreadable == treat as stale
+            if holder and _pid_alive(holder) and age < LOCK_STALE_SEC:
+                if time.time() >= deadline:
+                    return False
+                time.sleep(poll)
+                continue
+            print("threads: BREAKING STALE LOCK (pid=%s, age=%.0fs)"
+                  % (holder or "?", age))
+            try:
+                LOCK.unlink()
+            except Exception:
+                pass
+        except Exception as e:
+            print("threads: lock acquisition error: %s" % e)
+            return False
+
+
+def release_lock() -> None:
+    try:
+        info = json.loads(LOCK.read_text(encoding="utf-8"))
+        if int(info.get("pid") or 0) != os.getpid():
+            return           # not ours -- never release another process's lock
+    except Exception:
+        pass
+    try:
+        LOCK.unlink()
+    except Exception:
+        pass
+
+
+class _locked:
+    """Context manager: hold the registry lock, release it even on raise."""
+
+    def __init__(self, timeout: float = 20.0):
+        self.timeout = timeout
+        self.held = False
+
+    def __enter__(self):
+        self.held = acquire_lock(self.timeout)
+        if not self.held:
+            raise TimeoutError("registry lock busy for %.0fs" % self.timeout)
+        return self
+
+    def __exit__(self, *exc):
+        if self.held:
+            release_lock()
+        return False
+
+
+def load(strict: bool = False) -> dict:
+    """Load the registry. A CORRUPT file is NEVER silently treated as empty.
+
+    W4: quarantines live in this registry. The old behavior -- move the damaged
+    file aside and return {} -- meant one torn write un-quarantined every repo
+    and erased 893 rounds of history while the loop carried on happily. That is
+    the opposite of failing closed.
+
+    strict=False (default): raise RegistryCorrupt so the caller can pause and
+                            surface, preserving the moved-aside evidence.
+    strict=True:            return {} -- ONLY for read-only inspection tools
+                            (status panels) that must not crash on bad state.
+    """
     try:
         return json.loads(STATE.read_text(encoding="utf-8")) or {}
     except FileNotFoundError:
         return {}
     except Exception as e:
-        # Torn/corrupt: preserve the evidence, then start empty.
+        salvage = None
         try:
             if STATE.exists():
                 salvage = STATE.parent / ("threads.json.corrupt-%s"
                                           % time.strftime("%Y%m%d-%H%M%S"))
                 STATE.replace(salvage)
-                print("threads: REGISTRY CORRUPT (%s) -- moved to %s; starting "
-                      "empty. Round/campaign history was in the moved file."
-                      % (e, salvage.name))
         except Exception:
             pass
-        return {}
+        if strict:
+            print("threads: REGISTRY CORRUPT (%s) -- moved to %s; strict "
+                  "reader continuing empty." % (e, salvage and salvage.name))
+            return {}
+        raise RegistryCorrupt(
+            "threads.json is corrupt (%s). Evidence preserved at %s. "
+            "Refusing to continue with an EMPTY registry -- that would "
+            "silently un-quarantine every repo and forget all round "
+            "history. Inspect the salvaged file, then restore or rebuild."
+            % (e, salvage.name if salvage else "<unavailable>"))
 
 
-def save(data: dict) -> None:
+def save(data: dict, take_lock: bool = True) -> None:
     """Atomic registry write: temp file + os.replace, so a reader (or a crash
     mid-write) can never observe a torn file. (threads.json holds every
     project's rounds, campaigns, and quarantine state -- losing it silently
-    resets the whole loop.)"""
+    resets the whole loop.)
+
+    W4: also takes the single-writer lock unless the caller already holds it
+    (take_lock=False), because runner/loopctl/plugin all read-modify-write
+    this file and the later save silently discarded the earlier one's round.
+    """
     STATE.parent.mkdir(parents=True, exist_ok=True)
+    if take_lock:
+        with _locked():
+            _write_atomic(data)
+    else:
+        _write_atomic(data)
+
+
+def _write_atomic(data: dict) -> None:
     tmp = STATE.with_suffix(".json.tmp")
     tmp.write_text(json.dumps(data, indent=2), encoding="utf-8")
     os.replace(tmp, STATE)
+
+
+def update(mutator) -> dict:
+    """Read-modify-write the registry under ONE lock (W4).
+
+    THE fix for the lost-update race: `reg = load(); reg[x] = y; save(reg)`
+    lets two writers interleave so the later save discards the earlier's
+    round. `update(lambda reg: reg.__setitem__(x, y))` holds the lock across
+    the whole cycle. Returns the registry as written.
+    """
+    with _locked():
+        reg = load()
+        mutator(reg)
+        save(reg, take_lock=False)
+        return reg
 
 
 def _live_session_ids() -> set:
@@ -195,9 +335,28 @@ def _create_session(project: str):
     marker = "KL::%s::INIT" % project
     prompt = ("Karpathy Loop thread for project '%s'. %s "
               "Reply with the single word: ready" % (project, marker))
+    # The thread's STORED route is first-call-wins and sticky across resumes:
+    # a thread created without a model keeps the desktop default forever and
+    # every round silently runs it (the 2026-10-11 zip-code-ranker loop: the
+    # command line said GLM, the session said red-snow). Pin the session to
+    # the loop's builder seat so resume can never revert it.
+    cmd = [str(HERMES_PY), "-m", "hermes_cli.main", "-p", PROFILE]
+    # FULL `custom:slug:model` seat string -- NOT the display name. A bare
+    # model name mis-parses (auto-detect finds nothing, free-cloud fallback),
+    # which is exactly how the September INIT threads ended up on
+    # upstage/solar-pro4:free.
+    _seat = ""
+    try:
+        _seat = (json.loads((ROOT / "state" / "loop.json").read_text(
+            encoding="utf-8")).get("implementer") or "").strip()
+    except Exception:
+        pass
+    if _seat:
+        cmd += ["--model", _seat]
+    cmd += ["-z", prompt]
     try:
         subprocess.run(
-            [str(HERMES_PY), "-m", "hermes_cli.main", "-p", PROFILE, "-z", prompt],
+            cmd,
             cwd=str(HERMES_HOME / "hermes-agent"),
             capture_output=True, text=True, timeout=900, errors="replace", creationflags=0x08000000)
     except Exception:

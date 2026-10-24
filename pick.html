@@ -1,0 +1,1639 @@
+<!doctype html><meta charset="utf-8">
+<title>Project Improver — pick projects</title>
+<style>
+ body{background:#12141c;color:#e8ecf7;font:14px/1.5 -apple-system,Segoe UI,sans-serif;margin:0;padding:24px}
+ h1{font-size:20px;margin:0 0 4px}
+ .sub{color:#8a93ad;margin-bottom:18px}
+ .bar{position:sticky;top:0;background:#12141c;padding:12px 0;border-bottom:1px solid #262a38;z-index:5;margin-bottom:14px}
+ input[type=text]{background:#1c1f2b;border:1px solid #2e3346;color:#e8ecf7;padding:8px 10px;border-radius:6px;width:280px}
+ button{background:#3b5bdb;color:#fff;border:0;padding:9px 14px;border-radius:6px;cursor:pointer;font-weight:600}
+ button.sec{background:#2a2f40}
+ .cat{margin:18px 0 8px;font-weight:700;color:#9db1ff;font-size:13px;text-transform:uppercase;letter-spacing:.06em}
+ .row{display:flex;gap:10px;align-items:flex-start;padding:8px 10px;border:1px solid #232735;border-radius:8px;margin-bottom:6px;background:#171a24}
+ .row:hover{border-color:#3b5bdb}
+ .row input{margin-top:3px}
+ .nm{font-weight:600}
+ .pa{color:#7d879f;font-size:12px;font-family:ui-monospace,Consolas,monospace;word-break:break-all}
+ .meta{color:#8a93ad;font-size:12px;margin-top:2px}
+ .git{color:#4ec9a0;font-weight:600}
+ .nogit{color:#c9a04e}
+ #out{white-space:pre-wrap;background:#0d0f16;border:1px solid #2a2f40;padding:12px;border-radius:8px;margin-top:16px;font-family:ui-monospace,Consolas,monospace;font-size:12px;max-height:340px;overflow:auto}
+ .hide{display:none}
+ label.chk{display:flex;gap:8px;align-items:center;color:#c8d0e4}
+</style>
+<h1>Project Improver — pick the projects</h1>
+<div class="sub">From your existing inventory: 194 projects on disk. Tick what the loop should rotate through, then copy the YAML.</div>
+<div class="bar">
+  <input type="text" id="q" placeholder="filter by name / path / category…" oninput="flt()">
+  <button class="sec" onclick="all(false)">Clear</button>
+  <button class="sec" onclick="all(true)">Select all visible</button>
+  <button onclick="gen()">Generate improve.yaml</button>
+  <span id="cnt" style="margin-left:10px;color:#9db1ff"></span>
+</div>
+
+<div class="cat">AI Agent / Agent Tooling (48)</div>
+<div class="row" data-s="playwright mcp snapshots c:\coding\.playwright-mcp ai agent / agent tooling">
+ <input type="checkbox" data-name="Playwright MCP Snapshots" data-path="C:\CODING\.playwright-mcp" data-git="0">
+ <div style="flex:1">
+  <div class="nm">Playwright MCP Snapshots &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">C:\CODING\.playwright-mcp</div>
+  <div class="meta">Active · Not a software project — the output directory of the Playwright MCP browser tool. It accumulates 11 accessibility-tree page snapshots (.yml) and 8 console logs captured while agent sessions drove a we</div>
+  
+ </div></div>
+<div class="row" data-s="pushbullet → local model bridge c:\coding\pushbullet-model-bridge ai agent / agent tooling">
+ <input type="checkbox" data-name="Pushbullet → Local Model Bridge" data-path="C:\CODING\pushbullet-model-bridge" data-git="1">
+ <div style="flex:1">
+  <div class="nm">Pushbullet → Local Model Bridge &nbsp;<span class="git">git ✓</span></div>
+  <div class="pa">C:\CODING\pushbullet-model-bridge</div>
+  <div class="meta">Dormant · Python sidecar (bridge.py, requests + websocket-client) that watches a Pushbullet account for file pushes carrying an instruction, downloads the file, sends it plus the prompt to a local OpenAI-compat</div>
+  <div class="meta">run: <code>python bridge.py</code></div>
+ </div></div>
+<div class="row" data-s="secondbrain multi-agent code review c:\coding\secondbrain-review ai agent / agent tooling">
+ <input type="checkbox" data-name="SecondBrain Multi-Agent Code Review" data-path="C:\CODING\secondbrain-review" data-git="0">
+ <div style="flex:1">
+  <div class="nm">SecondBrain Multi-Agent Code Review &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">C:\CODING\secondbrain-review</div>
+  <div class="meta">Dormant · Workspace holding the artifacts of a multi-wave, multi-agent audit of the Second Brain app (server, web/ext, Android, learning loop, cohesion lanes). Waves 1 agents timed out at 7200s so findings were</div>
+  
+ </div></div>
+<div class="row" data-s="waku agent c:\coding\waku-agent ai agent / agent tooling">
+ <input type="checkbox" data-name="Waku Agent" data-path="C:\CODING\waku-agent" data-git="1">
+ <div style="flex:1">
+  <div class="nm">Waku Agent &nbsp;<span class="git">git ✓</span></div>
+  <div class="pa">C:\CODING\waku-agent</div>
+  <div class="meta">Dormant · A local-first, open-source personal AI assistant written as a teaching-quality Python package (MIT, pyproject 0.1.3) built around four explicit pillars: harness, agent loop, memory (SQLite-backed sema</div>
+  <div class="meta">run: <code>cd C:\CODING\waku-agent &amp;&amp; make run</code></div>
+ </div></div>
+<div class="row" data-s="claude projects workspace c:\users\gene\documents\claude ai agent / agent tooling">
+ <input type="checkbox" data-name="Claude Projects Workspace" data-path="C:\Users\gene\Documents\Claude" data-git="0">
+ <div style="flex:1">
+  <div class="nm">Claude Projects Workspace &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">C:\Users\gene\Documents\Claude</div>
+  <div class="meta">Dormant · Claude (Claude Code / Claude Desktop) working folder holding a single &#x27;Projects&#x27; directory with 59 files: TypeScript/TSX code, markdown docs, Python scripts, PowerShell scripts, and systemd .service f</div>
+  
+ </div></div>
+<div class="row" data-s="codex cli scratch workspace c:\users\gene\documents\codex ai agent / agent tooling">
+ <input type="checkbox" data-name="Codex CLI Scratch Workspace" data-path="C:\Users\gene\Documents\Codex" data-git="1">
+ <div style="flex:1">
+  <div class="nm">Codex CLI Scratch Workspace &nbsp;<span class="git">git ✓</span></div>
+  <div class="pa">C:\Users\gene\Documents\Codex</div>
+  <div class="meta">Active · Codex CLI&#x27;s Documents workspace: a huge (38 GB, 75k files) date-organized scratch area of agent working sessions from 2026-07 to 2026-09, full of Python, build artifacts (.o, .rmeta, .rlib), markdown,</div>
+  
+ </div></div>
+<div class="row" data-s="idea validator c:\users\gene\documents\idea validator ai agent / agent tooling">
+ <input type="checkbox" data-name="Idea Validator" data-path="C:\Users\gene\Documents\IDEA VALIDATOR" data-git="0">
+ <div style="flex:1">
+  <div class="nm">Idea Validator &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">C:\Users\gene\Documents\IDEA VALIDATOR</div>
+  <div class="meta">Dormant · A standalone FastAPI service (Python 3.11, pydantic, uvicorn) that turns raw research ideas into validated idea reports. Pipeline: ingest a raw idea (from Archon or an API caller), generate six eviden</div>
+  <div class="meta">run: <code>cd C:\Users\gene\Documents\IDEA VALIDATOR &amp;&amp; .\.venv\Scripts\idea-validator serv</code></div>
+ </div></div>
+<div class="row" data-s="openclaude pill c:\users\gene\documents\openclaude-pill ai agent / agent tooling">
+ <input type="checkbox" data-name="OpenClaude Pill" data-path="C:\Users\gene\Documents\openclaude-pill" data-git="1">
+ <div style="flex:1">
+  <div class="nm">OpenClaude Pill &nbsp;<span class="git">git ✓</span></div>
+  <div class="pa">C:\Users\gene\Documents\openclaude-pill</div>
+  <div class="meta">Dormant · An always-on-top Windows launcher (&#x27;pill&#x27;) for picking a local llama.cpp/vLLM model (auto-discovered by scanning ports) plus an agent harness — OpenClaude, Pi, OMP, Codex, Aider, OpenCode, Hermes, Mer</div>
+  <div class="meta">run: <code>cd C:\Users\gene\Documents\openclaude-pill &amp;&amp; python .\pill.pyw</code></div>
+ </div></div>
+<div class="row" data-s="hermes voice barge-in patch c:\users\gene\hermes-voice-barge-in ai agent / agent tooling">
+ <input type="checkbox" data-name="Hermes Voice Barge-In Patch" data-path="C:\Users\gene\hermes-voice-barge-in" data-git="1">
+ <div style="flex:1">
+  <div class="nm">Hermes Voice Barge-In Patch &nbsp;<span class="git">git ✓</span></div>
+  <div class="pa">C:\Users\gene\hermes-voice-barge-in</div>
+  <div class="meta">Dormant · A private working archive of uncommitted local modifications to the Hermes desktop app implementing voice conversation with &#x27;barge-in&#x27; — letting the user interrupt the assistant mid-speech so it stops</div>
+  
+ </div></div>
+<div class="row" data-s="aeon opencode home — config d:\aeon-opencode-home\.config ai agent / agent tooling">
+ <input type="checkbox" data-name="AEON OpenCode Home — Config" data-path="D:\AEON-OpenCode-Home\.config" data-git="0">
+ <div style="flex:1">
+  <div class="nm">AEON OpenCode Home — Config &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">D:\AEON-OpenCode-Home\.config</div>
+  <div class="meta">Dormant · Configuration directory for an OpenCode CLI agent home on the D: drive (&#x27;AEON&#x27; profile). It holds only a few JSON settings plus an opencode subfolder, serving as XDG-style config storage for the OpenC</div>
+  
+ </div></div>
+<div class="row" data-s="aeon opencode home — local data d:\aeon-opencode-home\.local ai agent / agent tooling">
+ <input type="checkbox" data-name="AEON OpenCode Home — Local Data" data-path="D:\AEON-OpenCode-Home\.local" data-git="0">
+ <div style="flex:1">
+  <div class="nm">AEON OpenCode Home — Local Data &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">D:\AEON-OpenCode-Home\.local</div>
+  <div class="meta">Dormant · Local data/state directory for the same AEON OpenCode agent home: ~15 MB of OpenCode share data (JSON), logs, SQLite databases (.db/.db-shm/.db-wal), .scm scheme files, and WASM binaries — the runtime</div>
+  
+ </div></div>
+<div class="row" data-s="aeon opencode agent config d:\aeon-opencode-home\.opencode ai agent / agent tooling">
+ <input type="checkbox" data-name="AEON OpenCode Agent Config" data-path="D:\AEON-OpenCode-Home\.opencode" data-git="0">
+ <div style="flex:1">
+  <div class="nm">AEON OpenCode Agent Config &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">D:\AEON-OpenCode-Home\.opencode</div>
+  <div class="meta">Dormant · Project-level OpenCode agent configuration: an opencode.json plus a package.json that pins @opencode-ai/plugin v1.14.29 as a dependency. This sets up custom plugins for the OpenCode coding agent runni</div>
+  
+ </div></div>
+<div class="row" data-s="aeon opencode workspace skills d:\aeon-opencode-workspace\skills ai agent / agent tooling">
+ <input type="checkbox" data-name="AEON OpenCode Workspace Skills" data-path="D:\AEON-OpenCode-Workspace\skills" data-git="0">
+ <div style="flex:1">
+  <div class="nm">AEON OpenCode Workspace Skills &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">D:\AEON-OpenCode-Workspace\skills</div>
+  <div class="meta">Dormant · A tiny skills folder for the AEON OpenCode workspace containing two JavaScript skill files under &#x27;superpowers&#x27; and &#x27;quantum_news&#x27; — custom agent skills (one apparently for fetching quantum-physics new</div>
+  
+ </div></div>
+<div class="row" data-s="hermes agent home d:\apps\hermes ai agent / agent tooling">
+ <input type="checkbox" data-name="Hermes Agent Home" data-path="D:\Apps\Hermes" data-git="0">
+ <div style="flex:1">
+  <div class="nm">Hermes Agent Home &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">D:\Apps\Hermes</div>
+  <div class="meta">Active · The live install and state home for Hermes Agent (Nous Research&#x27;s AI assistant) on this machine. Contains config.yaml, SQLite state/response/projects databases, a gateway, 568 skills, sessions, memori</div>
+  
+ </div></div>
+<div class="row" data-s="opencode pill home — config d:\opencode-pill-home\.config ai agent / agent tooling">
+ <input type="checkbox" data-name="OpenCode Pill Home — Config" data-path="D:\OpenCode-Pill-Home\.config" data-git="0">
+ <div style="flex:1">
+  <div class="nm">OpenCode Pill Home — Config &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">D:\OpenCode-Pill-Home\.config</div>
+  <div class="meta">Dormant · XDG-style config directory for a second dedicated OpenCode agent home (&#x27;Pill&#x27; profile) on D:. Holds a couple of config files plus an opencode settings folder and a last30days subfolder (a news-digest </div>
+  
+ </div></div>
+<div class="row" data-s="opencode pill home — local data d:\opencode-pill-home\.local ai agent / agent tooling">
+ <input type="checkbox" data-name="OpenCode Pill Home — Local Data" data-path="D:\OpenCode-Pill-Home\.local" data-git="0">
+ <div style="flex:1">
+  <div class="nm">OpenCode Pill Home — Local Data &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">D:\OpenCode-Pill-Home\.local</div>
+  <div class="meta">Dormant · Local data directory for the OpenCode &#x27;Pill&#x27; agent home: logs, a SQLite session/state database (.db with -shm/-wal sidecars) and OpenCode share data (~5 MB). This is where the Pill-profile OpenCode CL</div>
+  
+ </div></div>
+<div class="row" data-s="opencode pill — agent settings d:\opencode-pill-home\.opencode ai agent / agent tooling">
+ <input type="checkbox" data-name="OpenCode Pill — Agent Settings" data-path="D:\OpenCode-Pill-Home\.opencode" data-git="0">
+ <div style="flex:1">
+  <div class="nm">OpenCode Pill — Agent Settings &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">D:\OpenCode-Pill-Home\.opencode</div>
+  <div class="meta">Dormant · A single opencode.json configuration file for the &#x27;Pill&#x27; OpenCode agent profile on D:. It defines agent/model settings for this isolated OpenCode home so the CLI can be pointed at a separate config fr</div>
+  
+ </div></div>
+<div class="row" data-s="opencode pill home — grm 2.6 plus proxy config d:\opencode-pill-home\192-168-1-50-8085-grm-2-6-plus-bf16-gguf ai agent / agent tooling">
+ <input type="checkbox" data-name="OpenCode Pill Home — GRM 2.6 Plus Proxy Config" data-path="D:\OpenCode-Pill-Home\192-168-1-50-8085-grm-2-6-plus-bf16-gguf" data-git="0">
+ <div style="flex:1">
+  <div class="nm">OpenCode Pill Home — GRM 2.6 Plus Proxy Config &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">D:\OpenCode-Pill-Home\192-168-1-50-8085-grm-2-6-plus-bf16-gguf</div>
+  <div class="meta">Archive · A runtime config/log home used by OpenCode when pointed at a local LLM endpoint (host 192.168.1.50:8085, model &#x27;grm-2-6-plus-bf16-gguf&#x27;). It contains a tool-proxy log and upstream pointer file plus .c</div>
+  
+ </div></div>
+<div class="row" data-s="opencode pill home — vibethinker 3b proxy config d:\opencode-pill-home\acemagic-win-6hl3k3c7lgq-8091-vibethinker-3b-q8-0-gguf ai agent / agent tooling">
+ <input type="checkbox" data-name="OpenCode Pill Home — VibeThinker 3B Proxy Config" data-path="D:\OpenCode-Pill-Home\acemagic-win-6hl3k3c7lgq-8091-vibethinker-3b-q8-0-gguf" data-git="0">
+ <div style="flex:1">
+  <div class="nm">OpenCode Pill Home — VibeThinker 3B Proxy Config &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">D:\OpenCode-Pill-Home\acemagic-win-6hl3k3c7lgq-8091-vibethinker-3b-q8-0-gguf</div>
+  <div class="meta">Archive · OpenCode CLI runtime home for a &#x27;vibe-proxy&#x27; setup against a VibeThinker-3B Q8 GGUF model on host acemagic-win (port 8091). Holds multiple tool_proxy .log/.upstream pairs and start-vibe-proxy-*.bat la</div>
+  
+ </div></div>
+<div class="row" data-s="opencode pill home — qwen3 27b proxy config d:\opencode-pill-home\acemagic-win-6hl3k3c7lgq-8092-qwen3-6-27b-q4-k-s-gguf ai agent / agent tooling">
+ <input type="checkbox" data-name="OpenCode Pill Home — Qwen3 27B Proxy Config" data-path="D:\OpenCode-Pill-Home\acemagic-win-6hl3k3c7lgq-8092-qwen3-6-27b-q4-k-s-gguf" data-git="0">
+ <div style="flex:1">
+  <div class="nm">OpenCode Pill Home — Qwen3 27B Proxy Config &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">D:\OpenCode-Pill-Home\acemagic-win-6hl3k3c7lgq-8092-qwen3-6-27b-q4-k-s-gguf</div>
+  <div class="meta">Archive · OpenCode CLI runtime home for tool-proxy instances routed to a Qwen3-6-27B Q4_K_S GGUF model on host acemagic-win (port 8092). Just proxy logs and an upstream pointer; the logs record OpenCode tool tr</div>
+  
+ </div></div>
+<div class="row" data-s="opencode tool compatibility pit test d:\opencode-pill-home\tool-compat-pitest ai agent / agent tooling">
+ <input type="checkbox" data-name="OpenCode Tool Compatibility Pit Test" data-path="D:\OpenCode-Pill-Home\tool-compat-pitest" data-git="0">
+ <div style="flex:1">
+  <div class="nm">OpenCode Tool Compatibility Pit Test &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">D:\OpenCode-Pill-Home\tool-compat-pitest</div>
+  <div class="meta">Archive · A scratch directory for testing OpenCode tool-proxy compatibility (&#x27;pit&#x27; = playground), containing a single tool_proxy log and upstream file. Likely used to verify how proxy behavior differs across mo</div>
+  
+ </div></div>
+<div class="row" data-s="opencode pill workspace — remote qwen3 27b endpoint d:\opencode-pill-workspace\100-88-23-121-8081-qwen3-6-27b-q6-k-mtp-gguf ai agent / agent tooling">
+ <input type="checkbox" data-name="OpenCode Pill Workspace — Remote Qwen3 27B Endpoint" data-path="D:\OpenCode-Pill-Workspace\100-88-23-121-8081-qwen3-6-27b-q6-k-mtp-gguf" data-git="0">
+ <div style="flex:1">
+  <div class="nm">OpenCode Pill Workspace — Remote Qwen3 27B Endpoint &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">D:\OpenCode-Pill-Workspace\100-88-23-121-8081-qwen3-6-27b-q6-k-mtp-gguf</div>
+  <div class="meta">Archive · A per-endpoint OpenCode workspace holding only opencode.json configuration for sessions aimed at a Qwen3-6-27B Q6_K GGUF model with MTP (multi-token prediction) on a remote host (100.88.23.121:8081 — </div>
+  
+ </div></div>
+<div class="row" data-s="opencode pill workspace — gemma 31b qat endpoint d:\opencode-pill-workspace\192-168-1-127-7901-gemma4-31b-qat-mtp ai agent / agent tooling">
+ <input type="checkbox" data-name="OpenCode Pill Workspace — Gemma 31B QAT Endpoint" data-path="D:\OpenCode-Pill-Workspace\192-168-1-127-7901-gemma4-31b-qat-mtp" data-git="0">
+ <div style="flex:1">
+  <div class="nm">OpenCode Pill Workspace — Gemma 31B QAT Endpoint &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">D:\OpenCode-Pill-Workspace\192-168-1-127-7901-gemma4-31b-qat-mtp</div>
+  <div class="meta">Archive · A per-endpoint OpenCode workspace holding only opencode.json configuration for sessions against a Gemma 4 31B QAT (quantization-aware-trained) model with MTP on LAN host 192.168.1.127:7901. Part of a </div>
+  
+ </div></div>
+<div class="row" data-s="opencode pill workspace — qwen3 35b a3b endpoint d:\opencode-pill-workspace\192-168-1-127-7902-qwen3-6-35b-a3b-mtp ai agent / agent tooling">
+ <input type="checkbox" data-name="OpenCode Pill Workspace — Qwen3 35B A3B Endpoint" data-path="D:\OpenCode-Pill-Workspace\192-168-1-127-7902-qwen3-6-35b-a3b-mtp" data-git="0">
+ <div style="flex:1">
+  <div class="nm">OpenCode Pill Workspace — Qwen3 35B A3B Endpoint &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">D:\OpenCode-Pill-Workspace\192-168-1-127-7902-qwen3-6-35b-a3b-mtp</div>
+  <div class="meta">Archive · A per-endpoint OpenCode workspace holding only opencode.json configuration for sessions against a Qwen3-6-35B-A3B (MoE) model with MTP on LAN host 192.168.1.127:7902. Sibling to the other OpenCode-Pil</div>
+  
+ </div></div>
+<div class="row" data-s="opencode pill workspace — grm 2.6 plus endpoint d:\opencode-pill-workspace\192-168-1-50-8085-grm-2-6-plus-bf16-gguf ai agent / agent tooling">
+ <input type="checkbox" data-name="OpenCode Pill Workspace — GRM 2.6 Plus Endpoint" data-path="D:\OpenCode-Pill-Workspace\192-168-1-50-8085-grm-2-6-plus-bf16-gguf" data-git="0">
+ <div style="flex:1">
+  <div class="nm">OpenCode Pill Workspace — GRM 2.6 Plus Endpoint &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">D:\OpenCode-Pill-Workspace\192-168-1-50-8085-grm-2-6-plus-bf16-gguf</div>
+  <div class="meta">Archive · A per-endpoint OpenCode workspace holding only opencode.json configuration for sessions against a GRM-2.6-Plus bf16 GGUF model on LAN host 192.168.1.50:8085. Matches the D:\OpenCode-Pill-Home dir of t</div>
+  
+ </div></div>
+<div class="row" data-s="opencode pill workspace — vibethinker 3b endpoint d:\opencode-pill-workspace\acemagic-win-6hl3k3c7lgq-8091-vibethinker-3b-q8-0-gguf ai agent / agent tooling">
+ <input type="checkbox" data-name="OpenCode Pill Workspace — VibeThinker 3B Endpoint" data-path="D:\OpenCode-Pill-Workspace\acemagic-win-6hl3k3c7lgq-8091-vibethinker-3b-q8-0-gguf" data-git="0">
+ <div style="flex:1">
+  <div class="nm">OpenCode Pill Workspace — VibeThinker 3B Endpoint &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">D:\OpenCode-Pill-Workspace\acemagic-win-6hl3k3c7lgq-8091-vibethinker-3b-q8-0-gguf</div>
+  <div class="meta">Archive · A per-endpoint OpenCode workspace holding only opencode.json configuration for sessions against a VibeThinker-3B Q8_0 GGUF model on host acemagic-win:8091. Pairs with the same-named D:\OpenCode-Pill-H</div>
+  
+ </div></div>
+<div class="row" data-s="aider skills store (.aider) d:\coding\.aider ai agent / agent tooling">
+ <input type="checkbox" data-name="Aider Skills Store (.aider)" data-path="D:\coding\.aider" data-git="0">
+ <div style="flex:1">
+  <div class="nm">Aider Skills Store (.aider) &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">D:\coding\.aider</div>
+  <div class="meta">Dormant · Configuration/state directory for the Aider AI coding assistant on D:, holding 215 markdown skill files under skills/ plus shell scripts, an ECC_SKILLS.md index, and a few code files. This is assistan</div>
+  
+ </div></div>
+<div class="row" data-s="openclaude skills store (.openclaude) d:\coding\.openclaude ai agent / agent tooling">
+ <input type="checkbox" data-name="OpenClaude Skills Store (.openclaude)" data-path="D:\coding\.openclaude" data-git="0">
+ <div style="flex:1">
+  <div class="nm">OpenClaude Skills Store (.openclaude) &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">D:\coding\.openclaude</div>
+  <div class="meta">Dormant · State/config directory for an &#x27;OpenClaude&#x27; CLI coding assistant, containing 273 markdown skill files under skills/ plus .mjs scripts, shell helpers, and settings.local.json. Like the .aider directory,</div>
+  
+ </div></div>
+<div class="row" data-s="idea validator d:\coding\idea validator ai agent / agent tooling">
+ <input type="checkbox" data-name="Idea Validator" data-path="D:\coding\IDEA VALIDATOR" data-git="0">
+ <div style="flex:1">
+  <div class="nm">Idea Validator &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">D:\coding\IDEA VALIDATOR</div>
+  <div class="meta">Active · Standalone FastAPI service (Python 3.11, uvicorn, pydantic, httpx) that turns raw research ideas into validated idea reports. It ingests an idea from Archon or an API caller, generates six evidence-bo</div>
+  <div class="meta">run: <code>cd /d D:\coding\IDEA VALIDATOR &amp;&amp; .\.venv\Scripts\idea-validator serve-api --hos</code></div>
+ </div></div>
+<div class="row" data-s="pi-nudge-watchdog d:\coding\pi-nudge-watchdog ai agent / agent tooling">
+ <input type="checkbox" data-name="Pi-Nudge-Watchdog" data-path="D:\coding\Pi-Nudge-Watchdog" data-git="1">
+ <div style="flex:1">
+  <div class="nm">Pi-Nudge-Watchdog &nbsp;<span class="git">git ✓</span></div>
+  <div class="pa">D:\coding\Pi-Nudge-Watchdog</div>
+  <div class="meta">Active · A small Windows PowerShell/Python watchdog for long-running pi coding-agent sessions with local open-source models. It watches pi&#x27;s session JSONL file for stall signatures (timeouts, proxy errors, ret</div>
+  <div class="meta">run: <code>cd /d D:\coding\Pi-Nudge-Watchdog &amp;&amp; powershell -ExecutionPolicy Bypass -File .\</code></div>
+ </div></div>
+<div class="row" data-s="codex cli (npm install dir) d:\coding\codex-cli ai agent / agent tooling">
+ <input type="checkbox" data-name="Codex CLI (npm install dir)" data-path="D:\coding\codex-cli" data-git="0">
+ <div style="flex:1">
+  <div class="nm">Codex CLI (npm install dir) &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">D:\coding\codex-cli</div>
+  <div class="meta">Dormant · A small npm wrapper directory that installs OpenAI&#x27;s Codex CLI (@openai/codex ^0.124.0) with codex/codex.cmd/codex.ps1 shims so the `codex` command is on PATH. Installed tooling, not a developed proje</div>
+  <div class="meta">run: <code>codex.cmd</code></div>
+ </div></div>
+<div class="row" data-s="deerflow 2.0 (cloned research agent) d:\coding\deer-flow ai agent / agent tooling">
+ <input type="checkbox" data-name="DeerFlow 2.0 (cloned research agent)" data-path="D:\coding\deer-flow" data-git="1">
+ <div style="flex:1">
+  <div class="nm">DeerFlow 2.0 (cloned research agent) &nbsp;<span class="git">git ✓</span></div>
+  <div class="pa">D:\coding\deer-flow</div>
+  <div class="meta">Dormant · A local copy of ByteDance&#x27;s open-source DeerFlow 2.0 &#x27;Deep Exploration and Efficient Research Flow&#x27; framework - a deep-research agent with a Python backend (460 files, LangGraph-based) and a Next.js 1</div>
+  <div class="meta">run: <code>make install, make dev</code></div>
+ </div></div>
+<div class="row" data-s="hermes agent (source checkout) d:\coding\hermes-agent ai agent / agent tooling">
+ <input type="checkbox" data-name="Hermes Agent (source checkout)" data-path="D:\coding\hermes-agent" data-git="1">
+ <div style="flex:1">
+  <div class="nm">Hermes Agent (source checkout) &nbsp;<span class="git">git ✓</span></div>
+  <div class="pa">D:\coding\hermes-agent</div>
+  <div class="meta">Active · A full source checkout of Hermes Agent, Nous Research&#x27;s self-improving personal AI agent that runs the same core across CLI, messaging gateways (Telegram/Discord/Slack and ~20 platforms), a TUI, and a</div>
+  <div class="meta">run: <code>python run_agent.py --help, npm install, docker compose up -d</code></div>
+ </div></div>
+<div class="row" data-s="impeccable d:\coding\impeccable ai agent / agent tooling">
+ <input type="checkbox" data-name="Impeccable" data-path="D:\coding\impeccable" data-git="1">
+ <div style="flex:1">
+  <div class="nm">Impeccable &nbsp;<span class="git">git ✓</span></div>
+  <div class="pa">D:\coding\impeccable</div>
+  <div class="meta">Active · Open-source design-quality toolkit for AI coding agents (by Paul Bakaus, Apache-2.0, npm package): one skill with 23 slash commands plus anti-pattern detection to steer agents away from generic SaaS-t</div>
+  <div class="meta">run: <code>cd /d D:\coding\impeccable &amp;&amp; bun install &amp;&amp; bun run build, cd /d D:\coding\impe</code></div>
+ </div></div>
+<div class="row" data-s="little-coder d:\coding\little-coder ai agent / agent tooling">
+ <input type="checkbox" data-name="little-coder" data-path="D:\coding\little-coder" data-git="1">
+ <div style="flex:1">
+  <div class="nm">little-coder &nbsp;<span class="git">git ✓</span></div>
+  <div class="pa">D:\coding\little-coder</div>
+  <div class="meta">Active · A coding agent tuned for small local language models (e.g. a 9.7B Qwen that beat frontier entries on Aider Polyglot), built as pi + 16 extensions + 30 skill markdown files rather than a fork. TypeScri</div>
+  <div class="meta">run: <code>cd /d D:\coding\little-coder &amp;&amp; npm install, cd /d D:\coding\little-coder &amp;&amp; npm</code></div>
+ </div></div>
+<div class="row" data-s="opencode (local install) d:\coding\opencode ai agent / agent tooling">
+ <input type="checkbox" data-name="opencode (local install)" data-path="D:\coding\opencode" data-git="0">
+ <div style="flex:1">
+  <div class="nm">opencode (local install) &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">D:\coding\opencode</div>
+  <div class="meta">Archive · A minimal local install shim for the sst/opencode CLI agent: a Node package.json pinning opencode-ai ^1.17.18 plus opencode.cmd / opencode.ps1 / opencode wrapper launchers so the opencode coding agent</div>
+  <div class="meta">run: <code>cd /d D:\coding\opencode &amp;&amp; npm install, cd /d D:\coding\opencode &amp;&amp; .\opencode.</code></div>
+ </div></div>
+<div class="row" data-s="pi-agent (runtime data) d:\coding\pi-agent ai agent / agent tooling">
+ <input type="checkbox" data-name="pi-agent (runtime data)" data-path="D:\coding\pi-agent" data-git="0">
+ <div style="flex:1">
+  <div class="nm">pi-agent (runtime data) &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">D:\coding\pi-agent</div>
+  <div class="meta">Archive · Runtime data directory for the pi coding agent (not source code): settings.json, auth.json, two session folders, fd/rg binaries in bin/, a llama-local extension, and 27 installed skills (browser tools</div>
+  
+ </div></div>
+<div class="row" data-s="pi-gateway d:\coding\pi-gateway ai agent / agent tooling">
+ <input type="checkbox" data-name="pi-gateway" data-path="D:\coding\pi-gateway" data-git="1">
+ <div style="flex:1">
+  <div class="nm">pi-gateway &nbsp;<span class="git">git ✓</span></div>
+  <div class="pa">D:\coding\pi-gateway</div>
+  <div class="meta">Active · Multi-channel AI gateway for the pi coding agent, written in strict TypeScript on Bun. Bridges Telegram (grammy), Discord (discord.js), Feishu/Lark and WebChat into a pi RPC agent pool, with token aut</div>
+  <div class="meta">run: <code>cd /d D:\coding\pi-gateway &amp;&amp; bun install, cd /d D:\coding\pi-gateway &amp;&amp; bun run</code></div>
+ </div></div>
+<div class="row" data-s="openclaw agent skills config d:\openclaw\.agents ai agent / agent tooling">
+ <input type="checkbox" data-name="OpenClaw Agent Skills Config" data-path="D:\openclaw\.agents" data-git="0">
+ <div style="flex:1">
+  <div class="nm">OpenClaw Agent Skills Config &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">D:\openclaw\.agents</div>
+  <div class="meta">Dormant · A tiny .agents directory of the OpenClaw/ClawTeam repo holding two markdown docs, two shell scripts, and a skills/ subfolder with five files - agent-side skill definitions for the multi-agent framewor</div>
+  
+ </div></div>
+<div class="row" data-s="openclaw claude config d:\openclaw\.claude ai agent / agent tooling">
+ <input type="checkbox" data-name="OpenClaw Claude Config" data-path="D:\openclaw\.claude" data-git="0">
+ <div style="flex:1">
+  <div class="nm">OpenClaw Claude Config &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">D:\openclaw\.claude</div>
+  <div class="meta">Dormant · Contains only a single &#x27;skills&#x27; file - Claude Code configuration pointing ClawTeam skills at the Claude Code CLI within the OpenClaw repo. Repo config artifact, not a standalone project.</div>
+  
+ </div></div>
+<div class="row" data-s="openclaw codegraph index d:\openclaw\.codegraph ai agent / agent tooling">
+ <input type="checkbox" data-name="OpenClaw CodeGraph Index" data-path="D:\openclaw\.codegraph" data-git="0">
+ <div style="flex:1">
+  <div class="nm">OpenClaw CodeGraph Index &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">D:\openclaw\.codegraph</div>
+  <div class="meta">Dormant · CodeGraph tooling state for the OpenClaw repo: a SQLite codegraph.db (with WAL/SHM sidecars) plus config.json that indexes the codebase for semantic code navigation by AI agents. Generated artifact, n</div>
+  
+ </div></div>
+<div class="row" data-s="clawteam marketing assets d:\openclaw\assets ai agent / agent tooling">
+ <input type="checkbox" data-name="ClawTeam Marketing Assets" data-path="D:\openclaw\assets" data-git="0">
+ <div style="flex:1">
+  <div class="nm">ClawTeam Marketing Assets &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">D:\openclaw\assets</div>
+  <div class="meta">Dormant · Eight PNG images for the ClawTeam project&#x27;s public face: icon, teaser, a comic-style how-it-works explainer, and scene illustrations for the demo use cases (hedgefund, engineering, autoresearch with p</div>
+  
+ </div></div>
+<div class="row" data-s="clawteam multi-agent framework d:\openclaw\clawteam ai agent / agent tooling">
+ <input type="checkbox" data-name="ClawTeam Multi-Agent Framework" data-path="D:\openclaw\clawteam" data-git="0">
+ <div style="flex:1">
+  <div class="nm">ClawTeam Multi-Agent Framework &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">D:\openclaw\clawteam</div>
+  <div class="meta">Dormant · The core Python package (91 files) of ClawTeam, a framework-agnostic multi-agent coordination CLI by HKUDS that lets AI agents form swarms and work as teams. It implements agent profiles/presets and i</div>
+  <div class="meta">run: <code>cd D:/openclaw &amp;&amp; python -m clawteam --help</code></div>
+ </div></div>
+<div class="row" data-s="openclaw docs &amp;amp; docs site d:\openclaw\docs ai agent / agent tooling">
+ <input type="checkbox" data-name="OpenClaw Docs &amp; Docs Site" data-path="D:\openclaw\docs" data-git="0">
+ <div style="flex:1">
+  <div class="nm">OpenClaw Docs &amp; Docs Site &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">D:\openclaw\docs</div>
+  <div class="meta">Dormant · Documentation folder for the OpenClaw/ClawTeam repo that doubles as the built GitHub Pages site (CNAME, .nojekyll, index.html, site-assets). Includes transport-architecture.md, a Chinese-language arch</div>
+  
+ </div></div>
+<div class="row" data-s="openclaw worker script d:\openclaw\scripts ai agent / agent tooling">
+ <input type="checkbox" data-name="OpenClaw Worker Script" data-path="D:\openclaw\scripts" data-git="0">
+ <div style="flex:1">
+  <div class="nm">OpenClaw Worker Script &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">D:\openclaw\scripts</div>
+  <div class="meta">Dormant · Contains one bash script, openclaw_worker.sh, a non-interactive OpenClaw worker wrapper (v2.0) that loads .env files, takes team name, recipient, task content and optional parent agent ID, and dispatc</div>
+  
+ </div></div>
+<div class="row" data-s="clawteam skill definitions d:\openclaw\skills ai agent / agent tooling">
+ <input type="checkbox" data-name="ClawTeam Skill Definitions" data-path="D:\openclaw\skills" data-git="0">
+ <div style="flex:1">
+  <div class="nm">ClawTeam Skill Definitions &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">D:\openclaw\skills</div>
+  <div class="meta">Dormant · Three markdown skill docs plus a YAML manifest under skills/clawteam, defining the ClawTeam skill package that gets installed into agent CLIs (via skills-lock.json at repo root) so agents can drive th</div>
+  
+ </div></div>
+<div class="row" data-s="clawteam test suite d:\openclaw\tests ai agent / agent tooling">
+ <input type="checkbox" data-name="ClawTeam Test Suite" data-path="D:\openclaw\tests" data-git="0">
+ <div style="flex:1">
+  <div class="nm">ClawTeam Test Suite &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">D:\openclaw\tests</div>
+  <div class="meta">Dormant · 38 pytest files covering every subsystem of the ClawTeam multi-agent framework: transports (wsh backend), workspace manager, task store and locking, spawn CLI/backends, runtime routing, MCP server and</div>
+  <div class="meta">run: <code>cd D:/openclaw &amp;&amp; python -m pytest tests/</code></div>
+ </div></div>
+<div class="row" data-s="clawteam website (vite/react) d:\openclaw\website ai agent / agent tooling">
+ <input type="checkbox" data-name="ClawTeam Website (Vite/React)" data-path="D:\openclaw\website" data-git="0">
+ <div style="flex:1">
+  <div class="nm">ClawTeam Website (Vite/React) &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">D:\openclaw\website</div>
+  <div class="meta">Dormant · A small Vite + React single-page site (App.jsx, main.jsx, vite.config.mjs) that builds into the repo&#x27;s docs/ folder for GitHub Pages, promoting the ClawTeam agent-swarm framework with its &#x27;solo to swa</div>
+  <div class="meta">run: <code>cd D:/openclaw/website &amp;&amp; npx vite</code></div>
+ </div></div>
+<div class="cat">Archive / Stale (21)</div>
+<div class="row" data-s="migrated app shortcuts c:\users\gene\desktop\migrated app shortcuts archive / stale">
+ <input type="checkbox" data-name="Migrated App Shortcuts" data-path="C:\Users\gene\Desktop\Migrated App Shortcuts" data-git="0">
+ <div style="flex:1">
+  <div class="nm">Migrated App Shortcuts &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">C:\Users\gene\Desktop\Migrated App Shortcuts</div>
+  <div class="meta">Archive · A folder of 13 Windows .lnk shortcuts collected during the proxy-PC migration for apps that were migrated over, including AI tooling (AionUi, Eigent, BatchPilot, parallel-launcher), Gene&#x27;s Amazon sell</div>
+  
+ </div></div>
+<div class="row" data-s="migrated gog game shortcuts c:\users\gene\desktop\migrated gog game shortcuts archive / stale">
+ <input type="checkbox" data-name="Migrated GOG Game Shortcuts" data-path="C:\Users\gene\Desktop\Migrated GOG Game Shortcuts" data-git="0">
+ <div style="flex:1">
+  <div class="nm">Migrated GOG Game Shortcuts &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">C:\Users\gene\Desktop\Migrated GOG Game Shortcuts</div>
+  <div class="meta">Archive · A single GOG Galaxy launcher shortcut (Wizards Crown.cmd) preserved during the PC migration so the migrated game stays launchable. Game-shortcut keepsake from the migration process, nothing more.</div>
+  
+ </div></div>
+<div class="row" data-s="migration first launch checks c:\users\gene\desktop\migration first launch checks archive / stale">
+ <input type="checkbox" data-name="Migration First Launch Checks" data-path="C:\Users\gene\Desktop\Migration First Launch Checks" data-git="0">
+ <div style="flex:1">
+  <div class="nm">Migration First Launch Checks &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">C:\Users\gene\Desktop\Migration First Launch Checks</div>
+  <div class="meta">Archive · A checklist folder from the July 2026 ZBook/proxy-PC migration: 20 numbered .lnk shortcuts (ChessBase 15/16, Fritz 16, Snagit, Playnite, GitHub CLI, Hermes Desktop, Eigent, ZCode, BatchPilot, etc.) us</div>
+  
+ </div></div>
+<div class="row" data-s="migration launch checks (extended queue) c:\users\gene\desktop\migration launch checks archive / stale">
+ <input type="checkbox" data-name="Migration Launch Checks (Extended Queue)" data-path="C:\Users\gene\Desktop\Migration Launch Checks" data-git="0">
+ <div style="flex:1">
+  <div class="nm">Migration Launch Checks (Extended Queue) &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">C:\Users\gene\Desktop\Migration Launch Checks</div>
+  <div class="meta">Archive · The extended, second-wave migration verification queue (July 2026): 56 numbered .lnk shortcuts from &#x27;01&#x27; up through &#x27;115 - Retry Proxy C Locked Session Files&#x27; covering GitHub CLI auth/reauth repair, D</div>
+  
+ </div></div>
+<div class="row" data-s="out of scope migrated shortcuts (proxy f-m) c:\users\gene\desktop\out of scope migrated shortcuts - proxy f m archive / stale">
+ <input type="checkbox" data-name="Out of Scope Migrated Shortcuts (Proxy F-M)" data-path="C:\Users\gene\Desktop\Out of Scope Migrated Shortcuts - Proxy F M" data-git="0">
+ <div style="flex:1">
+  <div class="nm">Out of Scope Migrated Shortcuts (Proxy F-M) &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">C:\Users\gene\Desktop\Out of Scope Migrated Shortcuts - Proxy F M</div>
+  <div class="meta">Archive · A holding folder of 18 shortcuts for migrated apps and games judged &#x27;out of scope&#x27; for the formal migration verification: chess tooling (Chess Assistant 19), game launchers and libraries (LaunchBox/Bi</div>
+  
+ </div></div>
+<div class="row" data-s="logi options+ settings backup c:\users\gene\desktop\logi-settings-backup-2026-08-22 archive / stale">
+ <input type="checkbox" data-name="Logi Options+ Settings Backup" data-path="C:\Users\gene\Desktop\logi-settings-backup-2026-08-22" data-git="0">
+ <div style="flex:1">
+  <div class="nm">Logi Options+ Settings Backup &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">C:\Users\gene\Desktop\logi-settings-backup-2026-08-22</div>
+  <div class="meta">Archive · A point-in-time backup (dated 2026-08-22) of the Logitech Logi Options+ profile data from %APPDATA% roaming: devices.json, keys.json, groups.json, features_cache.json, button bindings (.baf/.baj), Lev</div>
+  
+ </div></div>
+<div class="row" data-s="chessbase data folder c:\users\gene\documents\chessbase archive / stale">
+ <input type="checkbox" data-name="ChessBase Data Folder" data-path="C:\Users\gene\Documents\ChessBase" data-git="0">
+ <div style="flex:1">
+  <div class="nm">ChessBase Data Folder &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">C:\Users\gene\Documents\ChessBase</div>
+  <div class="meta">Dormant · Data directory for the ChessBase chess database application (Windows desktop software), containing configuration (DBItems.cbini), player/rating/media reference files, and empty subfolders for game bas</div>
+  
+ </div></div>
+<div class="row" data-s="codex session recovery snapshots c:\users\gene\documents\codex-recovery archive / stale">
+ <input type="checkbox" data-name="Codex Session Recovery Snapshots" data-path="C:\Users\gene\Documents\Codex-Recovery" data-git="0">
+ <div style="flex:1">
+  <div class="nm">Codex Session Recovery Snapshots &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">C:\Users\gene\Documents\Codex-Recovery</div>
+  <div class="meta">Archive · Six timestamped snapshot folders (all dated 2026-09-08, e.g. 20260908-212450) each containing ~16,500 files of markdown, JSON/JSONL, YAML, Python, and web assets. This is a recovery/backup capture of </div>
+  
+ </div></div>
+<div class="row" data-s="hermes pre-mcp-skills backup c:\users\gene\documents\hermes backups archive / stale">
+ <input type="checkbox" data-name="Hermes Pre-MCP-Skills Backup" data-path="C:\Users\gene\Documents\Hermes Backups" data-git="0">
+ <div style="flex:1">
+  <div class="nm">Hermes Pre-MCP-Skills Backup &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">C:\Users\gene\Documents\Hermes Backups</div>
+  <div class="meta">Archive · A single 737 MB &#x27;.partial&#x27; file (&#x27;pre-mcp-skills-20260724-145917.partial&#x27;) — an incomplete backup of Hermes agent state taken on 2026-07-24 before an MCP/skills change. Not a project; just a rollback </div>
+  
+ </div></div>
+<div class="row" data-s="iis express config &amp;amp; logs c:\users\gene\documents\iisexpress archive / stale">
+ <input type="checkbox" data-name="IIS Express Config &amp; Logs" data-path="C:\Users\gene\Documents\IISExpress" data-git="0">
+ <div style="flex:1">
+  <div class="nm">IIS Express Config &amp; Logs &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">C:\Users\gene\Documents\IISExpress</div>
+  <div class="meta">Archive · IIS Express application-host configuration, logs, and trace-log folders created by Visual Studio when debugging web projects. Dates back to 2023 (last touched 2025-02), containing only three .config f</div>
+  
+ </div></div>
+<div class="row" data-s="mgr game save data c:\users\gene\documents\mgr archive / stale">
+ <input type="checkbox" data-name="MGR Game Save Data" data-path="C:\Users\gene\Documents\MGR" data-git="0">
+ <div style="flex:1">
+  <div class="nm">MGR Game Save Data &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">C:\Users\gene\Documents\MGR</div>
+  <div class="meta">Archive · A two-file &#x27;SaveData&#x27; folder with a .sav file from February 2023 — game save data, most likely for a video game (MGR may refer to a game title). No docs, code, or AI relevance; personal application da</div>
+  
+ </div></div>
+<div class="row" data-s="my web sites (visual studio scratch) c:\users\gene\documents\my web sites archive / stale">
+ <input type="checkbox" data-name="My Web Sites (Visual Studio Scratch)" data-path="C:\Users\gene\Documents\My Web Sites" data-git="0">
+ <div style="flex:1">
+  <div class="nm">My Web Sites (Visual Studio Scratch) &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">C:\Users\gene\Documents\My Web Sites</div>
+  <div class="meta">Archive · A Visual Studio &#x27;WebSite1&#x27; scratch folder with a handful of images and one .htm file, last touched February 2025. Appears to be a trivial or abandoned website-creation experiment created by the IDE; n</div>
+  
+ </div></div>
+<div class="row" data-s="noble virtual fencing research c:\users\gene\documents\noble virtual fencing archive / stale">
+ <input type="checkbox" data-name="Noble Virtual Fencing Research" data-path="C:\Users\gene\Documents\Noble Virtual Fencing" data-git="1">
+ <div style="flex:1">
+  <div class="nm">Noble Virtual Fencing Research &nbsp;<span class="git">git ✓</span></div>
+  <div class="pa">C:\Users\gene\Documents\Noble Virtual Fencing</div>
+  <div class="meta">Dormant · A research/deployment package (1.2 GB, mostly images) for a &#x27;Virtual Fencing&#x27; project — 731 PNGs, 78 PDFs, 125 HTML pages, subtitle files (.srt), and .webm videos, with deployment and tools folders. L</div>
+  
+ </div></div>
+<div class="row" data-s="pdfgear ocr conversions c:\users\gene\documents\pdfgear archive / stale">
+ <input type="checkbox" data-name="PDFgear OCR Conversions" data-path="C:\Users\gene\Documents\PDFgear" data-git="0">
+ <div style="flex:1">
+  <div class="nm">PDFgear OCR Conversions &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">C:\Users\gene\Documents\PDFgear</div>
+  <div class="meta">Dormant · Two DOCX files (&#x27;bluebooking OCR conv 1.docx&#x27;, &#x27;bluebooking OCR conv.docx&#x27;) plus an empty OCR output subfolder, produced with PDFgear (a PDF/OCR desktop tool) in May 2026. This is document-conversion </div>
+  
+ </div></div>
+<div class="row" data-s="storyflow studio rescue c:\users\gene\documents\storyflow-studio-rescue archive / stale">
+ <input type="checkbox" data-name="Storyflow Studio Rescue" data-path="C:\Users\gene\Documents\storyflow-studio-rescue" data-git="0">
+ <div style="flex:1">
+  <div class="nm">Storyflow Studio Rescue &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">C:\Users\gene\Documents\storyflow-studio-rescue</div>
+  <div class="meta">Archive · A single-file rescue artifact containing only server.mjs (a Node.js server module), stamped 2026-05-24. Evidence is thin: this appears to be a salvaged server component of a &#x27;Storyflow Studio&#x27; web pro</div>
+  
+ </div></div>
+<div class="row" data-s="stray c:\c\users folder c:\c\users archive / stale">
+ <input type="checkbox" data-name="Stray C:\c\Users Folder" data-path="C:\c\Users" data-git="0">
+ <div style="flex:1">
+  <div class="nm">Stray C:\c\Users Folder &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">C:\c\Users</div>
+  <div class="meta">Archive · A small stray directory tree (C:\c\Users\gene, 12 files) containing a handful of .exe, .wav, .bat, .cfg, and .ps1 files — most likely artifacts accidentally created by a tool or script that mistyped a</div>
+  
+ </div></div>
+<div class="row" data-s="aionui old app archive d:\aionui.__old\resources archive / stale">
+ <input type="checkbox" data-name="AIonUI Old App Archive" data-path="D:\AIonUI.__old\resources" data-git="0">
+ <div style="flex:1">
+  <div class="nm">AIonUI Old App Archive &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">D:\AIonUI.__old\resources</div>
+  <div class="meta">Archive · A single 370MB app.asar Electron archive left in an __old folder, evidently the packaged resources of a previous version of an Electron desktop app (the AIonUI/ZCode-style coding client) kept as a bac</div>
+  
+ </div></div>
+<div class="row" data-s="tombs &amp;amp; tyrants (placeholder) d:\zcode\tombs &amp; tyrants archive / stale">
+ <input type="checkbox" data-name="Tombs &amp; Tyrants (placeholder)" data-path="D:\ZCODE\TOMBS &amp; TYRANTS" data-git="0">
+ <div style="flex:1">
+  <div class="nm">Tombs &amp; Tyrants (placeholder) &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">D:\ZCODE\TOMBS &amp; TYRANTS</div>
+  <div class="meta">Archive · Effectively empty placeholder directory containing only a .keep file, sitting next to the real &#x27;TOMBS AND TYRANTS&#x27; project. It appears to exist purely to reserve the ampersand-spelled folder name; the</div>
+  
+ </div></div>
+<div class="row" data-s="zcode locales (chromium .pak files) d:\zcode\locales archive / stale">
+ <input type="checkbox" data-name="ZCode Locales (Chromium .pak files)" data-path="D:\ZCODE\locales" data-git="0">
+ <div style="flex:1">
+  <div class="nm">ZCode Locales (Chromium .pak files) &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">D:\ZCODE\locales</div>
+  <div class="meta">Archive · Contains only two Chromium locale resource packs (en-US.pak and zh-CN.pak), which are binary UI string bundles belonging to the ZCode desktop Electron/Chromium app rather than a developed project. Lik</div>
+  
+ </div></div>
+<div class="row" data-s="business builder mcp (status stub) d:\coding\business builder app - mcp for all apps archive / stale">
+ <input type="checkbox" data-name="Business Builder MCP (status stub)" data-path="D:\coding\BUSINESS BUILDER APP - MCP FOR ALL APPS" data-git="0">
+ <div style="flex:1">
+  <div class="nm">Business Builder MCP (status stub) &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">D:\coding\BUSINESS BUILDER APP - MCP FOR ALL APPS</div>
+  <div class="meta">Archive · A one-file stub directory containing only BUILD_STATUS_WEBSITE.md, from the Business Builder MCP effort (2026-03-31). It appears to be a leftover status note whose real content lives in the sibling &#x27;B</div>
+  
+ </div></div>
+<div class="row" data-s="zcode desktop (extracted build) d:\coding\zcode-extract archive / stale">
+ <input type="checkbox" data-name="ZCode Desktop (extracted build)" data-path="D:\coding\zcode-extract" data-git="0">
+ <div style="flex:1">
+  <div class="nm">ZCode Desktop (extracted build) &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">D:\coding\zcode-extract</div>
+  <div class="meta">Archive · An extracted/compiled build output of the ZCode Desktop Electron app (@zcode/desktop, dev@zcode.z.ai) — 2,178 files of bundled JavaScript, SVG assets, fonts, wasm and bcmap under out/ (main, preload, </div>
+  
+ </div></div>
+<div class="cat">Browser Extension (11)</div>
+<div class="row" data-s="pushbullet extension — firefox migration c:\coding\pushbullet firefox browser extension">
+ <input type="checkbox" data-name="Pushbullet Extension — Firefox Migration" data-path="C:\CODING\PUSHBULLET FIREFOX" data-git="0">
+ <div style="flex:1">
+  <div class="nm">Pushbullet Extension — Firefox Migration &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">C:\CODING\PUSHBULLET FIREFOX</div>
+  <div class="meta">Dormant · Copy of the unofficial Manifest V3 Pushbullet Chrome extension being ported to Firefox (FIREFOX_MIGRATION_LOG.md tracks the migration, since Firefox MV3 lacks service-worker background scripts). Cooki</div>
+  
+ </div></div>
+<div class="row" data-s="pushbullet extension (v379) — working copy c:\coding\pushbullet work browser extension">
+ <input type="checkbox" data-name="Pushbullet Extension (v379) — Working Copy" data-path="C:\CODING\PUSHBULLET WORK" data-git="1">
+ <div style="flex:1">
+  <div class="nm">Pushbullet Extension (v379) — Working Copy &nbsp;<span class="git">git ✓</span></div>
+  <div class="pa">C:\CODING\PUSHBULLET WORK</div>
+  <div class="meta">Archive · A working copy of the community-maintained unofficial Pushbullet Chrome extension upgraded to Manifest V3 (v379), which brings device pushes, SMS chat, file links, notification sounds (Offscreen Docum</div>
+  
+ </div></div>
+<div class="row" data-s="pushbullet extension (v366) — early test copy c:\coding\pushbullet-test-v1.0 browser extension">
+ <input type="checkbox" data-name="Pushbullet Extension (v366) — Early Test Copy" data-path="C:\CODING\PUSHBULLET-TEST-v1.0" data-git="1">
+ <div style="flex:1">
+  <div class="nm">Pushbullet Extension (v366) — Early Test Copy &nbsp;<span class="git">git ✓</span></div>
+  <div class="pa">C:\CODING\PUSHBULLET-TEST-v1.0</div>
+  <div class="meta">Archive · Early test snapshot of the unofficial Manifest V3 Pushbullet Chrome extension (v366): pushes, SMS chat, panel notifications, and e2e storage/notification test pages. README notes file-upload to Pushbu</div>
+  
+ </div></div>
+<div class="row" data-s="hermes browser extension c:\coding\hermes-browser-extension browser extension">
+ <input type="checkbox" data-name="Hermes Browser Extension" data-path="C:\CODING\hermes-browser-extension" data-git="0">
+ <div style="flex:1">
+  <div class="nm">Hermes Browser Extension &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">C:\CODING\hermes-browser-extension</div>
+  <div class="meta">Dormant · A Chrome/Chromium Manifest V3 extension (v0.2.0) that embeds the Hermes Agent as a browser-native side panel, connecting web-page context to the user&#x27;s local or remote Hermes runtime. It provides a si</div>
+  
+ </div></div>
+<div class="row" data-s="opencli browser automation extension c:\coding\opencli chrome extension browser extension">
+ <input type="checkbox" data-name="OpenCLI Browser Automation Extension" data-path="C:\CODING\opencli chrome extension" data-git="0">
+ <div style="flex:1">
+  <div class="nm">OpenCLI Browser Automation Extension &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">C:\CODING\opencli chrome extension</div>
+  <div class="meta">Archive · Packaged Chrome extension (Manifest V3, v1.0.22, with dist/, popup, icons) that acts as a browser-automation bridge for the OpenCLI CLI tool — it executes commands in Chrome tab leases via a local dae</div>
+  
+ </div></div>
+<div class="row" data-s="pushbullet extension (v382) — latest fix branch c:\coding\pushbullet-fix browser extension">
+ <input type="checkbox" data-name="Pushbullet Extension (v382) — Latest Fix Branch" data-path="C:\CODING\pushbullet-fix" data-git="1">
+ <div style="flex:1">
+  <div class="nm">Pushbullet Extension (v382) — Latest Fix Branch &nbsp;<span class="git">git ✓</span></div>
+  <div class="pa">C:\CODING\pushbullet-fix</div>
+  <div class="meta">Dormant · The most current working copy of the unofficial Manifest V3 Pushbullet Chrome extension (v382, June 2026): restored in-extension settings page sections, added v380/v381 release notes, and synced the u</div>
+  
+ </div></div>
+<div class="row" data-s="pushbullet extension (v379) — fix-main snapshot c:\coding\pushbullet-fix-main browser extension">
+ <input type="checkbox" data-name="Pushbullet Extension (v379) — fix-main Snapshot" data-path="C:\CODING\pushbullet-fix-main" data-git="0">
+ <div style="flex:1">
+  <div class="nm">Pushbullet Extension (v379) — fix-main Snapshot &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">C:\CODING\pushbullet-fix-main</div>
+  <div class="meta">Archive · Snapshot (June 2026) of the community-maintained unofficial Pushbullet Chrome extension at v379, Manifest V3: pushes, quick-reply SMS chat, panel notifications, settings persistence, and update checki</div>
+  
+ </div></div>
+<div class="row" data-s="workdog push (browser extension) c:\coding\workdog-push-extension browser extension">
+ <input type="checkbox" data-name="WorkDog Push (Browser Extension)" data-path="C:\CODING\workdog-push-extension" data-git="1">
+ <div style="flex:1">
+  <div class="nm">WorkDog Push (Browser Extension) &nbsp;<span class="git">git ✓</span></div>
+  <div class="pa">C:\CODING\workdog-push-extension</div>
+  <div class="meta">Dormant · A Chrome Manifest V3 extension named &#x27;WorkDog Push&#x27; that sends files plus a prompt from the work PC to the local model fleet via the WorkDog Push Server. popup.html/popup.js handles picking files and </div>
+  
+ </div></div>
+<div class="row" data-s="ebay scam remover extension d:\coding\ebay-scam-remover-extension browser extension">
+ <input type="checkbox" data-name="eBay Scam Remover Extension" data-path="D:\coding\ebay-scam-remover-extension" data-git="1">
+ <div style="flex:1">
+  <div class="nm">eBay Scam Remover Extension &nbsp;<span class="git">git ✓</span></div>
+  <div class="pa">D:\coding\ebay-scam-remover-extension</div>
+  <div class="meta">Archive · A Chrome extension (Manifest V3) called &#x27;eBay Scam Remover&#x27; that helps identify and flag/remove scam listings while browsing eBay. It injects content.js into ebay.com pages, uses a background service </div>
+  
+ </div></div>
+<div class="row" data-s="subscription tracker &amp;amp; calendar sync (v2) d:\coding\subscription-ext-improved browser extension">
+ <input type="checkbox" data-name="Subscription Tracker &amp; Calendar Sync (v2)" data-path="D:\coding\subscription-ext-improved" data-git="1">
+ <div style="flex:1">
+  <div class="nm">Subscription Tracker &amp; Calendar Sync (v2) &nbsp;<span class="git">git ✓</span></div>
+  <div class="pa">D:\coding\subscription-ext-improved</div>
+  <div class="meta">Dormant · A Chrome extension (Manifest V3, vanilla JS) that tracks subscriptions — name, price, currency, frequency, renewal date, category, status — and syncs recurring renewal reminders to Google Calendar via</div>
+  
+ </div></div>
+<div class="row" data-s="subscription tracker &amp;amp; calendar sync (v1) d:\coding\subscription-ext-qwen browser extension">
+ <input type="checkbox" data-name="Subscription Tracker &amp; Calendar Sync (v1)" data-path="D:\coding\subscription-ext-qwen" data-git="0">
+ <div style="flex:1">
+  <div class="nm">Subscription Tracker &amp; Calendar Sync (v1) &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">D:\coding\subscription-ext-qwen</div>
+  <div class="meta">Archive · The original v1.0.0 Chrome extension (Manifest V3) for tracking subscriptions and adding renewal reminders to Google Calendar: background.js service worker, popup UI, content script and styles, with s</div>
+  
+ </div></div>
+<div class="cat">Business / Marketing (16)</div>
+<div class="row" data-s="smb ai consulting offer one-pager c:\coding\ai-consulting-blueprint business / marketing">
+ <input type="checkbox" data-name="SMB AI Consulting Offer One-Pager" data-path="C:\CODING\ai-consulting-blueprint" data-git="0">
+ <div style="flex:1">
+  <div class="nm">SMB AI Consulting Offer One-Pager &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">C:\CODING\ai-consulting-blueprint</div>
+  <div class="meta">Dormant · A small Python build toolkit that generates marketing collateral for an SMB AI-consulting business. content_a/b/c/d.py and build_doc.py assemble a Word .docx consulting blueprint (AI-Advantage-for-SMB</div>
+  <div class="meta">run: <code>python C:\CODING\ai-consulting-blueprint\build_doc.py, python C:\CODING\ai-consu</code></div>
+ </div></div>
+<div class="row" data-s="ai consulting offers page c:\coding\ai-consulting-offers business / marketing">
+ <input type="checkbox" data-name="AI Consulting Offers Page" data-path="C:\CODING\ai-consulting-offers" data-git="0">
+ <div style="flex:1">
+  <div class="nm">AI Consulting Offers Page &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">C:\CODING\ai-consulting-offers</div>
+  <div class="meta">Dormant · A single standalone index.html describing Gene&#x27;s AI-consulting offers — presumably a static marketing/landing page for the SMB AI consulting business. Evidence is minimal (one HTML file, no assets, no</div>
+  <div class="meta">run: <code>start C:\CODING\ai-consulting-offers\index.html</code></div>
+ </div></div>
+<div class="row" data-s="course funnel page c:\coding\course-funnel business / marketing">
+ <input type="checkbox" data-name="Course Funnel Page" data-path="C:\CODING\course-funnel" data-git="0">
+ <div style="flex:1">
+  <div class="nm">Course Funnel Page &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">C:\CODING\course-funnel</div>
+  <div class="meta">Archive · A single standalone index.html dated 2026-08-04 — by name, a marketing/sales funnel landing page for an online course. No build system, assets, or manifest accompany it, so it appears to be a one-off </div>
+  <div class="meta">run: <code>start C:\CODING\course-funnel\index.html</code></div>
+ </div></div>
+<div class="row" data-s="courses outcomes table c:\coding\courses business / marketing">
+ <input type="checkbox" data-name="Courses Outcomes Table" data-path="C:\CODING\courses" data-git="0">
+ <div style="flex:1">
+  <div class="nm">Courses Outcomes Table &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">C:\CODING\courses</div>
+  <div class="meta">Archive · A lone outcomes-table.html file dated 2026-08-07 with no other assets. The name suggests a static HTML table laying out course outcomes — most plausibly tied to Gene&#x27;s course/consulting marketing mate</div>
+  <div class="meta">run: <code>start C:\CODING\courses\outcomes-table.html</code></div>
+ </div></div>
+<div class="row" data-s="noble process sheet — authority tab builder c:\coding\noble-process-sheet business / marketing">
+ <input type="checkbox" data-name="Noble Process Sheet — Authority Tab Builder" data-path="C:\CODING\noble-process-sheet" data-git="0">
+ <div style="flex:1">
+  <div class="nm">Noble Process Sheet — Authority Tab Builder &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">C:\CODING\noble-process-sheet</div>
+  <div class="meta">Dormant · One-off openpyxl script that programmatically adds/rebuilds an idempotent &#x27;Proposed Authority&#x27; tab (styled headers, notes, banded rows) inside Noble Digital&#x27;s Process Review Excel workbook, driven by </div>
+  <div class="meta">run: <code>python add_authority_tab.py</code></div>
+ </div></div>
+<div class="row" data-s="noble semrush integration brief c:\coding\noble-semrush-brief business / marketing">
+ <input type="checkbox" data-name="Noble SEMrush Integration Brief" data-path="C:\CODING\noble-semrush-brief" data-git="0">
+ <div style="flex:1">
+  <div class="nm">Noble SEMrush Integration Brief &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">C:\CODING\noble-semrush-brief</div>
+  <div class="meta">Archive · Small Node.js doc-generator using the docx npm package (make_brief.js) that produced a SEMrush Integration Brief for the Noble Digital client as PDF/DOCX (with a rendered page preview PNG). A write-on</div>
+  
+ </div></div>
+<div class="row" data-s="ship-or-die crew websites report c:\users\gene\documents\copycats business / marketing">
+ <input type="checkbox" data-name="Ship-or-Die Crew Websites Report" data-path="C:\Users\gene\Documents\COPYCATS" data-git="1">
+ <div style="flex:1">
+  <div class="nm">Ship-or-Die Crew Websites Report &nbsp;<span class="git">git ✓</span></div>
+  <div class="pa">C:\Users\gene\Documents\COPYCATS</div>
+  <div class="meta">Archive · A single HTML file, &#x27;ship-or-die-crew-websites-report.html&#x27; (~0.4 MB), delivered 2026-07-17. Judging by the name it is a generated research/review report auditing websites for a group (&#x27;crew&#x27;) of site</div>
+  
+ </div></div>
+<div class="row" data-s="harbor laser co — shopify store &amp;amp; video production c:\users\gene\documents\harbor laser co business / marketing">
+ <input type="checkbox" data-name="Harbor Laser Co — Shopify Store &amp; Video Production" data-path="C:\Users\gene\Documents\HARBOR LASER CO" data-git="1">
+ <div style="flex:1">
+  <div class="nm">Harbor Laser Co — Shopify Store &amp; Video Production &nbsp;<span class="git">git ✓</span></div>
+  <div class="pa">C:\Users\gene\Documents\HARBOR LASER CO</div>
+  <div class="meta">Active · Large (15 GB) working directory for Harbor Laser Co, a Shopify e-commerce business. Contains Shopify theme work (shopify-theme-choice2, shopify-theme-poc with 2,400+ .liquid files), a product-page cus</div>
+  <div class="meta">run: <code>cd C:\Users\gene\Documents\HARBOR LASER CO\voice-casting-console &amp;&amp; python serve</code></div>
+ </div></div>
+<div class="row" data-s="last30days content drafts c:\users\gene\documents\last30days business / marketing">
+ <input type="checkbox" data-name="Last30Days Content Drafts" data-path="C:\Users\gene\Documents\Last30Days" data-git="0">
+ <div style="flex:1">
+  <div class="nm">Last30Days Content Drafts &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">C:\Users\gene\Documents\Last30Days</div>
+  <div class="meta">Dormant · Six markdown drafts (June 2026) generated with the &#x27;last30days&#x27; AI-news summarization workflow — covering DGX Spark price increases and memory shortages, dual-DGX-Spark LLM setups, and local AI models</div>
+  
+ </div></div>
+<div class="row" data-s="noble digital marketing ops c:\users\gene\documents\noble digital business / marketing">
+ <input type="checkbox" data-name="Noble Digital Marketing Ops" data-path="C:\Users\gene\Documents\Noble Digital" data-git="1">
+ <div style="flex:1">
+  <div class="nm">Noble Digital Marketing Ops &nbsp;<span class="git">git ✓</span></div>
+  <div class="pa">C:\Users\gene\Documents\Noble Digital</div>
+  <div class="meta">Active · Working directory for Noble Digital, a marketing agency&#x27;s website and operations. Centered on a PHP/WordPress site (619 .php files, .xcu config, Matomo analytics JSONs) with an active geo-targeting pr</div>
+  <div class="meta">run: <code>cd C:\Users\gene\Documents\Noble Digital &amp;&amp; python rewrite_process_report.py</code></div>
+ </div></div>
+<div class="row" data-s="saas tools inventory &amp;amp; report c:\users\gene\documents\saas tools canvas business / marketing">
+ <input type="checkbox" data-name="SaaS Tools Inventory &amp; Report" data-path="C:\Users\gene\Documents\SAAS TOOLS CANVAS" data-git="1">
+ <div style="flex:1">
+  <div class="nm">SaaS Tools Inventory &amp; Report &nbsp;<span class="git">git ✓</span></div>
+  <div class="pa">C:\Users\gene\Documents\SAAS TOOLS CANVAS</div>
+  <div class="meta">Dormant · A one-day (2026-06-19) data-research pipeline that took a mindmap export of SaaS tool ideas, cleaned and enriched a CSV inventory (saas-tools-inventory-with-notes.csv), ran URL-reachability and produc</div>
+  <div class="meta">run: <code>cd C:\Users\gene\Documents\SAAS TOOLS CANVAS &amp;&amp; python generate_saas_report.py</code></div>
+ </div></div>
+<div class="row" data-s="zip code ranker c:\users\gene\documents\zip code ranker business / marketing">
+ <input type="checkbox" data-name="Zip Code Ranker" data-path="C:\Users\gene\Documents\Zip Code Ranker" data-git="0">
+ <div style="flex:1">
+  <div class="nm">Zip Code Ranker &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">C:\Users\gene\Documents\Zip Code Ranker</div>
+  <div class="meta">Dormant · A large data project (~299 GB, 14,720 files) building a US ZIP-code crime database and ranking system. The &#x27;Zip Crime Data V6&#x27; folder is a clean rebuild mapping every US ZIP to crime data via direct p</div>
+  
+ </div></div>
+<div class="row" data-s="price &amp;amp; marketplace scraper collection c:\users\gene\research-repos business / marketing">
+ <input type="checkbox" data-name="Price &amp; Marketplace Scraper Collection" data-path="C:\Users\gene\research-repos" data-git="0">
+ <div style="flex:1">
+  <div class="nm">Price &amp; Marketplace Scraper Collection &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">C:\Users\gene\research-repos</div>
+  <div class="meta">Dormant · A folder collecting nine e-commerce price-monitoring and scraping projects: generated Amazon scraper suites (ASIN/SERP/category in Python and Node via ScrapeOps), a Python+Playwright Amazon portfolio </div>
+  
+ </div></div>
+<div class="row" data-s="business builder mcp + saas dashboard d:\coding\business builder app - mcp for all other apps business / marketing">
+ <input type="checkbox" data-name="Business Builder MCP + SaaS Dashboard" data-path="D:\coding\BUSINESS BUILDER APP - MCP FOR ALL OTHER APPS" data-git="0">
+ <div style="flex:1">
+  <div class="nm">Business Builder MCP + SaaS Dashboard &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">D:\coding\BUSINESS BUILDER APP - MCP FOR ALL OTHER APPS</div>
+  <div class="meta">Active · A business-planning platform with two faces: (1) Business Builder MCP, a TypeScript Model Context Protocol server exposing business development tools (Business Model Canvas, SWOT analysis, financial p</div>
+  <div class="meta">run: <code>npm run build, npm run start, restart-server.bat</code></div>
+ </div></div>
+<div class="row" data-s="domain business builds d:\coding\domain business builds business / marketing">
+ <input type="checkbox" data-name="Domain Business Builds" data-path="D:\coding\DOMAIN BUSINESS BUILDS" data-git="0">
+ <div style="flex:1">
+  <div class="nm">Domain Business Builds &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">D:\coding\DOMAIN BUSINESS BUILDS</div>
+  <div class="meta">Archive · A tiny folder holding business-plan/branding notes for the domain &#x27;BUILT AND BRANDED.COM&#x27; (a CSV, a text file, and a JSON under that subfolder), dating from late 2024. Evidence suggests it tracked one</div>
+  
+ </div></div>
+<div class="row" data-s="replyengine lead magnet (idea stub) d:\coding\replyengine lead magent - idea from cc bizops business / marketing">
+ <input type="checkbox" data-name="ReplyEngine Lead Magnet (idea stub)" data-path="D:\coding\REPLYENGINE LEAD MAGENT - IDEA FROM CC BIZOPS" data-git="0">
+ <div style="flex:1">
+  <div class="nm">ReplyEngine Lead Magnet (idea stub) &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">D:\coding\REPLYENGINE LEAD MAGENT - IDEA FROM CC BIZOPS</div>
+  <div class="meta">Archive · An essentially empty project folder holding a single blank &#x27;New Text Document.txt&#x27; plus an empty subfolder, named as an idea for a ReplyEngine lead magnet originating from a CC BizOps suggestion. No c</div>
+  
+ </div></div>
+<div class="cat">Fleet &amp; Infrastructure (7)</div>
+<div class="row" data-s="fleet docs &amp;amp; scripts c:\coding\fleet-docs fleet &amp; infrastructure">
+ <input type="checkbox" data-name="Fleet Docs &amp; Scripts" data-path="C:\CODING\fleet-docs" data-git="0">
+ <div style="flex:1">
+  <div class="nm">Fleet Docs &amp; Scripts &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">C:\CODING\fleet-docs</div>
+  <div class="meta">Active · Documentation and operational shell scripts for Gene&#x27;s Linux GPU fleet (DGX Spark-class machines named dspark/gx10s). Markdown notes capture session evidence (tt-helena-session-evidence.md), instrumen</div>
+  
+ </div></div>
+<div class="row" data-s="workdog push server c:\coding\workdog-push-server fleet &amp; infrastructure">
+ <input type="checkbox" data-name="WorkDog Push Server" data-path="C:\CODING\workdog-push-server" data-git="1">
+ <div style="flex:1">
+  <div class="nm">WorkDog Push Server &nbsp;<span class="git">git ✓</span></div>
+  <div class="pa">C:\CODING\workdog-push-server</div>
+  <div class="meta">Dormant · A self-hosted Python bridge (server.py) that replaces Pushbullet: from work (or anywhere on the Tailscale mesh) you POST files and a prompt to /v1/jobs, jobs persist in SQLite and run on a worker thre</div>
+  <div class="meta">run: <code>cd C:\CODING\workdog-push-server &amp;&amp; python server.py</code></div>
+ </div></div>
+<div class="row" data-s="fleet scanner c:\users\gene\fleet-scanner fleet &amp; infrastructure">
+ <input type="checkbox" data-name="Fleet Scanner" data-path="C:\Users\gene\fleet-scanner" data-git="0">
+ <div style="flex:1">
+  <div class="nm">Fleet Scanner &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">C:\Users\gene\fleet-scanner</div>
+  <div class="meta">Dormant · A local Node.js web app that scans mapped network drives (S:) to build a persistent JSON registry of codebases and AI model files (.onnx, .pt, .safetensors, .gguf, etc.). It detects project types via </div>
+  <div class="meta">run: <code>cd &quot;C:\Users\gene\fleet-scanner&quot; &amp;&amp; npm run start, cd &quot;C:\Users\gene\fleet-scann</code></div>
+ </div></div>
+<div class="row" data-s="fleet scanner v2 c:\users\gene\fleet-scanner-v2 fleet &amp; infrastructure">
+ <input type="checkbox" data-name="Fleet Scanner v2" data-path="C:\Users\gene\fleet-scanner-v2" data-git="0">
+ <div style="flex:1">
+  <div class="nm">Fleet Scanner v2 &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">C:\Users\gene\fleet-scanner-v2</div>
+  <div class="meta">Dormant · The second iteration of Fleet Scanner: a local web app that discovers codebases and AI model files across network drives and maintains a JSON-backed registry with change tracking between scans. It cla</div>
+  
+ </div></div>
+<div class="row" data-s="zcode desktop app resources d:\zcode\resources fleet &amp; infrastructure">
+ <input type="checkbox" data-name="ZCode Desktop App Resources" data-path="D:\ZCODE\resources" data-git="0">
+ <div style="flex:1">
+  <div class="nm">ZCode Desktop App Resources &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">D:\ZCODE\resources</div>
+  <div class="meta">Active · The Electron app resources directory for ZCode Desktop (app-update.yml points its updater at localhost:8081), containing the packaged app.asar, elevate.exe, tray icons, and a large glm/ subfolder with</div>
+  
+ </div></div>
+<div class="row" data-s="fleet queue (tauri desktop app) d:\coding\fleet-project fleet &amp; infrastructure">
+ <input type="checkbox" data-name="Fleet Queue (Tauri desktop app)" data-path="D:\coding\fleet-project" data-git="0">
+ <div style="flex:1">
+  <div class="nm">Fleet Queue (Tauri desktop app) &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">D:\coding\fleet-project</div>
+  <div class="meta">Dormant · A Tauri 2 desktop application called fleet-queue (Tauri + vanilla HTML/CSS/TypeScript, Rust backend - evidenced by .rlib/.rmeta/.d build artifacts from cargo compilation) built to manage Gene&#x27;s machin</div>
+  <div class="meta">run: <code>powershell -File run-dev.ps1</code></div>
+ </div></div>
+<div class="row" data-s="openclaude pill d:\coding\openclaude-pill fleet &amp; infrastructure">
+ <input type="checkbox" data-name="OpenClaude Pill" data-path="D:\coding\openclaude-pill" data-git="1">
+ <div style="flex:1">
+  <div class="nm">OpenClaude Pill &nbsp;<span class="git">git ✓</span></div>
+  <div class="pa">D:\coding\openclaude-pill</div>
+  <div class="meta">Active · An always-on-top Windows taskbar &#x27;pill&#x27; launcher for AI coding harnesses: pick a local llama.cpp/vLLM model plus an agent harness (OpenClaude, Pi, OMP, Codex, Aider, OpenCode, Hermes, Mercury) and it </div>
+  <div class="meta">run: <code>cd /d D:\coding\openclaude-pill &amp;&amp; launcher-config.json, cd /d D:\coding\opencla</code></div>
+ </div></div>
+<div class="cat">Game Development (12)</div>
+<div class="row" data-s="tombs &amp;amp; tyrants — git bundle backup c:\coding\tt-backups game development">
+ <input type="checkbox" data-name="Tombs &amp; Tyrants — Git Bundle Backup" data-path="C:\CODING\tt-backups" data-git="0">
+ <div style="flex:1">
+  <div class="nm">Tombs &amp; Tyrants — Git Bundle Backup &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">C:\CODING\tt-backups</div>
+  <div class="meta">Active · Backup folder for the Tombs &amp; Tyrants game project: a full git bundle snapshot (tombs-and-tyrants-20260912-030828.bundle, ~166 MB) plus FOUR-LANE-PLAN-20260912.md, which merges re-verified findings fr</div>
+  
+ </div></div>
+<div class="row" data-s="tombs &amp;amp; tyrants — review findings harvest c:\coding\tt-harvest game development">
+ <input type="checkbox" data-name="Tombs &amp; Tyrants — Review Findings Harvest" data-path="C:\CODING\tt-harvest" data-git="0">
+ <div style="flex:1">
+  <div class="nm">Tombs &amp; Tyrants — Review Findings Harvest &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">C:\CODING\tt-harvest</div>
+  <div class="meta">Active · One large markdown artifact (findings-raw.md, ~186 KB) harvesting the reasoning and findings of a wedged GLM-5.3 immersion-review session (556 msgs / 4.48h) over the Tombs &amp; Tyrants game — including a</div>
+  
+ </div></div>
+<div class="row" data-s="legend of aeloria (enhanced) c:\users\gene\aeloria-enhanced game development">
+ <input type="checkbox" data-name="Legend of Aeloria (Enhanced)" data-path="C:\Users\gene\Aeloria-Enhanced" data-git="0">
+ <div style="flex:1">
+  <div class="nm">Legend of Aeloria (Enhanced) &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">C:\Users\gene\Aeloria-Enhanced</div>
+  <div class="meta">Dormant · A 2D procedural RPG built with HTML5 Canvas and vanilla JavaScript. Features Perlin-noise terrain with multiple biomes, 13 villages, 5 races and 4 classes, turn-based combat with pixel-art sprites, a </div>
+  <div class="meta">run: <code>cd &quot;C:\Users\gene\Aeloria-Enhanced&quot; &amp;&amp; npm run start</code></div>
+ </div></div>
+<div class="row" data-s="legend of aeloria (qwencoder copy) c:\users\gene\aeloria-qwencoder game development">
+ <input type="checkbox" data-name="Legend of Aeloria (QwenCoder Copy)" data-path="C:\Users\gene\Aeloria-QwenCoder" data-git="0">
+ <div style="flex:1">
+  <div class="nm">Legend of Aeloria (QwenCoder Copy) &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">C:\Users\gene\Aeloria-QwenCoder</div>
+  <div class="meta">Archive · A standalone copy of the Legend of Aeloria 2D Canvas RPG used for AI coding experiments (per the QwenCoder name and its embedding inside Aeloria-Enhanced). Same game: procedural Perlin-noise world, tu</div>
+  <div class="meta">run: <code>cd &quot;C:\Users\gene\Aeloria-QwenCoder&quot; &amp;&amp; npm run start</code></div>
+ </div></div>
+<div class="row" data-s="tombs and tyrants c:\users\gene\documents\tombs and tyrants game development">
+ <input type="checkbox" data-name="Tombs and Tyrants" data-path="C:\Users\gene\Documents\Tombs and Tyrants" data-git="0">
+ <div style="flex:1">
+  <div class="nm">Tombs and Tyrants &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">C:\Users\gene\Documents\Tombs and Tyrants</div>
+  <div class="meta">Active · An AI-driven text/RPG game project: an &#x27;ai-rpg&#x27; codebase (84 files, mostly Python and JSON) with a bundled open5e-data D&amp;D 5e rules dataset (730 files) for game mechanics, and generated scene art (tav</div>
+  
+ </div></div>
+<div class="row" data-s="tetra smoke test c:\users\gene\tetra game development">
+ <input type="checkbox" data-name="Tetra Smoke Test" data-path="C:\Users\gene\tetra" data-git="0">
+ <div style="flex:1">
+  <div class="nm">Tetra Smoke Test &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">C:\Users\gene\tetra</div>
+  <div class="meta">Archive · A minimal one-page JavaScript game or visual called &#x27;tetra&#x27; — an HTML file, a test_tetra.js JS test, and a tetra_smoke.png screenshot, all from a single day. Looks like an AI-agent-built smoke-test ar</div>
+  
+ </div></div>
+<div class="row" data-s="tetris web game c:\users\gene\tetris game development">
+ <input type="checkbox" data-name="Tetris Web Game" data-path="C:\Users\gene\tetris" data-git="0">
+ <div style="flex:1">
+  <div class="nm">Tetris Web Game &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">C:\Users\gene\tetris</div>
+  <div class="meta">Archive · A small browser Tetris game: tetris.html plus index.html and a test_tetris.js test file, all created on one day. Likely an agent-built implementation verified with a JS smoke test (matching the tetra/</div>
+  
+ </div></div>
+<div class="row" data-s="tic-tac-toe (modular) c:\users\gene\tictactoe game development">
+ <input type="checkbox" data-name="Tic-Tac-Toe (Modular)" data-path="C:\Users\gene\tictactoe" data-git="0">
+ <div style="flex:1">
+  <div class="nm">Tic-Tac-Toe (Modular) &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">C:\Users\gene\tictactoe</div>
+  <div class="meta">Archive · A browser tic-tac-toe game structured with separate game.js and ui.js modules, a shell.html wrapper around tictactoe.html, and two JS test files (test_game.js, test_ui_smoke.js) — the most developed o</div>
+  
+ </div></div>
+<div class="row" data-s="tic-tac-toe ultra c:\users\gene\tictactoe-ultra game development">
+ <input type="checkbox" data-name="Tic-Tac-Toe Ultra" data-path="C:\Users\gene\tictactoe-ultra" data-git="0">
+ <div style="flex:1">
+  <div class="nm">Tic-Tac-Toe Ultra &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">C:\Users\gene\tictactoe-ultra</div>
+  <div class="meta">Archive · A two-file browser tic-tac-toe variant (&#x27;ultra&#x27;) — game.js and index.html only, built in a single day alongside the other tic-tac-toe attempts. Likely a superset/enhanced take (larger board or extra r</div>
+  
+ </div></div>
+<div class="row" data-s="tiktoe c:\users\gene\tiktoe game development">
+ <input type="checkbox" data-name="Tiktoe" data-path="C:\Users\gene\tiktoe" data-git="0">
+ <div style="flex:1">
+  <div class="nm">Tiktoe &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">C:\Users\gene\tiktoe</div>
+  <div class="meta">Archive · Another minimal two-file browser tic-tac-toe implementation (game.js + index.html) from the same single-day batch of game builds. &#x27;Tiktoe&#x27; is a play on tic-tac-toe; no tests or docs, so likely the qui</div>
+  
+ </div></div>
+<div class="row" data-s="tombs &amp;amp; tyrants ai rpg d:\zcode\tombs and tyrants game development">
+ <input type="checkbox" data-name="Tombs &amp; Tyrants AI RPG" data-path="D:\ZCODE\TOMBS AND TYRANTS" data-git="1">
+ <div style="flex:1">
+  <div class="nm">Tombs &amp; Tyrants AI RPG &nbsp;<span class="git">git ✓</span></div>
+  <div class="pa">D:\ZCODE\TOMBS AND TYRANTS</div>
+  <div class="meta">Active · A large AI-driven tabletop-style RPG game with a Python FastAPI/uvicorn Game Master backend (backend/main.py serving a websocket app on port 8093), a static HTML frontend (game.html, spectator.html), </div>
+  <div class="meta">run: <code>cd &quot;D:/ZCODE/TOMBS AND TYRANTS&quot; &amp;&amp; python -m backend.main, cd &quot;D:/ZCODE/TOMBS AN</code></div>
+ </div></div>
+<div class="row" data-s="minecraft clone d:\coding\minecraft game development">
+ <input type="checkbox" data-name="Minecraft Clone" data-path="D:\coding\minecraft" data-git="1">
+ <div style="flex:1">
+  <div class="nm">Minecraft Clone &nbsp;<span class="git">git ✓</span></div>
+  <div class="pa">D:\coding\minecraft</div>
+  <div class="meta">Dormant · A browser-based Minecraft clone built with Three.js (vanilla JS, no manifest or docs beyond CLONE_PLAN.md). Started as a single-file prototype with terrain generation, block break/place, day/night cyc</div>
+  <div class="meta">run: <code>cd /d D:\coding\minecraft &amp;&amp; node server.js</code></div>
+ </div></div>
+<div class="cat">Media &amp; Video (16)</div>
+<div class="row" data-s="abl video pipeline test c:\coding\abl-video-test media &amp; video">
+ <input type="checkbox" data-name="ABL Video Pipeline Test" data-path="C:\CODING\ABL-video-test" data-git="0">
+ <div style="flex:1">
+  <div class="nm">ABL Video Pipeline Test &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">C:\CODING\ABL-video-test</div>
+  <div class="meta">Archive · A one-day Python pipeline for generating a multi-scene narrated video from still images using AI image-to-video generation. Scripts generate scene plans, convert reference images, submit image-to-vide</div>
+  <div class="meta">run: <code>python C:\CODING\ABL-video-test\monitor_and_assemble.py</code></div>
+ </div></div>
+<div class="row" data-s="activated by light (abl) c:\coding\activated-by-light media &amp; video">
+ <input type="checkbox" data-name="Activated by Light (ABL)" data-path="C:\CODING\activated-by-light" data-git="0">
+ <div style="flex:1">
+  <div class="nm">Activated by Light (ABL) &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">C:\CODING\activated-by-light</div>
+  <div class="meta">Dormant · A worldbuilding and story-design workspace, not a software project. Four markdown documents hold the creative &#x27;canon&#x27; for a fiction project: chamber-canon-v2.md is described as the worldbuilding bible</div>
+  
+ </div></div>
+<div class="row" data-s="bookmarked podcast c:\coding\bookmarked-podcast media &amp; video">
+ <input type="checkbox" data-name="Bookmarked Podcast" data-path="C:\CODING\bookmarked-podcast" data-git="0">
+ <div style="flex:1">
+  <div class="nm">Bookmarked Podcast &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">C:\CODING\bookmarked-podcast</div>
+  <div class="meta">Active · A podcast production pipeline that turns saved web bookmarks/content into narrated audio episodes. Thirteen Python scripts in scripts/ generate and enrich episodes; the workspace holds 66 finished WAV</div>
+  
+ </div></div>
+<div class="row" data-s="bookmarked podcast tts parts c:\coding\tts_parts media &amp; video">
+ <input type="checkbox" data-name="Bookmarked Podcast TTS Parts" data-path="C:\CODING\tts_parts" data-git="0">
+ <div style="flex:1">
+  <div class="nm">Bookmarked Podcast TTS Parts &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">C:\CODING\tts_parts</div>
+  <div class="meta">Dormant · Working folder of six numbered WAV audio segments (part_01..part_06) plus the RSS/iTunes feed XML for the &#x27;Bookmarked&#x27; podcast, a show that turns Twitter bookmarks into researched, narrated podcast ep</div>
+  
+ </div></div>
+<div class="row" data-s="abl 3-minute video production c:\users\gene\documents\abl-3min-production-20260519-working media &amp; video">
+ <input type="checkbox" data-name="ABL 3-Minute Video Production" data-path="C:\Users\gene\Documents\ABL-3min-production-20260519-working" data-git="0">
+ <div style="flex:1">
+  <div class="nm">ABL 3-Minute Video Production &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">C:\Users\gene\Documents\ABL-3min-production-20260519-working</div>
+  <div class="meta">Dormant · A working directory for producing a ~3-minute &#x27;ABL&#x27; video (May 2026, worked through August): 430-file video/ tree of MP4 renders, 53-file audio/ tree of WAVs, QC, final, manifests (224 JSONs — shot/as</div>
+  
+ </div></div>
+<div class="row" data-s="minimax image output c:\users\gene\documents\minimax-output media &amp; video">
+ <input type="checkbox" data-name="MiniMax Image Output" data-path="C:\Users\gene\Documents\MiniMax-Output" data-git="0">
+ <div style="flex:1">
+  <div class="nm">MiniMax Image Output &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">C:\Users\gene\Documents\MiniMax-Output</div>
+  <div class="meta">Dormant · A small output folder holding three AI-generated JPGs (a whimsical steampunk scene, a cozy autumn reading scene) produced by the MiniMax image-generation tool, dated 2026-07-24 to 2026-09-11. Pure med</div>
+  
+ </div></div>
+<div class="row" data-s="scriptvoiceover (partial copy) c:\users\gene\documents\scriptvoiceover-partial-full-copy-20260731-1555 media &amp; video">
+ <input type="checkbox" data-name="ScriptVoiceOver (partial copy)" data-path="C:\Users\gene\Documents\ScriptVoiceOver-partial-full-copy-20260731-1555" data-git="0">
+ <div style="flex:1">
+  <div class="nm">ScriptVoiceOver (partial copy) &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">C:\Users\gene\Documents\ScriptVoiceOver-partial-full-copy-20260731-1555</div>
+  <div class="meta">Archive · A partial copy (taken 2026-07-31) of the Script to Voice podcast/voiceover production app, apparently made for backup or migration purposes. The full project is a full-stack web app for AI voice cloni</div>
+  
+ </div></div>
+<div class="row" data-s="scriptvoiceover (portable copy attempt) c:\users\gene\documents\scriptvoiceover-portable-copy-attempt-20260731-1604 media &amp; video">
+ <input type="checkbox" data-name="ScriptVoiceOver (portable copy attempt)" data-path="C:\Users\gene\Documents\ScriptVoiceOver-portable-copy-attempt-20260731-1604" data-git="1">
+ <div style="flex:1">
+  <div class="nm">ScriptVoiceOver (portable copy attempt) &nbsp;<span class="git">git ✓</span></div>
+  <div class="pa">C:\Users\gene\Documents\ScriptVoiceOver-portable-copy-attempt-20260731-1604</div>
+  <div class="meta">Dormant · A self-contained portable copy of the Script to Voice REBUILD app - a full-stack web app for podcast/voiceover production with AI voice cloning, emotion synthesis, and distributed GPU inference. Backe</div>
+  <div class="meta">run: <code>install.bat, start.bat</code></div>
+ </div></div>
+<div class="row" data-s="ace-step music generation ops c:\users\gene\documents\voice &amp; music media &amp; video">
+ <input type="checkbox" data-name="ACE-Step Music Generation Ops" data-path="C:\Users\gene\Documents\VOICE &amp; MUSIC" data-git="1">
+ <div style="flex:1">
+  <div class="nm">ACE-Step Music Generation Ops &nbsp;<span class="git">git ✓</span></div>
+  <div class="pa">C:\Users\gene\Documents\VOICE &amp; MUSIC</div>
+  <div class="meta">Dormant · A collection of Windows launcher/ops scripts (PowerShell .ps1 and .cmd) for running ACE-Step, an AI music generation model, on the &#x27;mainpc&#x27; machine. Includes Start/Stop ACE-Step shortcuts, API and fro</div>
+  <div class="meta">run: <code>&quot;Start ACE-Step.cmd&quot;, &quot;Stop ACE-Step.cmd&quot;</code></div>
+ </div></div>
+<div class="row" data-s="h3 video output gallery c:\users\gene\h3-output media &amp; video">
+ <input type="checkbox" data-name="H3 Video Output Gallery" data-path="C:\Users\gene\h3-output" data-git="0">
+ <div style="flex:1">
+  <div class="nm">H3 Video Output Gallery &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">C:\Users\gene\h3-output</div>
+  <div class="meta">Active · A large (~163 MB) output directory of generated videos and frame captures from the MiniMax-H3 video model pipeline: 81 MP4 clips, 83 PNG frames, plus a compare_configs.py comparison script and referen</div>
+  
+ </div></div>
+<div class="row" data-s="hermes stories podcast wavs c:\users\gene\hermes-podcast-episodes media &amp; video">
+ <input type="checkbox" data-name="Hermes Stories Podcast WAVs" data-path="C:\Users\gene\hermes-podcast-episodes" data-git="0">
+ <div style="flex:1">
+  <div class="nm">Hermes Stories Podcast WAVs &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">C:\Users\gene\hermes-podcast-episodes</div>
+  <div class="meta">Archive · The audio archive for a 26-episode &#x27;Hermes Stories&#x27; podcast: 26 WAV files (~930 MB), one per episode ep01-ep26, all written on the same day — evidently rendered in a batch from the companion hermes-po</div>
+  
+ </div></div>
+<div class="row" data-s="hermes podcast scripts c:\users\gene\hermes-podcast-scripts media &amp; video">
+ <input type="checkbox" data-name="Hermes Podcast Scripts" data-path="C:\Users\gene\hermes-podcast-scripts" data-git="0">
+ <div style="flex:1">
+  <div class="nm">Hermes Podcast Scripts &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">C:\Users\gene\hermes-podcast-scripts</div>
+  <div class="meta">Archive · The script source for the 26-episode &#x27;Hermes Stories&#x27; podcast: 52 TXT episode scripts (episode-01 through episode-26, plus per-episode &#x27;stories&#x27; source-material files) and 25 JSON files, likely episod</div>
+  
+ </div></div>
+<div class="row" data-s="tts voice tests c:\users\gene\tts-tests media &amp; video">
+ <input type="checkbox" data-name="TTS Voice Tests" data-path="C:\Users\gene\tts-tests" data-git="0">
+ <div style="flex:1">
+  <div class="nm">TTS Voice Tests &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">C:\Users\gene\tts-tests</div>
+  <div class="meta">Archive · A small set of text-to-speech voice comparison samples: three voice configs (Kokoro &#x27;bm_george&#x27;, Kokoro &#x27;af_heart&#x27;, and &#x27;Breeze&#x27; via an EAGER pipeline) each rendered to both MP3 and WAV on a single da</div>
+  
+ </div></div>
+<div class="row" data-s="videos - experiments (media dump) d:\coding\videos - experiments media &amp; video">
+ <input type="checkbox" data-name="Videos - Experiments (media dump)" data-path="D:\coding\VIDEOS - EXPERIMENTS" data-git="0">
+ <div style="flex:1">
+  <div class="nm">Videos - Experiments (media dump) &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">D:\coding\VIDEOS - EXPERIMENTS</div>
+  <div class="meta">Archive · A flat scratch folder of media output from AI/video experiments: three timestamped JPG screenshots, one PNG, and a 480MB &#x27;FLEET AGENT HEALTH DASHBOARD TEST.mp4&#x27; screen recording from May 2026. No code</div>
+  
+ </div></div>
+<div class="row" data-s="hyperframes d:\coding\hyperframes media &amp; video">
+ <input type="checkbox" data-name="HyperFrames" data-path="D:\coding\hyperframes" data-git="1">
+ <div style="flex:1">
+  <div class="nm">HyperFrames &nbsp;<span class="git">git ✓</span></div>
+  <div class="pa">D:\coding\hyperframes</div>
+  <div class="meta">Active · Open-source HTML-to-video rendering framework developed as a bun/TypeScript monorepo (packages for CLI, core, seekable Puppeteer+FFmpeg capture engine, producer pipeline, embeddable player web compone</div>
+  <div class="meta">run: <code>cd /d D:\coding\hyperframes &amp;&amp; bun install, cd /d D:\coding\hyperframes &amp;&amp; bun r</code></div>
+ </div></div>
+<div class="row" data-s="video-use d:\coding\video-use media &amp; video">
+ <input type="checkbox" data-name="video-use" data-path="D:\coding\video-use" data-git="1">
+ <div style="flex:1">
+  <div class="nm">video-use &nbsp;<span class="git">git ✓</span></div>
+  <div class="pa">D:\coding\video-use</div>
+  <div class="meta">Active · An open-source Claude Code skill/package for conversation-driven video editing: drop raw footage in a folder, chat with Claude Code, and get final.mp4 back. It transcribes audio (librosa), cuts filler</div>
+  
+ </div></div>
+<div class="cat">Model &amp; Inference (26)</div>
+<div class="row" data-s="local model weights store c:\ai\models model &amp; inference">
+ <input type="checkbox" data-name="Local Model Weights Store" data-path="C:\AI\models" data-git="0">
+ <div style="flex:1">
+  <div class="nm">Local Model Weights Store &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">C:\AI\models</div>
+  <div class="meta">Active · A ~79.5 GB storage directory of 13 GGUF quantized LLM weight files used by local inference runtimes, organized under lmstudio/ (13 files, LM Studio&#x27;s model dir) and ollama/ (empty placeholder). Not co</div>
+  
+ </div></div>
+<div class="row" data-s="dsv41 confidence geometry recovery c:\coding\dsv41-recovery model &amp; inference">
+ <input type="checkbox" data-name="DSv41 Confidence Geometry Recovery" data-path="C:\CODING\dsv41-recovery" data-git="0">
+ <div style="flex:1">
+  <div class="nm">DSv41 Confidence Geometry Recovery &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">C:\CODING\dsv41-recovery</div>
+  <div class="meta">Dormant · A benchmarking and recovery workspace for a model variant dubbed DSv41. Scripts (patch_confidence_geometry.py, test_confidence_geometry.py, bench_dsv41.py, bench_dsv41_v2.py, run_candidate_bench.py, v</div>
+  <div class="meta">run: <code>python C:\CODING\dsv41-recovery\run_candidate_bench.py, python C:\CODING\dsv41-r</code></div>
+ </div></div>
+<div class="row" data-s="glm-5.3 benchmark shell scripts c:\coding\tmp model &amp; inference">
+ <input type="checkbox" data-name="GLM-5.3 Benchmark Shell Scripts" data-path="C:\CODING\tmp" data-git="0">
+ <div style="flex:1">
+  <div class="nm">GLM-5.3 Benchmark Shell Scripts &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">C:\CODING\tmp</div>
+  <div class="meta">Active · Ten bash scripts (glm53-*.sh) for benchmarking and diagnosing the GLM-5.3-Flash-EXL3 vLLM container on the DGX Spark fleet: waiting for JIT-compile quiet before measuring, warm/final benchmark runs, s</div>
+  <div class="meta">run: <code>bash glm53-warmbench.sh</code></div>
+ </div></div>
+<div class="row" data-s="codex portable app (chatgpt/codex runtime) c:\codexportable\app model &amp; inference">
+ <input type="checkbox" data-name="Codex Portable App (ChatGPT/Codex Runtime)" data-path="C:\CodexPortable\app" data-git="0">
+ <div style="flex:1">
+  <div class="nm">Codex Portable App (ChatGPT/Codex Runtime) &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">C:\CodexPortable\app</div>
+  <div class="meta">Active · The installed application payload of a portable Codex/ChatGPT desktop package: a Chromium-embedded shell (chrome.dll, chrome_100_percent.pak, v8 snapshots, elevation_service.exe) shipping Codex.exe an</div>
+  <div class="meta">run: <code>C:\CodexPortable\app\Codex.exe</code></div>
+ </div></div>
+<div class="row" data-s="vllm perf scratch tests c:\users\gene\hermes_tmp model &amp; inference">
+ <input type="checkbox" data-name="vLLM Perf Scratch Tests" data-path="C:\Users\gene\hermes_tmp" data-git="0">
+ <div style="flex:1">
+  <div class="nm">vLLM Perf Scratch Tests &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">C:\Users\gene\hermes_tmp</div>
+  <div class="meta">Dormant · A scratch directory of Python performance-test scripts for tuning an inference server: ttft_test.py/ttft_test2.py (time-to-first-token probes), perf_test.py, perf_matrix.py, and perf_compare.py (throu</div>
+  <div class="meta">run: <code>cd C:/Users/gene/hermes_tmp &amp;&amp; python ttft_test.py</code></div>
+ </div></div>
+<div class="row" data-s="honeycomb home gpu fleet gateway c:\users\gene\honeycomb-lab model &amp; inference">
+ <input type="checkbox" data-name="Honeycomb Home GPU Fleet Gateway" data-path="C:\Users\gene\honeycomb-lab" data-git="1">
+ <div style="flex:1">
+  <div class="nm">Honeycomb Home GPU Fleet Gateway &nbsp;<span class="git">git ✓</span></div>
+  <div class="pa">C:\Users\gene\honeycomb-lab</div>
+  <div class="meta">Dormant · A control plane and OpenAI-compatible API gateway for a home GPU AI cluster, written as a native macOS SwiftUI app (Swift 6) paired with a zero-dependency Python-stdlib gateway that exposes a single e</div>
+  <div class="meta">run: <code>cd C:/Users/gene/honeycomb-lab &amp;&amp; cp gateway/config.example.json gateway/config.</code></div>
+ </div></div>
+<div class="row" data-s="qwen mtp research charts c:\users\gene\qwen_research model &amp; inference">
+ <input type="checkbox" data-name="Qwen MTP Research Charts" data-path="C:\Users\gene\qwen_research" data-git="0">
+ <div style="flex:1">
+  <div class="nm">Qwen MTP Research Charts &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">C:\Users\gene\qwen_research</div>
+  <div class="meta">Archive · Four PNG research charts saved on a single day: official.png, kld.png, mtp_speedup.png, and mtp_throughput.png — evidently collected while researching Qwen models&#x27; Multi-Token Prediction (MTP), its th</div>
+  
+ </div></div>
+<div class="row" data-s="opencode proxy log — qwen3-6 27b q6_k (remote 100.88.23.121:8081) d:\opencode-pill-home\100-88-23-121-8081-qwen3-6-27b-q6-k-mtp-gguf model &amp; inference">
+ <input type="checkbox" data-name="OpenCode Proxy Log — Qwen3-6 27B Q6_K (remote 100.88.23.121:8081)" data-path="D:\OpenCode-Pill-Home\100-88-23-121-8081-qwen3-6-27b-q6-k-mtp-gguf" data-git="0">
+ <div style="flex:1">
+  <div class="nm">OpenCode Proxy Log — Qwen3-6 27B Q6_K (remote 100.88.23.121:8081) &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">D:\OpenCode-Pill-Home\100-88-23-121-8081-qwen3-6-27b-q6-k-mtp-gguf</div>
+  <div class="meta">Archive · Runtime log directory created when the Pill OpenCode agent connected to a remote Qwen3.6-27B GGUF model server (Q6_K quant with MTP speculative decoding) at 100.88.23.121:8081. Contains tool_proxy_*.l</div>
+  
+ </div></div>
+<div class="row" data-s="opencode proxy log — grm-2.6-plus bf16 (remote 100.88.23.121:8085) d:\opencode-pill-home\100-88-23-121-8085-grm-2-6-plus-bf16-gguf model &amp; inference">
+ <input type="checkbox" data-name="OpenCode Proxy Log — GRM-2.6-Plus BF16 (remote 100.88.23.121:8085)" data-path="D:\OpenCode-Pill-Home\100-88-23-121-8085-grm-2-6-plus-bf16-gguf" data-git="0">
+ <div style="flex:1">
+  <div class="nm">OpenCode Proxy Log — GRM-2.6-Plus BF16 (remote 100.88.23.121:8085) &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">D:\OpenCode-Pill-Home\100-88-23-121-8085-grm-2-6-plus-bf16-gguf</div>
+  <div class="meta">Archive · Log capture from a Pill OpenCode agent session against a remote &#x27;GRM 2.6 Plus&#x27; BF16 GGUF model endpoint at 100.88.23.121:8085. Just one tool_proxy log and its .upstream record documenting the proxied </div>
+  
+ </div></div>
+<div class="row" data-s="opencode proxy log — vibethinker 3b q8 (remote 100.89.46.104:8091) d:\opencode-pill-home\100-89-46-104-8091-vibethinker-3b-q8-0-gguf model &amp; inference">
+ <input type="checkbox" data-name="OpenCode Proxy Log — VibeThinker 3B Q8 (remote 100.89.46.104:8091)" data-path="D:\OpenCode-Pill-Home\100-89-46-104-8091-vibethinker-3b-q8-0-gguf" data-git="0">
+ <div style="flex:1">
+  <div class="nm">OpenCode Proxy Log — VibeThinker 3B Q8 (remote 100.89.46.104:8091) &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">D:\OpenCode-Pill-Home\100-89-46-104-8091-vibethinker-3b-q8-0-gguf</div>
+  <div class="meta">Archive · A single tool_proxy log from a Pill OpenCode agent session routed to a remote VibeThinker-3B Q8_0 GGUF model server at 100.89.46.104:8091. Documents one proxied inference connection; purely a captured</div>
+  
+ </div></div>
+<div class="row" data-s="opencode proxy log — lovedheart/qwen agentworld-3 (remote 100.94.62.34:8001) d:\opencode-pill-home\100-94-62-34-8001-lovedheart-qwen-agentworld-3 model &amp; inference">
+ <input type="checkbox" data-name="OpenCode Proxy Log — LovedHeart/Qwen AgentWorld-3 (remote 100.94.62.34:8001)" data-path="D:\OpenCode-Pill-Home\100-94-62-34-8001-lovedheart-qwen-agentworld-3" data-git="0">
+ <div style="flex:1">
+  <div class="nm">OpenCode Proxy Log — LovedHeart/Qwen AgentWorld-3 (remote 100.94.62.34:8001) &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">D:\OpenCode-Pill-Home\100-94-62-34-8001-lovedheart-qwen-agentworld-3</div>
+  <div class="meta">Archive · Log capture from a Pill OpenCode agent session pointed at a &#x27;lovedheart-qwen-agentworld-3&#x27; model endpoint (an AgentWorld-3 fine-tune of Qwen, seemingly roleplay/companion-flavored) at 100.94.62.34:800</div>
+  
+ </div></div>
+<div class="row" data-s="opencode proxy log — gemma4 31b qat+mtp (lan 192.168.1.127:7901) d:\opencode-pill-home\192-168-1-127-7901-gemma4-31b-qat-mtp model &amp; inference">
+ <input type="checkbox" data-name="OpenCode Proxy Log — Gemma4 31B QAT+MTP (LAN 192.168.1.127:7901)" data-path="D:\OpenCode-Pill-Home\192-168-1-127-7901-gemma4-31b-qat-mtp" data-git="0">
+ <div style="flex:1">
+  <div class="nm">OpenCode Proxy Log — Gemma4 31B QAT+MTP (LAN 192.168.1.127:7901) &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">D:\OpenCode-Pill-Home\192-168-1-127-7901-gemma4-31b-qat-mtp</div>
+  <div class="meta">Archive · Runtime logs and nested OpenCode state for a Pill agent session connected to a local Gemma4-31B QAT model server (MTP speculative decoding) on LAN box 192.168.1.127:7901. Contains tool_proxy log/.upst</div>
+  
+ </div></div>
+<div class="row" data-s="opencode proxy log — qwen3.6-35b-a3b mtp (lan 192.168.1.127:7902) d:\opencode-pill-home\192-168-1-127-7902-qwen3-6-35b-a3b-mtp model &amp; inference">
+ <input type="checkbox" data-name="OpenCode Proxy Log — Qwen3.6-35B-A3B MTP (LAN 192.168.1.127:7902)" data-path="D:\OpenCode-Pill-Home\192-168-1-127-7902-qwen3-6-35b-a3b-mtp" data-git="0">
+ <div style="flex:1">
+  <div class="nm">OpenCode Proxy Log — Qwen3.6-35B-A3B MTP (LAN 192.168.1.127:7902) &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">D:\OpenCode-Pill-Home\192-168-1-127-7902-qwen3-6-35b-a3b-mtp</div>
+  <div class="meta">Archive · Runtime logs and nested OpenCode state for a Pill agent session connected to a local Qwen3.6-35B-A3B MoE model server (MTP decoding) at 192.168.1.127:7902. Includes tool_proxy log/.upstream files, JSO</div>
+  
+ </div></div>
+<div class="row" data-s="opencode proxy log — deepseek v4 flash (lan 192.168.1.127:8000) d:\opencode-pill-home\192-168-1-127-8000-deepseek-v4-flash model &amp; inference">
+ <input type="checkbox" data-name="OpenCode Proxy Log — DeepSeek V4 Flash (LAN 192.168.1.127:8000)" data-path="D:\OpenCode-Pill-Home\192-168-1-127-8000-deepseek-v4-flash" data-git="0">
+ <div style="flex:1">
+  <div class="nm">OpenCode Proxy Log — DeepSeek V4 Flash (LAN 192.168.1.127:8000) &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">D:\OpenCode-Pill-Home\192-168-1-127-8000-deepseek-v4-flash</div>
+  <div class="meta">Archive · Log capture from a Pill OpenCode agent session routed to a local DeepSeek V4 Flash model server at 192.168.1.127:8000. One tool_proxy log and .upstream record documenting the proxied connection; a ses</div>
+  
+ </div></div>
+<div class="row" data-s="opencode proxy log — aeon qwen3.6 nvfp4 dflash (lan 192.168.1.127:8892) d:\opencode-pill-home\192-168-1-127-8892-aeon-qwen36-nvfp4-dflash model &amp; inference">
+ <input type="checkbox" data-name="OpenCode Proxy Log — AEON Qwen3.6 NVFP4 DFlash (LAN 192.168.1.127:8892)" data-path="D:\OpenCode-Pill-Home\192-168-1-127-8892-aeon-qwen36-nvfp4-dflash" data-git="0">
+ <div style="flex:1">
+  <div class="nm">OpenCode Proxy Log — AEON Qwen3.6 NVFP4 DFlash (LAN 192.168.1.127:8892) &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">D:\OpenCode-Pill-Home\192-168-1-127-8892-aeon-qwen36-nvfp4-dflash</div>
+  <div class="meta">Archive · Log capture from a Pill OpenCode agent session against a local &#x27;aeon-qwen36-nvfp4-dflash&#x27; endpoint — a Qwen3.6 model in NVFP4 quantization with DFlash speculative decoding — at 192.168.1.127:8892. One</div>
+  
+ </div></div>
+<div class="row" data-s="opencode proxy log — glm-5.2 ud-iq2_m on dgx spark (lan 192.168.1.127:8895) d:\opencode-pill-home\192-168-1-127-8895-glm-5-2-ud-iq2-m-3spark-16k model &amp; inference">
+ <input type="checkbox" data-name="OpenCode Proxy Log — GLM-5.2 UD-IQ2_M on DGX Spark (LAN 192.168.1.127:8895)" data-path="D:\OpenCode-Pill-Home\192-168-1-127-8895-glm-5-2-ud-iq2-m-3spark-16k" data-git="0">
+ <div style="flex:1">
+  <div class="nm">OpenCode Proxy Log — GLM-5.2 UD-IQ2_M on DGX Spark (LAN 192.168.1.127:8895) &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">D:\OpenCode-Pill-Home\192-168-1-127-8895-glm-5-2-ud-iq2-m-3spark-16k</div>
+  <div class="meta">Archive · Log capture from a Pill OpenCode agent session routed to a local GLM-5.2 model server (unsloth dynamic IQ2_M quant, 16k context, served from a DGX Spark per the &#x27;3spark&#x27; tag) at 192.168.1.127:8895. On</div>
+  
+ </div></div>
+<div class="row" data-s="opencode proxy log — lovedheart/qwen agentworld-3 (lan 192.168.1.159:8001) d:\opencode-pill-home\192-168-1-159-8001-lovedheart-qwen-agentworld-3 model &amp; inference">
+ <input type="checkbox" data-name="OpenCode Proxy Log — LovedHeart/Qwen AgentWorld-3 (LAN 192.168.1.159:8001)" data-path="D:\OpenCode-Pill-Home\192-168-1-159-8001-lovedheart-qwen-agentworld-3" data-git="0">
+ <div style="flex:1">
+  <div class="nm">OpenCode Proxy Log — LovedHeart/Qwen AgentWorld-3 (LAN 192.168.1.159:8001) &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">D:\OpenCode-Pill-Home\192-168-1-159-8001-lovedheart-qwen-agentworld-3</div>
+  <div class="meta">Archive · Log capture from a Pill OpenCode agent session pointed at a &#x27;lovedheart-qwen-agentworld-3&#x27; model endpoint on LAN host 192.168.1.159:8001 — the same AgentWorld-3 Qwen fine-tune seen on the tailnet, her</div>
+  
+ </div></div>
+<div class="row" data-s="opencode proxy log — qwen3.6-27b fp8 (lan 192.168.1.159:8891) d:\opencode-pill-home\192-168-1-159-8891-qwen3-6-27b-fp8 model &amp; inference">
+ <input type="checkbox" data-name="OpenCode Proxy Log — Qwen3.6-27B FP8 (LAN 192.168.1.159:8891)" data-path="D:\OpenCode-Pill-Home\192-168-1-159-8891-qwen3-6-27b-fp8" data-git="0">
+ <div style="flex:1">
+  <div class="nm">OpenCode Proxy Log — Qwen3.6-27B FP8 (LAN 192.168.1.159:8891) &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">D:\OpenCode-Pill-Home\192-168-1-159-8891-qwen3-6-27b-fp8</div>
+  <div class="meta">Archive · Log capture from a Pill OpenCode agent session connected to a local Qwen3.6-27B FP8-quantized model server at 192.168.1.159:8891. One tool_proxy log and .upstream record documenting the proxied infere</div>
+  
+ </div></div>
+<div class="row" data-s="opencode proxy log — qwen3.6-27b mtp-tq3 4s gguf (lan 192.168.1.159:8893) d:\opencode-pill-home\192-168-1-159-8893-qwen3-6-27b-mtp-tq3-4s-gguf model &amp; inference">
+ <input type="checkbox" data-name="OpenCode Proxy Log — Qwen3.6-27B MTP-TQ3 4s GGUF (LAN 192.168.1.159:8893)" data-path="D:\OpenCode-Pill-Home\192-168-1-159-8893-qwen3-6-27b-mtp-tq3-4s-gguf" data-git="0">
+ <div style="flex:1">
+  <div class="nm">OpenCode Proxy Log — Qwen3.6-27B MTP-TQ3 4s GGUF (LAN 192.168.1.159:8893) &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">D:\OpenCode-Pill-Home\192-168-1-159-8893-qwen3-6-27b-mtp-tq3-4s-gguf</div>
+  <div class="meta">Archive · Log capture from a Pill OpenCode agent session routed to a local Qwen3.6-27B GGUF model server (TQ3 quant with 4-step MTP speculative decoding) at 192.168.1.159:8893. One tool_proxy log plus .upstream</div>
+  
+ </div></div>
+<div class="row" data-s="opencode proxy log — unnamed local model (lan 192.168.1.159:8894) d:\opencode-pill-home\192-168-1-159-8894-model model &amp; inference">
+ <input type="checkbox" data-name="OpenCode Proxy Log — Unnamed Local Model (LAN 192.168.1.159:8894)" data-path="D:\OpenCode-Pill-Home\192-168-1-159-8894-model" data-git="0">
+ <div style="flex:1">
+  <div class="nm">OpenCode Proxy Log — Unnamed Local Model (LAN 192.168.1.159:8894) &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">D:\OpenCode-Pill-Home\192-168-1-159-8894-model</div>
+  <div class="meta">Archive · Log capture from a Pill OpenCode agent session connected to an unnamed local model endpoint at 192.168.1.159:8894 (directory simply named &#x27;model&#x27;). One tool_proxy log and .upstream record (~0.5 MB) do</div>
+  
+ </div></div>
+<div class="row" data-s="local model artifacts &amp;amp; breeze ui staging d:\zcode\local models model &amp; inference">
+ <input type="checkbox" data-name="Local Model Artifacts &amp; Breeze UI Staging" data-path="D:\ZCODE\LOCAL MODELS" data-git="0">
+ <div style="flex:1">
+  <div class="nm">Local Model Artifacts &amp; Breeze UI Staging &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">D:\ZCODE\LOCAL MODELS</div>
+  <div class="meta">Dormant · Small staging folder for local AI model tooling. It contains ComfyUI workflow definitions (ALPHA-T1.json and alphat1-api.json) that run the MiniMax-H3 image-to-video pipeline with int8-quantized UNet/</div>
+  <div class="meta">run: <code>python &quot;D:/ZCODE/LOCAL MODELS/breeze-ui-staging/server.py&quot;</code></div>
+ </div></div>
+<div class="row" data-s="kokoro tts server d:\zcode\kokoro-tts model &amp; inference">
+ <input type="checkbox" data-name="Kokoro TTS Server" data-path="D:\ZCODE\kokoro-tts" data-git="0">
+ <div style="flex:1">
+  <div class="nm">Kokoro TTS Server &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">D:\ZCODE\kokoro-tts</div>
+  <div class="meta">Active · A single-file FastAPI server (server.py) that wraps the Kokoro text-to-speech pipeline and exposes an OpenAI-compatible POST /v1/audio/speech endpoint. It loads KPipeline on CUDA when available, suppo</div>
+  <div class="meta">run: <code>python D:/ZCODE/kokoro-tts/server.py</code></div>
+ </div></div>
+<div class="row" data-s="anythingllm desktop (installed app) d:\coding\anythingllm model &amp; inference">
+ <input type="checkbox" data-name="AnythingLLM Desktop (installed app)" data-path="D:\coding\ANYTHINGLLM" data-git="0">
+ <div style="flex:1">
+  <div class="nm">AnythingLLM Desktop (installed app) &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">D:\coding\ANYTHINGLLM</div>
+  <div class="meta">Archive · An installed copy of the AnythingLLM Desktop application (AnythingLLM.exe plus Electron runtime DLLs, .pak resources, locales, and an app.asar). AnythingLLM is a chat client for local LLMs with RAG/do</div>
+  <div class="meta">run: <code>AnythingLLM.exe</code></div>
+ </div></div>
+<div class="row" data-s="nudge launcher d:\coding\nudge-launcher model &amp; inference">
+ <input type="checkbox" data-name="Nudge Launcher" data-path="D:\coding\Nudge-Launcher" data-git="1">
+ <div style="flex:1">
+  <div class="nm">Nudge Launcher &nbsp;<span class="git">git ✓</span></div>
+  <div class="pa">D:\coding\Nudge-Launcher</div>
+  <div class="meta">Active · Windows-first desktop launcher (Python 3.11, customtkinter GUI) for local and API-backed coding models. Provides one place to register OpenAI-compatible endpoints, API providers and coding harnesses, </div>
+  <div class="meta">run: <code>cd /d D:\coding\Nudge-Launcher &amp;&amp; python launch_nudge_launcher.pyw</code></div>
+ </div></div>
+<div class="row" data-s="music3 + qwen3.8 server setup (d6d7) d:\coding\_d6d7_music3_setup model &amp; inference">
+ <input type="checkbox" data-name="Music3 + Qwen3.8 Server Setup (d6d7)" data-path="D:\coding\_d6d7_music3_setup" data-git="0">
+ <div style="flex:1">
+  <div class="nm">Music3 + Qwen3.8 Server Setup (d6d7) &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">D:\coding\_d6d7_music3_setup</div>
+  <div class="meta">Dormant · Deployment kit of shell scripts and systemd unit files for standing up local generative-AI audio and LLM services on a Linux box (gene-waxman host, likely a DGX Spark). It installs sglang-omni to serv</div>
+  <div class="meta">run: <code>bash D:/coding/_d6d7_music3_setup/install.sh, bash D:/coding/_d6d7_music3_setup/</code></div>
+ </div></div>
+<div class="row" data-s="lm studio (application install) d:\lmstudio\lm studio model &amp; inference">
+ <input type="checkbox" data-name="LM Studio (Application Install)" data-path="D:\lmstudio\LM Studio" data-git="0">
+ <div style="flex:1">
+  <div class="nm">LM Studio (Application Install) &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">D:\lmstudio\LM Studio</div>
+  <div class="meta">Active · The installed LM Studio desktop application — an Electron app for downloading, running, and chatting with local GGUF/quantized LLMs on Windows. This is the program directory (LM Studio.exe, Chromium/E</div>
+  
+ </div></div>
+<div class="cat">Personal Life System (7)</div>
+<div class="row" data-s="life assistant — kb ingest &amp;amp; secondbrain client c:\coding\life-assistant personal life system">
+ <input type="checkbox" data-name="Life Assistant — KB Ingest &amp; SecondBrain Client" data-path="C:\CODING\life-assistant" data-git="0">
+ <div style="flex:1">
+  <div class="nm">Life Assistant — KB Ingest &amp; SecondBrain Client &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">C:\CODING\life-assistant</div>
+  <div class="meta">Dormant · Small Python glue layer that syncs raw notes from the SecondBrain app into Gene&#x27;s Life Knowledge Base using an idempotent outbox pattern (kb_ingest.py mirrors notes as src- records with cursor state),</div>
+  
+ </div></div>
+<div class="row" data-s="life knowledge base c:\coding\life-knowledge-base personal life system">
+ <input type="checkbox" data-name="Life Knowledge Base" data-path="C:\CODING\life-knowledge-base" data-git="1">
+ <div style="flex:1">
+  <div class="nm">Life Knowledge Base &nbsp;<span class="git">git ✓</span></div>
+  <div class="pa">C:\CODING\life-knowledge-base</div>
+  <div class="meta">Active · Markdown-based personal source of truth organized in numbered folders: profile, timeline, health, nutrition, projects, finance, goals, ideas, and interests, with agent rules and an inbox for unprocess</div>
+  
+ </div></div>
+<div class="row" data-s="life tracker c:\coding\life-tracker personal life system">
+ <input type="checkbox" data-name="Life Tracker" data-path="C:\CODING\life-tracker" data-git="1">
+ <div style="flex:1">
+  <div class="nm">Life Tracker &nbsp;<span class="git">git ✓</span></div>
+  <div class="pa">C:\CODING\life-tracker</div>
+  <div class="meta">Archive · Local-first personal life OS web app: daily checklist, habits, goals, projects, reviews, and life metrics, with authenticated agent/browser access. Python stdlib only (http.server + sqlite3) with a si</div>
+  <div class="meta">run: <code>run.bat</code></div>
+ </div></div>
+<div class="row" data-s="lifestory — sms/gmail memoir harvest c:\coding\lifestory personal life system">
+ <input type="checkbox" data-name="Lifestory — SMS/Gmail Memoir Harvest" data-path="C:\CODING\lifestory" data-git="0">
+ <div style="flex:1">
+  <div class="nm">Lifestory — SMS/Gmail Memoir Harvest &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">C:\CODING\lifestory</div>
+  <div class="meta">Dormant · Data-harvest workspace for a personal memoir project: Python scripts (harvest_sms*.py, harvest_meta*.py, sweep_targeted.py) pull text messages and Gmail metadata (2007–2026) into SQLite databases (sms</div>
+  <div class="meta">run: <code>python harvest_sms_v2.py</code></div>
+ </div></div>
+<div class="row" data-s="secondbrain c:\users\gene\android notes like genspark personal life system">
+ <input type="checkbox" data-name="SecondBrain" data-path="C:\Users\gene\ANDROID NOTES LIKE GENSPARK" data-git="1">
+ <div style="flex:1">
+  <div class="nm">SecondBrain &nbsp;<span class="git">git ✓</span></div>
+  <div class="pa">C:\Users\gene\ANDROID NOTES LIKE GENSPARK</div>
+  <div class="meta">Active · A self-hosted personal AI assistant that captures voice, text, and browser clips and turns them into cited, reviewable tasks and ideas. Three components: a Python server (largest part, with a web-clip</div>
+  
+ </div></div>
+<div class="row" data-s="hermes secondbrain integration c:\users\gene\hermes-secondbrain personal life system">
+ <input type="checkbox" data-name="Hermes SecondBrain Integration" data-path="C:\Users\gene\hermes-secondbrain" data-git="1">
+ <div style="flex:1">
+  <div class="nm">Hermes SecondBrain Integration &nbsp;<span class="git">git ✓</span></div>
+  <div class="pa">C:\Users\gene\hermes-secondbrain</div>
+  <div class="meta">Dormant · Hermes agent-desktop integration package for SecondBrain, the user&#x27;s self-hosted AI voice-note server. It ships two Hermes skills (SecondBrain API usage with privacy rules, and a reminders skill), a r</div>
+  
+ </div></div>
+<div class="row" data-s="research knowledge base c:\users\gene\research personal life system">
+ <input type="checkbox" data-name="Research Knowledge Base" data-path="C:\Users\gene\research" data-git="0">
+ <div style="flex:1">
+  <div class="nm">Research Knowledge Base &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">C:\Users\gene\research</div>
+  <div class="meta">Active · A large (2,600-file) markdown research pipeline and knowledge base organized as inbox (234 incoming notes) -&gt; processed (2,096 digested notes) -&gt; synthesis (180) -&gt; briefs (28), with dedicated contrad</div>
+  
+ </div></div>
+<div class="cat">Utility / Script (19)</div>
+<div class="row" data-s="ai project index c:\coding\ai-project-index utility / script">
+ <input type="checkbox" data-name="AI Project Index" data-path="C:\CODING\ai-project-index" data-git="0">
+ <div style="flex:1">
+  <div class="nm">AI Project Index &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">C:\CODING\ai-project-index</div>
+  <div class="meta">Active · The cataloguing tool that produced the very batch being annotated: Python scripts (scan.py, evidence.py, agenthomes.py) that walk C:\ and D:\, gather per-directory file statistics, extension histogram</div>
+  <div class="meta">run: <code>python C:\CODING\ai-project-index\scan.py</code></div>
+ </div></div>
+<div class="row" data-s="codex install logs c:\coding\codex-install-logs utility / script">
+ <input type="checkbox" data-name="Codex Install Logs" data-path="C:\CODING\codex-install-logs" data-git="0">
+ <div style="flex:1">
+  <div class="nm">Codex Install Logs &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">C:\CODING\codex-install-logs</div>
+  <div class="meta">Dormant · Not a software project — a two-file evidence capture of an OpenAI Codex CLI installation performed on 2026-09-18: codex-postboot-install.log records the post-boot install output and staged-at.txt note</div>
+  
+ </div></div>
+<div class="row" data-s="compressibility brief c:\coding\compressibility utility / script">
+ <input type="checkbox" data-name="Compressibility Brief" data-path="C:\CODING\compressibility" data-git="0">
+ <div style="flex:1">
+  <div class="nm">Compressibility Brief &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">C:\CODING\compressibility</div>
+  <div class="meta">Dormant · A single markdown document (compressibility-brief.md) written 2026-09-08, with no code, manifests, or other assets. It appears to be a thinking/writing piece — likely a research or design brief explor</div>
+  
+ </div></div>
+<div class="row" data-s="conexant flow removal record c:\coding\flow-removal-backup utility / script">
+ <input type="checkbox" data-name="Conexant Flow Removal Record" data-path="C:\CODING\flow-removal-backup" data-git="0">
+ <div style="flex:1">
+  <div class="nm">Conexant Flow Removal Record &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">C:\CODING\flow-removal-backup</div>
+  <div class="meta">Archive · Not a software project — a two-file incident record from 2026-09-17 documenting the controlled disabling of Conexant Flow.exe, a Windows audio utility that leaked 46 GB of private memory and 25 CPU-ho</div>
+  
+ </div></div>
+<div class="row" data-s="hermes tts backup c:\coding\hermes-tts-backup utility / script">
+ <input type="checkbox" data-name="Hermes TTS Backup" data-path="C:\CODING\hermes-tts-backup" data-git="0">
+ <div style="flex:1">
+  <div class="nm">Hermes TTS Backup &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">C:\CODING\hermes-tts-backup</div>
+  <div class="meta">Archive · Not a software project — a 7 MB backup snapshot from 2026-08-03 containing index.html.old plus an assets.tar.gz, evidently preserving a prior version of a Hermes TTS web UI (its index page and asset b</div>
+  
+ </div></div>
+<div class="row" data-s="skill evaluator quality report c:\coding\reports utility / script">
+ <input type="checkbox" data-name="Skill Evaluator Quality Report" data-path="C:\CODING\reports" data-git="0">
+ <div style="flex:1">
+  <div class="nm">Skill Evaluator Quality Report &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">C:\CODING\reports</div>
+  <div class="meta">Archive · Single output artifact: skillevaluator-quality.json, the result of running NVIDIA SkillEvaluator validation over skills (ascii-art passed with 8 low/medium issues, overall status passed). A drop-folde</div>
+  
+ </div></div>
+<div class="row" data-s="tombs &amp;amp; tyrants — duplicate pinned row bug c:\coding\tombs-pin-bug utility / script">
+ <input type="checkbox" data-name="Tombs &amp; Tyrants — Duplicate Pinned Row Bug" data-path="C:\CODING\tombs-pin-bug" data-git="0">
+ <div style="flex:1">
+  <div class="nm">Tombs &amp; Tyrants — Duplicate Pinned Row Bug &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">C:\CODING\tombs-pin-bug</div>
+  <div class="meta">Archive · Single bug-fix workspace for the Tombs &amp; Tyrants app/Hermes desktop: documents a bug where compression-lineage duplicates made one pinned conversation render twice in the sidebar under two names, and </div>
+  
+ </div></div>
+<div class="row" data-s="voice hotkey dictation c:\coding\voice-hotkey utility / script">
+ <input type="checkbox" data-name="Voice Hotkey Dictation" data-path="C:\CODING\voice-hotkey" data-git="0">
+ <div style="flex:1">
+  <div class="nm">Voice Hotkey Dictation &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">C:\CODING\voice-hotkey</div>
+  <div class="meta">Dormant · A Windows push-to-talk dictation tool: pressing Ctrl+Alt+V records voice, transcribes it locally with OpenAI Whisper, and sends the text to Discord (or saves it as last_transcription.txt). Python app </div>
+  <div class="meta">run: <code>cd C:\CODING\voice-hotkey &amp;&amp; pip install -r requirements.txt &amp;&amp; python voice_hot</code></div>
+ </div></div>
+<div class="row" data-s="wemo rescue c:\coding\wemo-rescue utility / script">
+ <input type="checkbox" data-name="WeMo Rescue" data-path="C:\CODING\wemo-rescue" data-git="0">
+ <div style="flex:1">
+  <div class="nm">WeMo Rescue &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">C:\CODING\wemo-rescue</div>
+  <div class="meta">Dormant · A local smart-home rescue kit for legacy Belkin WeMo plugs: join_wemo.py (pywemo) joins a WeMo stuck in setup-AP mode to the home 2.4GHz Wi-Fi, and server.py is a Flask control server that discovers p</div>
+  <div class="meta">run: <code>cd C:\CODING\wemo-rescue &amp;&amp; pip install flask pywemo &amp;&amp; python server.py</code></div>
+ </div></div>
+<div class="row" data-s="codex portable appx metadata c:\codexportable\appxmetadata utility / script">
+ <input type="checkbox" data-name="Codex Portable AppX Metadata" data-path="C:\CodexPortable\AppxMetadata" data-git="0">
+ <div style="flex:1">
+  <div class="nm">Codex Portable AppX Metadata &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">C:\CodexPortable\AppxMetadata</div>
+  <div class="meta">Archive · A single CodeIntegrity.cat catalog file from the MSIX/AppX packaging of the CodexPortable desktop app — Windows security metadata used to validate the package&#x27;s binaries. Supporting artifact of the po</div>
+  
+ </div></div>
+<div class="row" data-s="codex portable app assets c:\codexportable\assets utility / script">
+ <input type="checkbox" data-name="Codex Portable App Assets" data-path="C:\CodexPortable\assets" data-git="0">
+ <div style="flex:1">
+  <div class="nm">Codex Portable App Assets &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">C:\CodexPortable\assets</div>
+  <div class="meta">Archive · Windows app packaging assets for the CodexPortable app: 38 PNGs covering the app icon plus the full set of Square44x44/Square150x150/LockScreen/SplashScreen scale and targetsize variants required by a</div>
+  
+ </div></div>
+<div class="row" data-s="batchpilot (installed app) c:\users\gene\desktop\batchpilot utility / script">
+ <input type="checkbox" data-name="BatchPilot (Installed App)" data-path="C:\Users\gene\Desktop\BatchPilot" data-git="0">
+ <div style="flex:1">
+  <div class="nm">BatchPilot (Installed App) &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">C:\Users\gene\Desktop\BatchPilot</div>
+  <div class="meta">Archive · The installed distribution of BatchPilot, a batch file-processing desktop utility shipped as a PyInstaller bundle: BatchPilot.exe plus a 960-file _internal payload of Tcl/Tk runtime (.tcl), Python ext</div>
+  <div class="meta">run: <code>C:\Users\gene\Desktop\BatchPilot\BatchPilot.exe</code></div>
+ </div></div>
+<div class="row" data-s="voice hotkey (portable) c:\users\gene\documents\voice-hotkey-portable utility / script">
+ <input type="checkbox" data-name="Voice Hotkey (portable)" data-path="C:\Users\gene\Documents\voice-hotkey-portable" data-git="0">
+ <div style="flex:1">
+  <div class="nm">Voice Hotkey (portable) &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">C:\Users\gene\Documents\voice-hotkey-portable</div>
+  <div class="meta">Active · Local-first Windows voice dictation tool: press a global hotkey (Win32 RegisterHotKey with keyboard-lib fallback, working through Google Remote Desktop), talk, and the transcribed text lands in the cl</div>
+  
+ </div></div>
+<div class="row" data-s="device price hunter c:\users\gene\device-price-hunter utility / script">
+ <input type="checkbox" data-name="Device Price Hunter" data-path="C:\Users\gene\device-price-hunter" data-git="0">
+ <div style="flex:1">
+  <div class="nm">Device Price Hunter &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">C:\Users\gene\device-price-hunter</div>
+  <div class="meta">Dormant · A Python CLI research tool for finding specific devices (new or used) at or below a target price across web search and marketplace/electronics sites. Its default mission: hunt an NVIDIA DGX Spark (Pro</div>
+  <div class="meta">run: <code>cd &quot;C:\Users\gene\device-price-hunter&quot; &amp;&amp; python price_hunter.py, cd &quot;C:\Users\g</code></div>
+ </div></div>
+<div class="row" data-s="prime agent test scratch c:\users\gene\prime-agent-test utility / script">
+ <input type="checkbox" data-name="Prime Agent Test Scratch" data-path="C:\Users\gene\prime-agent-test" data-git="0">
+ <div style="flex:1">
+  <div class="nm">Prime Agent Test Scratch &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">C:\Users\gene\prime-agent-test</div>
+  <div class="meta">Archive · A two-file scratch directory containing sample.py and notes.txt, created and last touched on a single day. Appears to be a minimal test/sandbox for trying out an agent (likely a &#x27;prime&#x27; agent run) wit</div>
+  
+ </div></div>
+<div class="row" data-s="vin imaginaire c:\users\gene\vin-imaginaire utility / script">
+ <input type="checkbox" data-name="Vin Imaginaire" data-path="C:\Users\gene\vin-imaginaire" data-git="0">
+ <div style="flex:1">
+  <div class="nm">Vin Imaginaire &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">C:\Users\gene\vin-imaginaire</div>
+  <div class="meta">Archive · A single standalone index.html page named &#x27;vin imaginaire&#x27; (French for &#x27;imaginary wine&#x27;), created in one day. Likely a one-off creative/artistic web page — perhaps a generated concept or joke site abo</div>
+  
+ </div></div>
+<div class="row" data-s="drivedoctor d:\claude cowork\drivedoctor utility / script">
+ <input type="checkbox" data-name="DriveDoctor" data-path="D:\CLAUDE COWORK\DriveDoctor" data-git="0">
+ <div style="flex:1">
+  <div class="nm">DriveDoctor &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">D:\CLAUDE COWORK\DriveDoctor</div>
+  <div class="meta">Dormant · A Windows disk-space toolkit built as a set of PowerShell scripts plus an HTML dashboard. Scan.ps1 walks the C: drive, then disk-report.html opens a self-contained report showing reclaimable space, to</div>
+  <div class="meta">run: <code>powershell -ExecutionPolicy Bypass -File &quot;D:\CLAUDE COWORK\DriveDoctor\Scan.ps1&quot;</code></div>
+ </div></div>
+<div class="row" data-s="zcode desktop app data directory d:\zcode\.zcode utility / script">
+ <input type="checkbox" data-name="ZCode Desktop App Data Directory" data-path="D:\ZCODE\.zcode" data-git="0">
+ <div style="flex:1">
+  <div class="nm">ZCode Desktop App Data Directory &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">D:\ZCODE\.zcode</div>
+  <div class="meta">Active · Runtime data directory for the ZCode desktop application (an Electron/Chromium AI coding client), not a code project. It holds per-bot configuration and state JSON (bot-config.v3.json, bot-state.v2/v3</div>
+  
+ </div></div>
+<div class="row" data-s="stock watcher d:\coding\stock-watcher utility / script">
+ <input type="checkbox" data-name="Stock Watcher" data-path="D:\coding\stock-watcher" data-git="0">
+ <div style="flex:1">
+  <div class="nm">Stock Watcher &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">D:\coding\stock-watcher</div>
+  <div class="meta">Active · An always-on-top Windows desktop widget (Python + PowerShell starter, run.bat) that polls a product page and alerts the moment stock flips out-of-stock to in-stock or the price drops. On a hit it play</div>
+  <div class="meta">run: <code>cd /d D:\coding\stock-watcher &amp;&amp; run.bat</code></div>
+ </div></div>
+<div class="cat">Web App / SaaS (11)</div>
+<div class="row" data-s="flipbook system (live deployment workspace) c:\coding\flipbook-system web app / saas">
+ <input type="checkbox" data-name="Flipbook System (Live Deployment Workspace)" data-path="C:\CODING\Flipbook-System" data-git="1">
+ <div style="flex:1">
+  <div class="nm">Flipbook System (Live Deployment Workspace) &nbsp;<span class="git">git ✓</span></div>
+  <div class="pa">C:\CODING\Flipbook-System</div>
+  <div class="meta">Archive · The working deployment workspace for a later, image-heavy flipbook system (386 files, 616 MB): 271 PNGs and a 289-file images/ directory plus &#x27;mike artwork&#x27; form the page content for a hosted flipbook</div>
+  
+ </div></div>
+<div class="row" data-s="larger than life — author website &amp;amp; flipbook system c:\coding\larger then life mockup web app / saas">
+ <input type="checkbox" data-name="Larger Than Life — Author Website &amp; Flipbook System" data-path="C:\CODING\LARGER THEN LIFE MOCKUP" data-git="1">
+ <div style="flex:1">
+  <div class="nm">Larger Than Life — Author Website &amp; Flipbook System &nbsp;<span class="git">git ✓</span></div>
+  <div class="pa">C:\CODING\LARGER THEN LIFE MOCKUP</div>
+  <div class="meta">Dormant · Static website plus PHP backend for an author/artist brand, with a self-hosted flipbook plugin that renders page-turning digital books with synchronized audio. Includes an admin dashboard for uploadin</div>
+  
+ </div></div>
+<div class="row" data-s="flipbook plugin (standalone php) c:\coding\flipbook-plugin web app / saas">
+ <input type="checkbox" data-name="Flipbook Plugin (Standalone PHP)" data-path="C:\CODING\flipbook-plugin" data-git="1">
+ <div style="flex:1">
+  <div class="nm">Flipbook Plugin (Standalone PHP) &nbsp;<span class="git">git ✓</span></div>
+  <div class="pa">C:\CODING\flipbook-plugin</div>
+  <div class="meta">Archive · A self-hosted, framework-free PHP flipbook system that converts uploaded PDFs into interactive page-flipping publications (digital comics, magazines, catalogs) with per-page synchronized background mu</div>
+  
+ </div></div>
+<div class="row" data-s="flipbook with music (wordpress plugin) c:\coding\flipbook-plugin-wordpress web app / saas">
+ <input type="checkbox" data-name="Flipbook with Music (WordPress Plugin)" data-path="C:\CODING\flipbook-plugin-wordpress" data-git="1">
+ <div style="flex:1">
+  <div class="nm">Flipbook with Music (WordPress Plugin) &nbsp;<span class="git">git ✓</span></div>
+  <div class="pa">C:\CODING\flipbook-plugin-wordpress</div>
+  <div class="meta">Archive · The WordPress-plugin packaging of the flipbook idea: converts uploaded PDFs into interactive flipbooks with per-page synchronized audio tracks, 2-second Web Audio API crossfades, realistic page-flip a</div>
+  
+ </div></div>
+<div class="row" data-s="biz builder test c:\users\gene\desktop\biz builder test web app / saas">
+ <input type="checkbox" data-name="Biz Builder Test" data-path="C:\Users\gene\Desktop\BIZ BUILDER TEST" data-git="0">
+ <div style="flex:1">
+  <div class="nm">Biz Builder Test &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">C:\Users\gene\Desktop\BIZ BUILDER TEST</div>
+  <div class="meta">Archive · A single-page vanilla JS/HTML/CSS web app prototype of a &#x27;business launch agent workspace&#x27;: describe your business and a sidebar workspace (Overview, Agent Team, Work Queue, Saved Prompts, Blueprint) </div>
+  
+ </div></div>
+<div class="row" data-s="harnessbattle.com c:\users\gene\documents\harnessbattle.com web app / saas">
+ <input type="checkbox" data-name="HarnessBattle.com" data-path="C:\Users\gene\Documents\HarnessBattle.com" data-git="1">
+ <div style="flex:1">
+  <div class="nm">HarnessBattle.com &nbsp;<span class="git">git ✓</span></div>
+  <div class="pa">C:\Users\gene\Documents\HarnessBattle.com</div>
+  <div class="meta">Dormant · A Vite/TypeScript web application (deployed via Cloudflare Workers, wrangler.toml present) that benchmarks AI coding-agent harnesses — measuring whether a harness launches, reaches the correct model, </div>
+  <div class="meta">run: <code>cd C:\Users\gene\Documents\HarnessBattle.com &amp;&amp; npm run dev, cd C:\Users\gene\Do</code></div>
+ </div></div>
+<div class="row" data-s="scriptvoiceover (script to voice rebuild) c:\users\gene\documents\scriptvoiceover web app / saas">
+ <input type="checkbox" data-name="ScriptVoiceOver (Script to Voice REBUILD)" data-path="C:\Users\gene\Documents\ScriptVoiceOver" data-git="1">
+ <div style="flex:1">
+  <div class="nm">ScriptVoiceOver (Script to Voice REBUILD) &nbsp;<span class="git">git ✓</span></div>
+  <div class="pa">C:\Users\gene\Documents\ScriptVoiceOver</div>
+  <div class="meta">Active · A full-stack AI voiceover production web app: FastAPI (Python) backend + React/TypeScript/Vite frontend, live at https://app.scriptvoiceover.com via Cloudflare Tunnel, with a GitHub repo (genetrader/s</div>
+  <div class="meta">run: <code>cd C:\Users\gene\Documents\ScriptVoiceOver &amp;&amp; start-backend.bat, cd C:\Users\gen</code></div>
+ </div></div>
+<div class="row" data-s="ai consultancy website c:\users\gene\ai-consultancy web app / saas">
+ <input type="checkbox" data-name="AI Consultancy Website" data-path="C:\Users\gene\ai-consultancy" data-git="1">
+ <div style="flex:1">
+  <div class="nm">AI Consultancy Website &nbsp;<span class="git">git ✓</span></div>
+  <div class="pa">C:\Users\gene\ai-consultancy</div>
+  <div class="meta">Dormant · A Next.js 16 / React 19 / Tailwind CSS 4 marketing or business site for an AI consultancy, bootstrapped from create-next-app and built with AI coding agents (AGENTS.md and CLAUDE.md carry Next.js agen</div>
+  <div class="meta">run: <code>cd &quot;C:\Users\gene\ai-consultancy&quot; &amp;&amp; npm install &amp;&amp; npm run dev</code></div>
+ </div></div>
+<div class="row" data-s="flowmark — forward-deployed ai engineering site c:\users\gene\flowmark web app / saas">
+ <input type="checkbox" data-name="Flowmark — Forward-Deployed AI Engineering Site" data-path="C:\Users\gene\flowmark" data-git="1">
+ <div style="flex:1">
+  <div class="nm">Flowmark — Forward-Deployed AI Engineering Site &nbsp;<span class="git">git ✓</span></div>
+  <div class="pa">C:\Users\gene\flowmark</div>
+  <div class="meta">Dormant · A production-ready marketing website for &#x27;Flowmark&#x27;, a forward-deployed AI engineering consultancy serving small and mid-sized businesses. Built on Next.js (App Router) with TypeScript strict mode, Ta</div>
+  <div class="meta">run: <code>cd &quot;C:\Users\gene\flowmark&quot; &amp;&amp; npm install &amp;&amp; npm run dev</code></div>
+ </div></div>
+<div class="row" data-s="pi quantum site d:\coding\pi_quantum_site_version web app / saas">
+ <input type="checkbox" data-name="Pi Quantum Site" data-path="D:\coding\PI_QUANTUM_SITE_VERSION" data-git="0">
+ <div style="flex:1">
+  <div class="nm">Pi Quantum Site &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">D:\coding\PI_QUANTUM_SITE_VERSION</div>
+  <div class="meta">Dormant · A small static single-page website (one HTML file, one JS file, one CSS file) built around a PRODUCT.md spec: an interactive quantum-physics explainer aimed at physics undergrads and the curious publi</div>
+  
+ </div></div>
+<div class="row" data-s="zcode / hermex for android d:\coding\zcode web app / saas">
+ <input type="checkbox" data-name="ZCode / Hermex for Android" data-path="D:\coding\zcode" data-git="0">
+ <div style="flex:1">
+  <div class="nm">ZCode / Hermex for Android &nbsp;<span class="nogit">no git</span></div>
+  <div class="pa">D:\coding\zcode</div>
+  <div class="meta">Dormant · Workspace containing a native Android client for a self-hosted Hermes agent web UI: &#x27;Hermex for Android&#x27;, a Kotlin + Jetpack Compose port of the iOS hermex app covering onboarding/auth, session list, </div>
+  
+ </div></div>
+
+<div id="out" class="hide"></div>
+<script>
+function vis(){return [...document.querySelectorAll('.row')].filter(r=>!r.classList.contains('hide'));}
+function flt(){const q=document.getElementById('q').value.toLowerCase();
+ document.querySelectorAll('.row').forEach(r=>r.classList.toggle('hide',!r.dataset.s.includes(q)));
+ document.querySelectorAll('.cat').forEach((c,i,arr)=>{let n=c.nextElementSibling,any=false;
+   while(n&&!n.classList.contains('cat')){if(n.classList.contains('row')&&!n.classList.contains('hide'))any=true;n=n.nextElementSibling;}
+   c.classList.toggle('hide',!any);});
+ document.getElementById('cnt').textContent=vis().length+' shown';}
+function all(v){vis().forEach(r=>r.querySelector('input').checked=v);}
+function gen(){
+ const sel=[...document.querySelectorAll('.row input:checked')].map(i=>({name:i.dataset.name,path:i.dataset.path,git:i.dataset.git==='1'}));
+ if(!sel.length){alert('Tick at least one project.');return;}
+ let y=`# generated from ai-project-index — edit objectives, then run: python improver.py run
+loop:
+  poll_interval_min: 30
+  max_project_runtime_h: 12
+  ask_repeat_min: 5
+  ask_max_repeat: 20
+
+projects:
+`;
+ sel.forEach(s=>{y+=`  - name: ${s.name.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')}
+    path: ${s.path.replace(/\\/g,'/')}
+    board: ${s.name.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')}
+    loops: 5
+    objective: >
+      TODO — what does "better" mean for this project? Be specific.
+    acceptance: >
+      TODO — checkable criteria. The judge only sees this.
+    gate: ""            # e.g. python -m pytest -q   (leave empty if no tests)
+    boundary: "This repo only."
+    implementer: glm53-flash-2x-spark:GLM-5.3-Flash-EXL3
+    reviewer:    deepseek-v41-flash-3x-spark:deepseek-v4.1-flash
+    enabled: true
+${s.git?'':'    # WARNING: no .git — checkpointing disabled until git init\n'}
+`;});
+ const o=document.getElementById('out');o.classList.remove('hide');o.textContent=y;
+ navigator.clipboard&&navigator.clipboard.writeText(y);
+}
+flt();
+</script>

@@ -97,8 +97,8 @@ def test_monitor_next_up_is_lru_not_rotation_idx(tmp_path, monkeypatch):
     state = tmp_path / "state"
     state.mkdir(parents=True)
     (state / "threads.json").write_text(json.dumps({
-        "project-a": {"last_nudge": 900},
-        "project-b": {"last_nudge": 100},     # oldest -> next up
+        "tombs-and-tyrants": {"last_nudge": 900},
+        "secondbrain": {"last_nudge": 100},     # oldest -> next up
     }), encoding="utf-8")
     # retired engine file says idx points elsewhere -- must be ignored
     (state / "rotation.json").write_text(json.dumps({"idx": 0, "history": []}),
@@ -107,16 +107,16 @@ def test_monitor_next_up_is_lru_not_rotation_idx(tmp_path, monkeypatch):
     monkeypatch.setattr(monitor, "OUT", tmp_path / "monitor.html")
     monkeypatch.setattr(monitor, "manifest", lambda: {
         "projects": [
-            {"name": "project-a", "path": "x", "enabled": True, "board": "b",
+            {"name": "tombs-and-tyrants", "path": "x", "enabled": True, "board": "b",
              "gate": "g", "implementer": "i:m", "reviewer": "r:m"},
-            {"name": "project-b", "path": "y", "enabled": True, "board": "b2",
+            {"name": "secondbrain", "path": "y", "enabled": True, "board": "b2",
              "gate": "g", "implementer": "i:m", "reviewer": "r:m"},
         ], "loop": {}})
     monkeypatch.setattr(monitor, "board_status", lambda b: [])
     monitor.build()
     html_out = (tmp_path / "monitor.html").read_text(encoding="utf-8")
-    # project-b (oldest nudge) is next; a quarantined repo is never next
-    assert "project-b" in html_out
+    # secondbrain (oldest nudge) is next; a quarantined repo is never next
+    assert "secondbrain" in html_out
 
 
 def test_monitor_skips_quarantined_repos_for_next_up(tmp_path, monkeypatch):
@@ -166,27 +166,30 @@ def test_runner_check_alive_probe_exists():
 
 
 def test_orphans_retired():
-    # The public repo ships the retired scripts under retired/ (if at all) --
-    # the pin that matters is that the LIVE tree never carries them.
     for name in ("karpathy_nudge.py", "karpathy_nudge_cron.py",
                  "run_rotator.sh", "run_watcher.sh", "surface_discover.py"):
         assert not (ROOT / name).exists(), f"{name} must be retired"
-        if (ROOT / "retired").exists():
-            assert (ROOT / "retired" / name).exists(), f"{name} lost in the move"
+        assert (ROOT / "retired" / name).exists(), f"{name} lost in the move"
 
 
 # ---------------------------------------------------------------- T3-10
 def test_stale_state_files_pruned():
-    # state/ is gitignored in the public repo; the pin is that a checkout
-    # never carries these stale files at the old live paths.
+    # GATE 1 (2026-10-23): state/ is gitignored -- this repo mirrors CODE ONLY
+    # and does not own any state. The stale-file guard is about the live tree's
+    # state dir, so it only means something where state/ is actually populated.
+    # Asserting on an empty/gitignored state dir would fail for a reason
+    # unrelated to what this test guards.
+    state = ROOT / "state"
+    if not state.is_dir():
+        return
+    archived = state / "wip-backups" / "retired-20260930"
     for name in ("checkpoints.json", "asked.json"):
-        assert not (ROOT / "state" / name).exists(), \
+        assert not (state / name).exists(), \
             f"{name} should live in wip-backups/retired-20260930 now"
-        wb = ROOT / "state" / "wip-backups" / "retired-20260930"
-        if wb.exists():
-            assert (wb / name).exists()
+        if archived.is_dir():
+            assert (archived / name).exists()
     # the stale qtest answer must be OUT of the live answer.json path
-    live = ROOT / "state" / "answer.json"
+    live = state / "answer.json"
     if live.exists():
         d = json.loads(live.read_text(encoding="utf-8"))
         assert d.get("qid") != "qtest-002", "the Sep-22 test ping must not replay"

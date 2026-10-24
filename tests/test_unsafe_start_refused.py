@@ -38,9 +38,24 @@ def _isolate_registry(tmp_path, monkeypatch):
     with test noise. Redirect every threads path to tmp."""
     import threads
     monkeypatch.setattr(threads, "STATE", tmp_path / "threads.json")
+    monkeypatch.setattr(threads, "LOCK", tmp_path / "threads.lock")
+    # W3 (2026-10-23): the runner now writes the GLOBAL angle ledger. Without
+    # this redirect a real run_round against the 't' fixture project appended a
+    # live row (observed: project 't', angle 'unbounded-memory'). Point the
+    # ledger at tmp as well.
+    import angle_pick
+    monkeypatch.setattr(angle_pick, "STATE", tmp_path)
+    monkeypatch.setattr(angle_pick, "HISTORY", tmp_path / "angle_history.json")
     import karpathy_runner as _K
     if hasattr(_K, "threads"):
         monkeypatch.setattr(_K.threads, "STATE", tmp_path / "threads.json")
+        monkeypatch.setattr(_K.threads, "LOCK", tmp_path / "threads.lock")
+    if hasattr(_K, "angle_pick"):
+        monkeypatch.setattr(_K.angle_pick, "STATE", tmp_path)
+        monkeypatch.setattr(_K.angle_pick, "HISTORY",
+                            tmp_path / "angle_history.json")
+    # and the worktree root, so the fixture project cannot leave a real worktree
+    monkeypatch.setattr(_K, "ROOT", tmp_path)
     yield
 
 
@@ -96,7 +111,11 @@ def _run_round_until_refusal(monkeypatch, repo, proj):
 
 
 def _proj(name="t"):
-    return {"name": name, "path": "", "gate": None, "see": {}}
+    # W4/W5 (2026-10-23): the gate must be a real command. A None gate is a
+    # CONFIG ERROR now -- _require_gate() pauses the loop rather than let every
+    # round auto-reject forever. These tests are about TREE SAFETY, so they need
+    # a verifiable project; `true` is a no-op gate that always passes.
+    return {"name": name, "path": "", "gate": "true", "see": {}}
 
 
 # --------------------------------------------------------------- scenarios

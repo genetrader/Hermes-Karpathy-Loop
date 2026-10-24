@@ -182,16 +182,27 @@ class Harness:
     def _patch_threads(self):
         reg_path = self.state / "threads.json"
 
-        def load():
+        def load(strict=False):
             try:
                 return json.loads(reg_path.read_text(encoding="utf-8")) or {}
             except FileNotFoundError:
                 return {}
 
         def save(data):
+            reg_path.parent.mkdir(parents=True, exist_ok=True)
             tmp = reg_path.with_suffix(".tmp")
             tmp.write_text(json.dumps(data, indent=2), encoding="utf-8")
             os.replace(tmp, reg_path)
+
+        def update(fn):
+            # W4: the real update() takes the lock and read-modify-writes. The
+            # harness keeps it simple but MUST still create the file, because
+            # the runner now persists through update() rather than save().
+            reg_path.parent.mkdir(parents=True, exist_ok=True)
+            data = load()
+            fn(data)
+            save(data)
+            return data
 
         self.monkeypatch.setattr(threads, "STATE", reg_path)
         self.monkeypatch.setattr(threads, "load", load)
@@ -203,6 +214,8 @@ class Harness:
         # the runner holds its own reference to the module; patch through it too
         self.monkeypatch.setattr(kr.threads, "load", load)
         self.monkeypatch.setattr(kr.threads, "save", save)
+        self.monkeypatch.setattr(threads, "update", update)
+        self.monkeypatch.setattr(kr.threads, "update", update)
         self.monkeypatch.setattr(kr.threads, "resolve", threads.resolve)
         self.monkeypatch.setattr(kr.threads, "title_for", threads.title_for)
 
@@ -260,6 +273,15 @@ class Harness:
         self.monkeypatch.setattr(surface_pick, "pick",
                                  lambda name, proj, prefer=None: None)
         sys.modules["surface_pick"] = surface_pick
+        # W3 (2026-10-23): the runner now writes the angle ledger. Point it at
+        # the temp world -- otherwise every harness run appends to the LIVE
+        # state/angle_history.json (observed: 86 phantom "orch-test" rows).
+        import angle_pick as _ap
+        self.monkeypatch.setattr(_ap, "HISTORY",
+                                 self.base / "state" / "angle_history.json")
+        self.monkeypatch.setattr(_ap, "STATE", self.base / "state")
+        self.monkeypatch.setattr(kr.angle_pick, "HISTORY",
+                                 self.base / "state" / "angle_history.json")
 
     def _patch_discord(self):
         class DN:
@@ -308,11 +330,34 @@ class Harness:
         self.monkeypatch.setattr(kr, "_run_gate", counting_gate)
 
     # -- scenario control ----------------------------------------------------
+    def approve(self, round_no=None, by="gene") -> None:
+        """W6: record a HUMAN merge approval on the work order.
+
+        The runner never writes approved_by -- only a human does. Tests that
+        are genuinely exercising INTEGRATION must say so explicitly now that
+        the default is stop-at-branch+tag.
+        """
+        self.entry["approved_by"] = by
+        if round_no is not None:
+            self.entry["approved_round"] = round_no
+
+    def preflight(self, differ=True, impl="model-a", rev="model-b") -> dict:
+        """W2: a probed seat pair. differ=True means a valid cross-family review."""
+        return {
+            "implementer": {"seat": "custom:s1:" + impl, "served": impl,
+                            "verdict": "ok", "detail": "ok"},
+            "reviewer": {"seat": "custom:s2:" + rev,
+                         "served": rev if differ else impl,
+                         "verdict": "ok", "detail": "ok"},
+            "separation": {"differ": differ,
+                           "reason": "ok" if differ else "same family"},
+        }
+
+    def run(self, preflight=None):
+        return kr.run_round(self.proj, self.entry, preflight=preflight)
     def child_does(self, **spec) -> None:
         self.spec_path.write_text(json.dumps(spec), encoding="utf-8")
 
-    def run(self):
-        return kr.run_round(self.proj, self.entry)
 
     def reload_registry(self) -> dict:
         return json.loads(self.reg_path.read_text(encoding="utf-8"))
@@ -366,14 +411,7 @@ def test_rejected_untracked_residue_removed(world):
 # --------------------------------------------------------------------------
 # 3. accepted second round's published range contains none of round 1's work
 # --------------------------------------------------------------------------
-def test_accepted_round2_range_excludes_round1(world, monkeypatch):
-    # this scenario asserts the tag reaches origin, so it exercises the PUSH
-    # path: GitHub ships disabled (safe default) -- flip the settings gates.
-    import settings as S_mod
-    monkeypatch.setattr(kr._S, "github_enabled", lambda: True)
-    monkeypatch.setattr(S_mod, "github_enabled", lambda: True)
-    monkeypatch.setattr(kr._S, "push_enabled", lambda loop_cfg=None: True)
-    monkeypatch.setattr(S_mod, "push_enabled", lambda loop_cfg=None: True)
+def test_accepted_round2_range_excludes_round1(world):
     h = world(gate_ok=False)                    # round 1: rejected
     h.child_does(commit_file="r1.py", msg="round one work")
     h.run()
@@ -384,7 +422,10 @@ def test_accepted_round2_range_excludes_round1(world, monkeypatch):
     # round 2: gate passes now
     h.proj["gate"] = "%s -c \"import sys;sys.exit(0)\"" % sys.executable
     h.child_does(commit_file="r2.py", msg="round two work")
-    rc = h.run()
+    # W6: integration needs a HUMAN approval; this test is about the
+    # published range, so the approval is stated explicitly.
+    h.approve(round_no=2)
+    rc = h.run(preflight=h.preflight(differ=True))
     assert rc == 0
     assert h.entry.get("round_accepted") is True
     tag = "kp/%s/r%02d" % (PROJ, 2)
@@ -489,7 +530,8 @@ def test_publish_happens_only_after_final_persistence(world, monkeypatch):
 
     monkeypatch.setattr(kr, "checkpoint", spy_checkpoint)
     h.child_does(commit_file="ok.py", msg="fine work")
-    rc = h.run()
+    h.approve(round_no=1)      # W6: integration requires human approval
+    rc = h.run(preflight=h.preflight(differ=True))
     assert rc == 0
     assert h.entry.get("round_accepted") is True
     assert seen["on_disk_round_accepted"] is True, \
@@ -628,7 +670,8 @@ def test_child_env_blocks_push(world, tmp_path):
 def test_worktree_recorded_and_passed_to_child(world):
     h = world(gate_ok=True)
     h.child_does(commit_file="a.py", msg="work")
-    h.run()
+    h.approve(round_no=1)
+    h.run(preflight=h.preflight(differ=True))
     parts, cwd, env = h._popen_calls[0]
     assert cwd and cwd.startswith(str(h.wt_root())), \
         "the child must run with cwd=worktree, got %s" % cwd
@@ -654,7 +697,8 @@ def test_post_merge_gate_failure_does_not_publish(world, monkeypatch):
 
     monkeypatch.setattr(kr, "_run_gate", flaky_gate)
     h.child_does(commit_file="a.py", msg="work")
-    rc = h.run()
+    h.approve(round_no=1)
+    rc = h.run(preflight=h.preflight(differ=True))
     assert rc == 0
     assert h.entry.get("round_accepted") is True   # worktree measurements passed
     assert h.entry["publication_state"] == "failed"

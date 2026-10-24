@@ -74,8 +74,8 @@ def test_no_tasks_row_is_not_running(monkeypatch, tmp_path):
 
 
 def test_pid_file_missing_is_not_running(monkeypatch, tmp_path):
-    # stub the process-scan backstop (2026-10-06): on a dev box a real runner
-    # may exist; the pid-file path alone must read as not-running.
+    # stub the process-scan backstop (2026-10-06): on the live dev box a real
+    # runner may exist; the pid-file path alone must read as not-running.
     monkeypatch.setattr(K, "_other_runner_pids", lambda: [])
     monkeypatch.setattr(K, "PID_FILE", tmp_path / "absent.pid")
     assert K.is_running() is False

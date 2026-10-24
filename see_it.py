@@ -91,7 +91,7 @@ def probe(see: dict) -> dict:
     # A REAL URL must be tested BEFORE the marker form: "http://127.0.0.1:8823/x"
     # also starts with "http:", so the marker branch would strip the scheme and
     # leave "//127.0.0.1:8823/x" -- a malformed URL that never probes. (This bit
-    # project-b's declaration during the first live run.)
+    # secondbrain's declaration during the first live run.)
     if spec.startswith(("http://", "https://")):
         return _http_probe(spec, checked_at)
 

@@ -234,11 +234,16 @@ def test_checkpoint_is_published_LAST():
     """acceptance -> campaign commit -> persist -> publish.
 
     A published tag must never describe scheduler state that was not written.
+
+    W4 (2026-10-23): persistence now goes through threads.update() (locked
+    read-modify-write), not threads.save(reg) -- the old anchor was the very
+    unlocked save the W4 work item removed. The ORDER invariant is unchanged
+    and is what this test exists to protect.
     """
     src = (ROOT / "karpathy_runner.py").read_text(encoding="utf-8")
     i_accept = src.find("_round_ok = (rc == 0)")
     i_commit = src.find("scope.commit(entry, campaign_prop")
-    i_persist = src.find("threads.save(reg)", i_commit)
+    i_persist = src.find("threads.update(_persist_round)", i_commit)
     i_publish = src.find("ck = checkpoint(name", i_persist)
     assert -1 not in (i_accept, i_commit, i_persist, i_publish), \
         "one of the four stages is missing (accept=%d commit=%d persist=%d pub=%d)" % (

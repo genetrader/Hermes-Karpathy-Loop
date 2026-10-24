@@ -1,12 +1,166 @@
-# Example project manifest for the Karpathy Loop.
-# Each project: a name, the path to its git repo, and a gate command that
-# MUST pass for a round to be accepted (tests, lint, build -- your call).
-projects:
-  - name: my-webapp
-    path: C:/code/my-webapp          # or /home/you/code/my-webapp
-    gate: "npm test -- --run"          # acceptance gate; empty = no gate
-  - name: my-api
-    path: C:/code/my-api
-    gate: "pytest -q"
+# ============================================================================
+# PROJECT IMPROVER — rotation manifest
+# This is the ONLY file you edit to control the loop.
+#   python improver.py plan     -> show what would run
+#   python improver.py run      -> one rotation pass
+#   python improver.py init     -> create the kanban boards
+# ============================================================================
 
-# The loop reads this file at start. See README.md for the full contract.
+loop:
+  poll_interval_min: 30        # how often the rotator considers a new turn
+  max_project_runtime_h: 12    # hard cap on one project's turn
+  ask_repeat_min: 5            # re-ping an unanswered question every 5 min
+  ask_max_repeat: 25           # give up after this many, park it, rotate on
+
+# ---------------------------------------------------------------------------
+# Projects rotate in this order. `enabled: false` parks one without deleting it.
+# Add as many as you like — the rotator cycles the list and wraps around.
+# ---------------------------------------------------------------------------
+projects:
+
+- name: tombs-and-tyrants
+  path: D:/ZCODE/TOMBS AND TYRANTS
+  board: tombs-and-tyrants
+  loops: 1
+  objective: "Make the game engine accept natural-language player intent instead of refusing it before\
+    \ the GM ever sees the turn. The reported failure, verbatim, playing at The Blooming Tankard:\n\n\
+    \  Player: \"Henk, what work can you give me? I'm ready to handle your\n           toughest jobs.\"\
+    \n  Engine: (hardcoded deflection) \"You look for toughest, but there is\n           nothing of the\
+    \ sort here. Whatever you were picturing, The\n           Blooming Tankard has not got it - and a\
+    \ soldier learns early\n           that seeing what is actually in front of him is worth more\n  \
+    \         than seeing what he expects.\"\n  Then three meta-choices: \"Look around and take stock\
+    \ of what IS here\",\n           \"Consider what you already know\", \"Take stock of what you are\n\
+    \           carrying\".\n\nRoot cause FOUND AND FIXED (commit 00cfbde): the existence checker read\
+    \ \"toughest\" as a physical object that must exist in the room. The class is degree-of-comparison\
+    \ words (comparatives and superlatives). Fixed structurally in backend/world/ground_truth.py::_is_degree_of_comparison,\
+    \ with _EST_ER_NOUNS carrying the exceptions (chest, forest, water, ...).\nWHAT REMAINS (each loop\
+    \ takes ONE of these):\n  1. The refusal text itself is a hardcoded string in\n     backend/api/game_session.py\
+    \ (~line 3532). Confirm whether refusing\n     the whole turn is ever the right response, or whether\
+    \ the turn\n     should reach the GM with the unmatched noun noted as context.\n  2. The same over-refusal\
+    \ will exist for other word classes that were\n     never enumerated. Probe the class boundary: abstract\
+    \ social nouns\n     (\"rumor\" is still a false positive), collective nouns, gerunds,\n     proper\
+    \ nouns of places the fiction has not introduced.\n  3. The engine must still prevent prompt-injection\
+    \ cheating (\"I find a\n     magic sword on the table\"). The guard must survive every change —\n\
+    \     tests/test_a_suggestion_offers_only_what_exists.py is the contract.\n  4. Nuance: the player\
+    \ asked a PERSON for work. Nothing in the pipeline\n     appears to model \"this is a request directed\
+    \ at an NPC\" as distinct\n     from \"this is a claim about the room\". If that distinction is\n\
+    \     missing, it belongs in the action parser.\n\nDo NOT optimise for the single reported sentence.\
+    \ The test file tests/test_a_degree_of_comparison_is_not_a_fixture.py already pins every superlative\
+    \ and comparative; adding words to a list is not progress. Close classes structurally.\n"
+  acceptance: 'tests/test_a_degree_of_comparison_is_not_a_fixture.py passes (128 tests, currently green)
+    AND tests/test_a_suggestion_offers_only_what_exists.py still passes AND the new class probes from
+    item 2 above have their own regression tests. The player''s verbatim sentence reaches the GM and gets
+    a reply from Henk about work — it does not get a deflection about seeing what is in front of him.
+
+    '
+  gate: .venv/Scripts/python.exe -m pytest -q tests/test_a_degree_of_comparison_is_not_a_fixture.py tests/test_a_suggestion_offers_only_what_exists.py
+    tests/test_refused_claims_are_recorded.py tests/test_the_refusal_is_not_a_scene.py tests/test_a_role_suggestion_does_not_travel.py
+    tests/test_a_suggestion_does_not_outlive_its_scene.py tests/test_suggestions_every_turn.py
+    tests/test_an_ally_fights.py::test_the_party_survives_a_save
+  boundary: 'This repo only (D:/ZCODE/TOMBS AND TYRANTS). Do not edit artwork/ or any v*.png. Do not touch
+    gm_note paths or the save-file schema. Do not weaken or delete existing ground-truth tests to make
+    a change pass — fix the guard instead. Do not merge to main. Do not hand-edit equipment_canon.json
+    (equipment_review.py owns it). Never run the live game server.
+
+    '
+  implementer: glm53-flash-2x-spark:GLM-5.3-Flash-EXL3
+  reviewer: deepseek-v41-flash-3x-spark:deepseek-v4.1-flash
+  enabled: true
+  # SEE-IT (2026-09-28): how Gene LOOKS at this project without reading a chat
+  # thread. The widget runs ONLY the read-only `probe` and shows `start` as a
+  # copyable command -- it never executes it (a click-to-run in a UI is one bad
+  # entry away from destructive, and the bridge cannot preview intent).
+  see:
+    kind: server
+    url: http://127.0.0.1:8093/
+    probe: http:http://127.0.0.1:8093/api/health
+    start: cd "D:/ZCODE/TOMBS AND TYRANTS" && .venv/Scripts/python.exe -m backend.main
+    note: Usually already running on :8093. Health endpoint is /api/health.
+- name: secondbrain
+  path: C:/Users/gene/ANDROID NOTES LIKE GENSPARK
+  board: secondbrain
+  loops: 1
+  objective: 'Close the Google OAuth outage (consent screen unpublished -> no email for 520h+) and unblock
+    the decision_events loop. Then harden the two-uvicorn ghost-process situation on :8823.
+
+    '
+  acceptance: 'Gmail sweep completes without an auth error; decision_events CHECK constraint accepts proposals
+    again; exactly ONE uvicorn process owns :8823; documented runbook for re-auth exists in server/scripts/.
+
+    '
+  gate: cd server && .venv/Scripts/python.exe -m pytest tests -q
+  gate_timeout: 900
+  boundary: 'This repo only. Never rewrite .env secrets. Do not touch the live :8823 process without restarting
+    it cleanly.
+
+    '
+  implementer: deepseek-v41-flash-3x-spark:deepseek-v4.1-flash
+  reviewer: glm53-flash-2x-spark:GLM-5.3-Flash-EXL3
+  enabled: true
+  # SEE-IT: three DISTINCT surfaces -- the brief says so, and the panel
+  # shows them separately so a round that only touched server/ cannot read
+  # as progress on the Android app.
+  see:
+    kind: server
+    url: http://127.0.0.1:8823/health
+    probe: http://127.0.0.1:8823/health
+    start: cd "C:/Users/gene/ANDROID NOTES LIKE GENSPARK/server" && .venv/Scripts/python.exe -m app.main
+    note: /health returns 401 without the SB_API_TOKEN bearer; a 401 here means the server IS up.
+    surfaces: server, android, chrome-extension
+- name: hyperframes
+  path: D:/coding/hyperframes
+  board: hyperframes
+  loops: 1
+  objective: 'TODO: objective not set for hyperframes — add it before starting.'
+  enabled: false
+- name: impeccable
+  path: D:/coding/impeccable
+  board: impeccable
+  loops: 1
+  objective: 'TODO: objective not set for impeccable — add it before starting.'
+  enabled: false
+- name: video-use
+  path: D:/coding/video-use
+  board: video-use
+  loops: 1
+  objective: 'TODO: objective not set for video-use — add it before starting.'
+  enabled: false
+- name: zip-code-ranker
+  path: C:/Users/gene/Documents/Zip Code Ranker/Zip Crime Data V6
+  board: zip-code-ranker
+  loops: 1
+  gate: npm test
+  objective: "Build out the ZIP-code crime database and ranking system: the clean V6 rebuild maps every
+    US ZIP to crime data (FBI NIBRS, ~7,000+ agencies, state portals, county sheriffs) and the Chrome
+    Extension V5 surfaces those rankings. Tracked privately at genetrader/zip-crime-data-v6. Generated
+    databases (124MB unified-database.json) are NOT in git; they are rebuilt by scripts/05-build-unified-database.js.
+    Improve data integrity and coverage of the agency-to-ZIP mapping, harden the scraping/validation
+    pipeline, and keep the consumer extension honest about what the underlying data actually supports."
+  enabled: true
+  see:
+    kind: built-site
+    url: ""
+    probe: file:C:/Users/gene/Documents/Zip Code Ranker/Zip Crime Data V6/website/index.html
+    path: C:/Users/gene/Documents/Zip Code Ranker/Zip Crime Data V6/website/index.html
+    start: cd "C:/Users/gene/Documents/Zip Code Ranker/Zip Crime Data V6" && npm test
+    note: Static site under website/ -- open index.html directly. Server under server/.
+
+- name: ai-consultancy-website
+  path: C:/Users/gene/ai-consultancy
+  board: ai-consultancy-website
+  loops: 1
+  gate: npm run lint && npm run build
+  objective: "Build out Gene's AI consultancy marketing site (Next.js 15 App Router + TypeScript,
+    Tailwind/PostCSS, eslint flat config). This is the public front door for the SMB AI consulting
+    offers: it must state clearly what is offered, to whom, at what price band, and make the next
+    step (book a call / request an audit) obvious and frictionless. Improve conversion structure,
+    copy honesty (never promise outcomes the delivery model cannot support), accessibility
+    (contrast, focus order, semantic landmarks), SEO/metadata, and Core Web Vitals. No test suite
+    exists yet, so the gate is lint + production build; add focused tests only where they earn it."
+  enabled: true
+  see:
+    kind: built-site
+    url: http://127.0.0.1:3000/
+    probe: tcp:3000
+    start: cd "C:/Users/gene/ai-consultancy" && npm run dev
+    note: No git remote configured, so the round push is skipped by design.

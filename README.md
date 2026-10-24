@@ -1,184 +1,188 @@
-# Hermes Karpathy Loop
+# PROJECT IMPROVER — README
 
-**An autonomous, self-improving code loop for your own repositories.**
+Continuous, unattended improvement of your projects, rotating on a schedule,
+texting you on Discord, and checkpointing to git. Built on Hermes' own goal-mode
+kanban loop — there is no custom loop runner to maintain.
 
-The Karpathy Loop runs a continuous improve-review-improve cycle over the git
-repos you point it at:
+---
 
-1. **Pick** a project and a review angle (robustness, dead code, invisible
-   state, lying tests, ... 8 families, 168+ concrete prompts).
-2. **Isolate** — every round works in a disposable `git worktree` branched from
-   your canonical checkout. Your working tree is never touched.
-3. **Work** — an agent (any OpenAI-compatible model, local or cloud) hunts one
-   specific flaw, fixes it, and writes real tests.
-4. **Gate** — the round is only accepted if YOUR gate command passes (pytest,
-   npm test, whatever you configure). No gate, no merge.
-5. **Checkpoint** — accepted work is committed, tagged `kp/<project>/r<NN>`,
-   and optionally pushed to GitHub. Rejected work is rolled back and the repo
-   quarantined if anything looks unsafe.
-6. **Rotate** — to the next project, forever.
+## Status right now
 
-## Why it exists
-
-Most "AI improves your codebase" tools demo well and drift. This one is built
-around a harsh acceptance chain, because the interesting failure mode of an
-autonomous loop is not "it does nothing" — it is "it confidently merges junk":
-
-- **Acceptance = exit 0 AND your gate passed AND the git head advanced AND the
-  proposal survived review.** Four conditions, all required.
-- **A checkpoint is a claim**: tags are cut only after the round is fully
-  persisted, never before.
-- **Refusal over rollback**: a dirty tree at round start is refused, never
-  wiped. The loop would rather stall than destroy uncommitted human work.
-- **Containment**: rejected rounds roll the worktree back to the pre-round
-  HEAD; if even that cannot be verified, the repo is quarantined and parked
-  until a human looks.
-- **Honesty in the UI**: the dashboard computes liveness from the runner's
-  heartbeat and live processes — a wedged loop reads as WEDGED, never as
-  "running".
-
-## What it looks like
-
-| The dashboard: projects in rotation, live state, round counts | Live thread, loop settings, plain-English "working on right now" |
+| Piece | State |
 |---|---|
-| ![Projects in rotation](screenshots/dashboard-projects.png) | ![Live thread and settings](screenshots/dashboard-live-settings.png) |
+| Discord bridge (`discord_notify.py`) | **LIVE** — posted a real progress line + question ping to Discord |
+| Ping/mention to @genetrader | **LIVE** — verified the mention resolves to you |
+| Nag loop (every 5 min, 20x) | **LIVE** — fired reminder #1 and is counting |
+| Inventory picker (`pick.py`) | **LIVE** — 194 real projects on disk, 44 git repos |
+| Rotation manifest (`improve.yaml`) | **WRITTEN** — tombs-and-tyrants enabled, secondbrain parked |
+| Rotator (`improver.py`) | **LIVE** — verified against the real kanban CLI |
+| Monitor (`monitor.py` → `monitor.html`) | **LIVE** — regenerates each rotation pass |
+| Cron: nag (1m, no-agent, 0 tokens) | **LIVE** — job `15312f687d08` |
+| Cron: rotator (30m) | **LIVE** — job `572f70d324c4` |
+| Dedicated Discord channel | **NEEDS YOU** — bot lacks MANAGE_CHANNELS (403 verified) |
 
-| Project picker | Angles & prompts | Models | Discovery |
+---
+
+## The one thing you must do
+
+Create the dedicated channel. The bot **cannot** — I verified it has
+`MANAGE_CHANNELS: NO` on COMMAND CENTRAL and a create attempt returned
+`403 Missing Permissions`.
+
+1. In Discord → **COMMAND CENTRAL** → create a text channel named exactly
+   **`project-improver`**
+2. Make sure **Bastion - ClaudeCodeBot** can post there (it already has
+   Send Messages / Embed Links / Read History on the guild, so the default
+   new-channel permissions are fine).
+3. Tell me, and I run:
+   ```
+   cd C:\CODING\project-improver
+   python setup_channel.py
+   hermes gateway restart
+   ```
+
+**Why this matters:** right now the bridge is posting to `#general`, where **8 of
+your 15 cron jobs** also deliver (AI Builders Digest, Life Daily Review, GLM block
+monitor, Bookmarked Podcast, Exposure Sentinel…). Your question ping got buried
+under an AI digest within minutes. A dedicated channel fixes that and gives you a
+separate notification sound per-channel.
+
+---
+
+## What you'll hear (the sound question)
+
+Three deliberately different message classes:
+
+| Class | Looks like | Pings you? | Sound |
 |---|---|---|---|
-| ![Picker](screenshots/selector-screenshot.png) | ![Angles](screenshots/selector-angles.png) | ![Models](screenshots/selector-models.png) | ![Discovery](screenshots/selector-discovery.png) |
+| Progress | `[tombs-and-tyrants] round 3/12: gate green, commit a3f9c12` | No | Silent |
+| Stuck | `**[STUCK]** [secondbrain] OAuth re-auth needs a browser session` | No | Silent |
+| **Question** | `@genetrader **[QUESTION]** [selftest] …` | **YES** | **Discord ping** |
 
-## What's in here
+The question is the only thing that makes noise. That's your "tone I recognise."
 
-| Path | What it is |
-|---|---|
-| `karpathy_runner.py` | The round engine: worktrees, gates, containment, checkpointing, rotation |
-| `loopctl.py` | Operator control plane: `start/pause/stop/status`, liveness + wedge detection |
-| `checkpoint.py` | Tag/push checkpointing + the plain-English summarizer (5th-grade explanations of every round) |
-| `settings.py` | The layered config layer (defaults → settings.yaml → settings.local.yaml → env) + validation |
-| `notify_senders.py` | Pluggable message-platform layer: sender interface + registry (`discord` \| `none`; slack/telegram drop in) |
-| `activity.py`, `monitor.py`, `monitor.html` | Dashboard payloads + a standalone HTML monitor |
-| `scope.py`, `surface_pick.py`, `round_prompt.py`, `round_evidence.py` | Campaign/surface tracking and per-round prompt/evidence discipline |
-| `angles*.py`, `angles.yaml`, `angle_prompts.yaml` | The review-angle library |
-| `widget/plugin.js` | Hermes Desktop plugin: live dashboard page (status, repos, live thread, checkpoints, plain-English "working on right now") |
-| `scripts/status_server.py` | Local HTTP server that feeds the widget without touching the agent shell queue |
-| `tests/` | ~270 tests pinning the safety properties (acceptance chain, containment wiring, refusal-on-dirty, wedge detection, ...) |
-| `improve.yaml` | Your project manifest (example provided) |
+### Setting the tone on your phone
 
-## Quick start
+Discord per-channel notification settings are what make this practical:
+
+1. Tap the `#project-improver` channel → **Notification Settings**
+2. Set **All Messages** (not just mentions) if you want to hear progress too;
+   leave it on **Only @mentions** to hear *only questions* — I'd recommend this.
+3. Pick a **Custom Notification Sound** distinct from your other channels —
+   that is literally the "tone I'll recognise" you asked for.
+
+### The repeat behaviour
+
+- Reminder **every 5 minutes**, up to **20 times** (`ask_repeat_min` /
+  `ask_max_repeat` in `improve.yaml`).
+- Each reminder is a **fresh message containing the @mention** — Discord only
+  re-notifies on a new ping, so an edit alone would be silent.
+- After 20 unanswered reminders (100 minutes) it posts
+  `[STUCK] no answer after 20 reminders — parking this question and rotating on`,
+  moves the question to `questions/parked.json`, and **continues with the next
+  project**. Your silence never deadlocks the fleet.
+- Only ONE question is ever open at a time. A second question cannot be asked
+  until the first is answered — that's the "one at a time" rule, enforced in code.
+
+---
+
+## Answering
+
+Just **reply in the `#project-improver` channel**. The nag cron job polls the
+channel every minute, sees a human message newer than the question, and:
+- posts `✅ [project] got it — resuming` with your text quoted
+- writes `state/answer.json`
+- clears `questions/pending.json`
+- (when a worker is actually blocked) calls `hermes kanban unblock <id>` so the
+  worker resumes with your decision in context
+
+---
+
+## Daily use
 
 ```bash
-git clone https://github.com/genetrader/Hermes-Karpathy-Loop.git
-cd Hermes-Karpathy-Loop
-pip install pyyaml requests
+cd C:\CODING\project-improver
 
-# 1. tell it about your projects (name, path, gate command)
-cp improve.yaml my-improve.yaml   # then edit
-
-# 2. start the loop (safe defaults: GitHub off, notifications off, local tags only)
-python loopctl.py start
-
-# 3. watch it
-python loopctl.py status
-python monitor.py --serve          # or open the desktop widget
+python improver.py status     # what's enabled, rotation position, turn history
+python improver.py plan       # what the next pass WOULD do — creates nothing
+python improver.py run        # force one rotation pass now
+python improver.py init       # create kanban boards for enabled projects
+python monitor.py             # regenerate monitor.html
 ```
 
-## Configuration
+Open the monitor: **`C:\CODING\project-improver\monitor.html`**
+(it auto-reloads every 30s; it's also the "special area" — I can embed it in a
+Hermes Desktop pane plugin next if you want it inside the app rather than a tab)
 
-**One file decides everything machine-specific: `settings.py` reads a layered
-config and every module goes through it.** No token, home directory, model
-name, or server address is ever hardcoded in the loop.
+---
 
+## Controlling the loop
+
+Edit **only** `improve.yaml`:
+
+```yaml
+projects:
+  - name: tombs-and-tyrants
+    path: D:/ZCODE/TOMBS AND TYRANTS
+    board: tombs-and-tyrants
+    loops: 12                 # iterations this turn
+    objective: >              # what "better" means
+    acceptance: >             # checkable criteria — the judge sees ONLY this
+    gate: "python -m pytest tests/combat -q"   # exit code, not vibes
+    boundary: "This repo only."
+    implementer: glm53-flash-2x-spark:GLM-5.3-Flash-EXL3
+    reviewer:    deepseek-v41-flash-3x-spark:deepseek-v4.1-flash
+    enabled: true
 ```
-built-in defaults          safe: GitHub OFF, notifications OFF, no models set
-settings.yaml              tracked; team-shared; NO secrets allowed
-settings.local.yaml        gitignored; your machine; secrets allowed here
-environment variables      final override, highest priority
-```
 
-Later layers win, leaf by leaf. A secret **value** (`github.token`,
-`notifications.bot_token`) in the *tracked* `settings.yaml` is rejected by
-validation and dropped — the tracked file may only **name an env var**
-(`token_env: GITHUB_TOKEN`). `loopctl settings validate` prints every problem
-with the exact dotted key and the fix; `loopctl settings show` prints the
-effective config with secrets masked; `loopctl settings set <key> <value>`
-writes `settings.local.yaml` (add `--tracked` for `settings.yaml`, secrets
-refused). The shipped `settings.yaml` is a documented example of every key.
+- `enabled: false` parks a project without deleting it.
+- Rotation walks the enabled list in order and wraps around.
+- The rotator **refuses to stack cards**: if any project has an open card, it
+  creates nothing that pass. No runaway parallelism.
 
-### `github.*` — publishing checkpoints
+---
 
-| Key | Default | Meaning |
-|---|---|---|
-| `github.enabled` | `false` | Master switch. **OFF = local tags only**: the round's `kp/<project>/r<NN>` tag is cut locally, every push is skipped silently (supported mode, not an error). Nothing talks to GitHub. |
-| `github.owner` | `""` | Your GitHub username (hints for repo creation). |
-| `github.token_env` | `GITHUB_TOKEN` | NAME of the env var holding your token. |
-| `github.token` | unset | Token value — allowed only in `settings.local.yaml` or the environment. |
-| `github.require_repo` | `false` | Refuse rounds on repos with no git remote. |
-| `github.gh_cli` | `gh` | Path to the `gh` binary if not on PATH. |
-| `github.push_branches` | `true` | Push the working branch each round; `false` = tags only. |
+## Why there's no loop runner in this repo
 
-The runtime toggle `loopctl config --push-github false` turns pushes off on
-top of these, per deployment. When a token resolves, pushes authenticate
-non-interactively (bearer header); with none, git fails fast instead of
-opening a credential dialog — a headless round can never hang on a prompt.
+Hermes ships the loop: `hermes kanban create --goal --goal-max-turns N
+--workspace worktree --skill kanban-worker`. That's a full OS process with its own
+session, its own board row, retry on failure, and it survives a gateway restart.
+`improver.py` only decides *which* project gets a card and *when*.
 
-### `notifications.*` — pluggable messaging
+Design rules being followed (from the `karpathy-loop` skill):
+- A goal-mode kanban card, **not** `delegate_task` (measured 12 done / 9 failed —
+  all 9 died at the 7200s child timeout).
+- A **deterministic gate** wherever the project has tests — a failed gate
+  short-circuits the LLM judge and its output becomes the next prompt.
+- The **reviewer is always a different model family** than the implementer.
+- The **goal judge** is pinned to `deepseek-v4.1-flash`
+  (`auxiliary.goal_judge`), so the judge is never the model under test.
+- **No auto-merge to main.** Checkpoint branches only; you gate the merge.
 
-| Key | Default | Meaning |
-|---|---|---|
-| `notifications.enabled` | `false` | Master switch. OFF = every message is a silent no-op (no token lookup, no network). |
-| `notifications.backend` | `none` | `discord` \| `none`. Senders are pluggable: `notify_senders.py` holds the sender interface + registry; adding `slack`/`telegram` is one registered class, zero call-site changes. |
-| `notifications.include_summaries` | `true` | Round messages carry the plain-English (fifth-grade) summary of what the round is doing/did — produced by the checkpoint.py summarizer, cached per round, never blocking a round on the LLM. |
-| `notifications.bot_token_env` | `DISCORD_BOT_TOKEN` | NAME of the env var with the bot token. |
-| `notifications.bot_token` | unset | Token value — `settings.local.yaml` / env only. |
-| `notifications.channel_id` | `""` | The channel the loop posts into. |
-| `notifications.ping_user_id` | `""` | User id @mentioned on questions. |
-| `notifications.ping_on_stuck` | `false` | Also @mention when the loop reports STUCK. |
-| `notifications.env_file` | `""` | Optional KEY=VALUE file (e.g. Hermes' `.env`) to read the above from; falls back to the Hermes home `.env`. |
+---
 
-Message classes: **progress** (quiet post, no ping, includes the 💬 plain-English
-round summary when enabled), **stuck** (`[STUCK]` prefix, ping only with
-`ping_on_stuck`), **question** (`@` ping, repeated until answered or the
-loop records its best assumption).
+## Files
 
-### `models.*` — which models the loop agents use
+| File | Role |
+|---|---|
+| `discord_notify.py` | All Discord I/O. `progress` / `stuck` / `ask` / `remind` / `answer` |
+| `watch_answers.py` | Detects your reply; drives the reminder loop |
+| `improver.py` | The rotator — picks the project, creates the goal-mode card |
+| `pick.py` | Builds `pick.html` from ai-project-index (194 projects) |
+| `monitor.py` → `monitor.html` | The monitor window |
+| `setup_channel.py` | Run after you create the channel |
+| `improve.yaml` | **The only file you edit** |
+| `state/`, `questions/`, `logs/` | Runtime state |
 
-| Key | Env | Meaning |
-|---|---|---|
-| `models.implementer` | `KL_BUILDER_MODEL_SEAT` | The implementer seat — `provider:model` (or `custom:<slug>:<model>`). Seeds `loopctl config --implementer`; loop.json still wins at runtime. |
-| `models.reviewer` | `KL_REVIEWER_MODEL_SEAT` | The reviewer seat. Must be a DIFFERENT model (validated: a model cannot review its own work). |
-| `models.builder_fallback` | `KL_BUILDER_MODEL` | Seat used when loop.json has no implementer. |
-| `models.brief_model` / `brief_profile` | `KL_BRIEF_MODEL` / `KL_BRIEF_PROFILE` | Model for the one-shot repo briefs (empty = deterministic facts-only brief). |
-| `models.summary_url` / `summary_model` | `KL_LLM_URL` / `KL_LLM_MODEL` | The plain-English summary LLM: any OpenAI-compatible `/v1/chat/completions` endpoint. Unset = summaries skipped (no hardcoded fallback server). |
-| `models.summary_url_2` / `summary_model_2` | `KL_LLM_URL_2` / `KL_LLM_MODEL_2` | Optional fallback endpoint. |
+---
 
-The runner refuses to start on a malformed or dead seat (`provider:model`
-form is validated against the Hermes provider list before round one), so a
-typoed seat is a startup error, not hours of silent failure.
+## Fixes to your existing setup I'd suggest separately
 
-### `hermes.*`, `projects.*`, `runtime.*`
+1. **Cron noise in `#general`** — 8 jobs deliver there. Worth giving the noisy
+   ones (AI Builders Digest, GLM block monitor) their own channels so your
+   question pings never get buried again.
+2. **Gateway restart pending** — the CLI warns a previous `hermes update` pulled
+   code without restarting the gateway (`mixed sys.modules`). Worth a
+   `hermes gateway restart` on its own merits.
 
-| Key | Default | Meaning |
-|---|---|---|
-| `hermes.home` | `~/.hermes` / `%LOCALAPPDATA%\hermes` | Hermes home (env `HERMES_HOME`). |
-| `hermes.python` | `<home>/hermes-agent/venv/...` | Interpreter launching hermes CLI children (env `KL_HERMES_PYTHON`). |
-| `hermes.profile` | `default` | Hermes profile the loop threads run under. |
-| `hermes.config_file` | `<home>/config.yaml` | Validated against model seats. |
-| `projects.manifest` | `./improve.yaml` | Project manifest (env `KL_MANIFEST`). |
-| `projects.index_rows` | unset | Optional `rows.json` seed for discovery (env `KL_INDEX_ROWS`). |
-| `runtime.round_timeout` | `4200` | Hard ceiling per round, seconds (env `KL_ROUND_TIMEOUT`). |
-| `runtime.worktree_abandon_secs` | `21600` | Age after which an abandoned worktree quarantines its repo. |
-| `runtime.gate_timeout` | `900` | Default gate-command timeout (per-project `gate_timeout` overrides). |
-
-Discovery sweep roots default to your home folder; set `KL_SWEEP_ROOTS`
-(os-pathsep-separated) to choose your own.
-
-## Status
-
-Production-tested on four active repositories; 100+ accepted rounds, every
-safety property pinned by tests. Built for (and with) the
-[Hermes Agent](https://github.com/NousResearch/hermes-agent) desktop app, but
-the engine itself is just Python + git and runs anywhere.
-
-## License
-
-MIT
+Neither blocks the improver; both are hygiene.

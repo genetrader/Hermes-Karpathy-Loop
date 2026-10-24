@@ -9,7 +9,7 @@ desktop page) reads it. Nothing starts work unless running is true.
   python loopctl.py start
   python loopctl.py pause  --reason "reviewing"
   python loopctl.py stop
-  python loopctl.py config --projects project-a,project-b
+  python loopctl.py config --projects tombs-and-tyrants,secondbrain
   python loopctl.py config --angles-per-visit 2
   python loopctl.py config --max-rounds 20
 """
@@ -26,12 +26,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
-import settings as _S  # noqa: E402  settings.py is the single source for machine config
-
 # Mirror of karpathy_runner.ROUND_TIMEOUT (seconds). Used only to decide when a
-# RUNNING flag has gone stale. Keep the two in step -- both read it from
-# settings (runtime.round_timeout, env KL_ROUND_TIMEOUT overrides).
-ROUND_TIMEOUT_S = _S.round_timeout()
+# RUNNING flag has gone stale. Keep the two in step.
+ROUND_TIMEOUT_S = int(os.environ.get("KL_ROUND_TIMEOUT", "4200"))
 STATE = ROOT / "state"
 LOOP = STATE / "loop.json"
 ROTATION = STATE / "rotation.json"
@@ -40,25 +37,20 @@ DEFAULTS = {
     "running": False,
     "paused_reason": None,
     "projects": [],
-    # Seeded from the settings layer (runtime.* keys); loop.json on disk
-    # always wins once it exists, and `loopctl config` / the widget's
-    # rotation card write it from then on.
-    "angles_per_visit": _S.angles_per_visit_default(),
-    "max_rounds": _S.max_rounds_default(),   # 0 = forever
-    "max_hours": _S.max_hours_default(),      # 0 = forever
+    "angles_per_visit": 2,
+    "max_rounds": 25,       # W5: 25 rounds per activation (0 = forever)
+    "max_hours": 6,          # W5: 6 hours per activation (0 = forever)
     # Two model seats. They MUST differ: the implementer writes the change, the
     # reviewer reads the diff with a different brain. Same model in both seats
     # means the same blind spot twice.
-    # F3.7 (2026-09-30): the previous defaults named providers that were later
-    # HIDDEN -- the loop launched children against dead endpoints because
-    # nothing validated the seat. The defaults therefore carry NO model names
-    # at all: seats come from settings (models.implementer / models.reviewer,
-    # env KL_BUILDER_MODEL_SEAT / KL_REVIEWER_MODEL_SEAT) or from
-    # `loopctl config --implementer/--reviewer`, and main() refuses to run a
-    # loop on an empty or dead seat.
-    "implementer": _S.implementer_seat(),
-    "reviewer": _S.reviewer_seat(),
-    "sweep_minutes": _S.sweep_minutes_default(),
+    # F3.7 (2026-09-30): the previous defaults named providers HIDDEN on
+    # 2026-09-30 (glm53-2x EXL3, deepseek-v41-3x) -- the loop then launched
+    # children against dead endpoints. These are the LIVE fleet seats:
+    # implementer -> the GLM-5.3-Flash-FP8 TP4 bottle, reviewer -> qwen3.8
+    # on d754 (different family AND different box).
+    "implementer": "custom:glm53-flash-4x-spark-tp4:GLM-5.3-Flash-FP8",
+    "reviewer": "custom:d754-mia-flashnext:qwen3.8-flash-next",
+    "sweep_minutes": 360,
     "rounds_done": 0,
     "pushed_to_github": True,
     "started_at": None,
@@ -92,14 +84,144 @@ def load() -> dict:
     return cfg
 
 
-def save(cfg: dict) -> None:
-    """Atomic write (F0-3): temp + os.replace so a torn loop.json can never
-    exist. A torn file previously reset the whole loop config on next read."""
+LOCK = STATE / "loop.json.lock"
+LOCK_STALE_SEC = 900
+
+
+def _pid_alive_any(pid: int) -> bool:
+    try:
+        pid = int(pid)
+    except (TypeError, ValueError):
+        return False
+    if pid <= 0:
+        return False
+    try:
+        import ctypes
+        h = ctypes.windll.kernel32.OpenProcess(0x1000, False, pid)
+        if not h:
+            return False
+        code = ctypes.c_ulong()
+        ctypes.windll.kernel32.GetExitCodeProcess(h, ctypes.byref(code))
+        ctypes.windll.kernel32.CloseHandle(h)
+        return code.value == 259
+    except Exception:
+        return False
+
+
+def _acquire_lock(timeout: float = 20.0) -> bool:
+    """Single-writer lock for loop.json (W4). A killed holder must not wedge.
+
+    A lock FILE with pid+timestamp: a dead pid or an over-age lock is broken
+    with a warning. Same design as threads.py, for the same reason -- the
+    runner, loopctl cron and the desktop plugin all write this file.
+    """
+    deadline = time.time() + timeout
+    while True:
+        try:
+            fd = os.open(str(LOCK), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+            os.write(fd, json.dumps({"pid": os.getpid(),
+                                     "at": time.time()}).encode())
+            os.close(fd)
+            return True
+        except FileExistsError:
+            holder, age = 0, 0.0
+            try:
+                info = json.loads(LOCK.read_text(encoding="utf-8"))
+                holder = int(info.get("pid") or 0)
+                age = time.time() - float(info.get("at") or 0)
+            except Exception:
+                age = LOCK_STALE_SEC + 1
+            if holder and _pid_alive_any(holder) and age < LOCK_STALE_SEC:
+                if time.time() >= deadline:
+                    return False
+                time.sleep(0.15)
+                continue
+            print("loopctl: BREAKING STALE LOCK (pid=%s, age=%.0fs)"
+                  % (holder or "?", age), file=sys.stderr)
+            try:
+                LOCK.unlink()
+            except Exception:
+                pass
+        except Exception as e:
+            print("loopctl: lock error: %s" % e, file=sys.stderr)
+            return False
+
+
+def _release_lock() -> None:
+    try:
+        info = json.loads(LOCK.read_text(encoding="utf-8"))
+        if int(info.get("pid") or 0) != os.getpid():
+            return
+    except Exception:
+        pass
+    try:
+        LOCK.unlink()
+    except Exception:
+        pass
+
+
+def save(cfg: dict, take_lock: bool = True) -> None:
+    """Atomic write (F0-3) + single-writer lock (W4).
+
+    temp + os.replace so a torn loop.json can never exist; the lock stops the
+    runner / cron / plugin from interleaving read-modify-write and silently
+    discarding each other's round count or pause state.
+    """
     STATE.mkdir(parents=True, exist_ok=True)
     cfg["updated_at"] = _now()
+    if not take_lock:
+        _write_loop(cfg)
+        return
+    if not _acquire_lock():
+        print("loopctl: WARNING -- could not take the loop.json lock; writing "
+              "anyway (a stuck writer must not make pause impossible)",
+              file=sys.stderr)
+        _write_loop(cfg)
+        return
+    try:
+        _write_loop(cfg)
+    finally:
+        _release_lock()
+
+
+def _write_loop(cfg: dict) -> None:
     tmp = LOOP.with_suffix(".json.tmp")
     tmp.write_text(json.dumps(cfg, indent=2), encoding="utf-8")
     os.replace(tmp, LOOP)
+
+
+def reconcile_rounds(cfg: dict | None = None) -> dict:
+    """W4: make rounds_done the SUM of per-project rounds (threads.json).
+
+    The global counter is bumped by loopctl while each round also increments
+    its project's counter; a crash between the two leaves them disagreeing
+    forever (the audit found 893 project rounds against a global figure that
+    had drifted). The per-project counters are written by the round itself,
+    so they are the source of truth.
+
+    Returns the reconciled config (and persists it when it changed).
+    """
+    cfg = cfg if cfg is not None else load()
+    try:
+        reg = json.loads((STATE / "threads.json").read_text(encoding="utf-8")) or {}
+    except Exception:
+        return cfg
+    total = 0
+    for name, e in reg.items():
+        if isinstance(e, dict):
+            try:
+                total += int(e.get("rounds") or 0)
+            except (TypeError, ValueError):
+                pass
+    before = cfg.get("rounds_done")
+    if before != total:
+        cfg["rounds_done"] = total
+        cfg["rounds_reconciled_from"] = before
+        cfg["rounds_reconciled_at"] = _now()
+        save(cfg)
+        print("loopctl: rounds_done reconciled %s -> %s (sum of per-project "
+              "counters)" % (before, total), file=sys.stderr)
+    return cfg
 
 
 def _sync_rotation(cfg: dict) -> None:
@@ -213,6 +335,16 @@ def _liveness(cfg: dict) -> dict:
                         or (hb_age is not None and hb_age > stale_min))
         ),
         "stale_after_min": round(stale_min, 1),
+        # W5: the ONE verdict a human reads. A loop that believes it is
+        # running but whose heartbeat is stale is STALLED -- never "in-flight".
+        # The old text path printed "IN FLIGHT <mm:ss>" straight off a
+        # heartbeat file that a dead runner had left behind, so a wedged loop
+        # looked busy forever.
+        "verdict": ("STALLED -- %s" % wedge_why) if wedge_why else
+                   ("RUNNING" if on else "PAUSED"),
+        "in_flight": bool(on and hb.get("state") == "round-started"
+                          and hb_age is not None and hb_age <= stale_min
+                          and hb_pid_alive is True),
     }
 
 
@@ -237,7 +369,7 @@ def _pid_alive(pid) -> bool:
 def _avg_round_secs(entry: dict):
     """Average of the repo's recent round durations, or None.
 
-    Telemetry helper (the operator, 2026-10-01): entry["round_seconds_hist"] is a
+    Telemetry helper (Gene, 2026-10-01): entry["round_seconds_hist"] is a
     bounded list the runner stamps at each round's end. Garbage values are
     filtered, never trusted."""
     if not isinstance(entry, dict):
@@ -269,7 +401,7 @@ def _timing_rows(now=None) -> list:
     avg_secs, n, last_secs, in_flight_secs). in_flight_secs is set only for
     the repo whose round the heartbeat says is running."""
     import threads as _t
-    reg = _t.load()
+    reg = _t.load(strict=True)   # W4/W5: status degrades on corrupt state
     _hb_path = ROOT / "state" / "runner_heartbeat.json"
     hb = _hb_path.read_text(encoding="utf-8") if _hb_path.exists() else "{}"
     try:
@@ -312,6 +444,10 @@ def cmd_status(a) -> int:
         return 0
     on = live["running"]
     print(f"KARPATHY LOOP: {'RUNNING' if on else 'PAUSED'}")
+    # W5: the single honest verdict. A stale heartbeat means STALLED, not busy.
+    _v = live.get("verdict") or ("RUNNING" if on else "PAUSED")
+    if live.get("wedged"):
+        print(f"  !! {_v}")
     if not on and cfg.get("paused_reason"):
         print(f"  reason      : {cfg['paused_reason']}")
     if not on and cfg.get("paused_at"):
@@ -351,7 +487,7 @@ def cmd_status(a) -> int:
     if live.get("last_round_age_min") is not None:
         print(f"  last round  : {live['last_round_age_min']:.0f} min ago")
 
-    # Per-repo round timing (the operator, 2026-10-01): avg runtime per repo and
+    # Per-repo round timing (Gene, 2026-10-01): avg runtime per repo and
     # a live timer for the round in flight.
     _rows = _timing_rows()
     if _rows:
@@ -362,9 +498,11 @@ def cmd_status(a) -> int:
             _last = ("last %s" % _fmt_mmss(_r["last_secs"])
                      if _r["last_secs"] is not None else "last -")
             _run = ("IN FLIGHT %s" % _fmt_mmss(_r["in_flight_secs"])
-                    if _r["in_flight_secs"] is not None else "")
-            _rno = _r["rounds"] + 1 if _r["in_flight_secs"] is not None \
-                else _r["rounds"]
+                    if _r["in_flight_secs"] is not None
+                    and live.get("in_flight") else "")
+            _rno = (_r["rounds"] + 1
+                    if _r["in_flight_secs"] is not None
+                    and live.get("in_flight") else _r["rounds"])
             print("    %-24s r%-4s %-14s %-12s %s"
                   % (_r["name"], _rno, _avg, _last, _run))
 
@@ -375,7 +513,7 @@ def cmd_status(a) -> int:
     elif not on and live.get("heartbeat_stale_on_paused"):
         # PAUSED is legitimate, but a stale heartbeat left over from a killed
         # runner must not look like a round still in flight (2026-09-28: this
-        # showed "round-started project-a (pid 48600)" 49 min after
+        # showed "round-started tombs-and-tyrants (pid 48600)" 49 min after
         # that PID had died).
         print("  note        : heartbeat is stale/gone from a previous run; "
               "no round is in flight")
@@ -401,7 +539,7 @@ def cmd_start(a) -> int:
     save(cfg)
     _sync_rotation(cfg)
     # Start = work starts NOW. Spawn the continuous runner if not already alive
-    # (the operator, 2026-09-23: "It's either running or it's not running.")
+    # (Gene, 2026-09-23: "It's either running or it's not running.")
     import subprocess
     try:
         import karpathy_runner
@@ -412,8 +550,9 @@ def cmd_start(a) -> int:
             do_spawn = False
         if do_spawn:
             subprocess.Popen(
-                [str(_S.hermes_python()), str(ROOT / "karpathy_runner.py")],
-                cwd=str(ROOT),
+                [r"C:\Users\gene\AppData\Local\hermes\hermes-agent\venv\Scripts\python.exe",
+                 r"C:\CODING\project-improver\karpathy_runner.py"],
+                cwd=r"C:\CODING\project-improver",
                 creationflags=0x00000008,  # DETACHED_PROCESS
                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             print("runner spawned -- first round starts immediately")
@@ -579,7 +718,7 @@ def _kill_inflight_round() -> int:
     """
     HARD-STOP: kill the loop's OWN in-flight hermes round process tree.
 
-    the operator, 2026-09-23: "It's either running or it's not running." Waiting ~40 min
+    Gene, 2026-09-23: "It's either running or it's not running." Waiting ~40 min
     for an in-flight round after Pause reads as 'pause is broken'. The work in a
     round lives in the round's disposable worktree (F3), so killing mid-round
     loses nothing -- containment deletes the worktree at the next sweep.
@@ -607,7 +746,7 @@ def cmd_pause(a) -> int:
     cfg["running"] = False
     cfg["paused_reason"] = a.reason or "paused by user"
     cfg["paused_at"] = _now()
-    # drain semantics (the operator, 2026-09-24: "we should let it finish always"): pause stops NEW
+    # drain semantics (Gene, 2026-09-24: "we should let it finish always"): pause stops NEW
     # rounds; the in-flight round runs to its commit/checkpoint. --now keeps the old hard-stop
     # for the rare case something must die immediately.
     if getattr(a, "now", False):
@@ -649,8 +788,50 @@ def cmd_pause(a) -> int:
                 # F-B3: the runner is identified by argv[0] ENDING in
                 # karpathy_runner.py — an argument-text mention (a -z payload)
                 # is never argv[0], so parity heuristics are not needed at all.
-                first = cmd2.split()[0] if cmd2.split() else ""
-                return first.rstrip('"').lower().endswith("karpathy_runner.py")
+                # F-B4 (2026-10-16, review agent 2): the old
+                # `argv[0].endswith("karpathy_runner.py")` reproduced False on
+                # BOTH live runner processes (argv[0] ends in python.exe) and
+                # --now printed "0 runner proc" while the runner survived.
+                # Real CSV shapes (verified against the live table):
+                #   trampoline: "…python.exe C:\...\karpathy_runner.py","PID"
+                #   worker:     """…python.exe"" C:\...\karpathy_runner.py","PID"
+                # Both put the bare script path as the LAST token of the command
+                # field. A -z payload that MENTIONS the path has text after it
+                # inside the same field, so it never matches. Take the last
+                # whitespace token of field 0 and require it to BE the script
+                # path (endswith on both the plain and backslash forms).
+                _fields = next(csv.reader([cmd2], skipinitialspace=True))
+                if not _fields:
+                    return False
+                # W5 (2026-10-23, reproduced): the old rule required the LAST
+                # token to end in BOTH "karpathy_runner.py" and
+                # "\karpathy_runner.py" -- a conjunction that reduces to the
+                # backslash form -- and only inspected the last token.
+                # Reproduced failures against real shapes:
+                #   ...\karpathy_runner.py --run     -> False (trailing flag)
+                #   .../karpathy_runner.py            -> False (forward slashes)
+                #   ...\karpathy_runner.py -z "..."  -> False
+                # That is why `pause --now` printed "0 runner proc" while the
+                # runner survived and kept dispatching.
+                #
+                # Correct rule: any token whose BASENAME is karpathy_runner.py
+                # is the script -- regardless of separator style, drive prefix,
+                # or what follows it. A -z payload that merely MENTIONS the
+                # name is one quoted token whose basename is not the script.
+                _toks = _fields[0].replace('"', " ").split()
+                for _tok in _toks:
+                    # A token is the script only if it is a PATH ending in
+                    # karpathy_runner.py -- i.e. it contains a separator. A
+                    # bare -z payload that happens to BE the filename is not
+                    # an invocation, and the script itself is always reached
+                    # through a path (C:\...\karpathy_runner.py).
+                    _norm = _tok.strip().rstrip(",").replace("/", "\\")
+                    _parts = _norm.split("\\")
+                    if len(_parts) < 2:
+                        continue
+                    if _parts[-1].lower() == "karpathy_runner.py":
+                        return True
+                return False
 
             for line in _process_lines_csv():
                 if _runner_at_top_level(line):
@@ -748,47 +929,6 @@ def cmd_config(a) -> int:
     _sync_rotation(cfg)
     print("updated: " + (", ".join(changed) if changed else "(nothing)"))
     return 0
-
-
-def cmd_settings(a) -> int:
-    """Thin delegation to settings.py -- the settings layer owns its format."""
-    import settings as S
-    if a.verb == "show":
-        import json as _j
-        print(_j.dumps(S.redacted_view(), indent=2))
-        for i in S.issues():
-            print(str(i), file=sys.stderr)
-        return 0
-    if a.verb == "validate":
-        S.load_settings(refresh=True)
-        bad = 0
-        for i in S.issues():
-            print(str(i))
-            bad += (i.level == "error")
-        return 1 if bad else 0
-    if a.verb == "set":
-        if not a.key:
-            print("usage: loopctl settings set <key> <value> [--tracked]")
-            return 2
-        S.write_setting(a.key, a.value or "", tracked=a.tracked)
-        S.reset_cache()
-        print("set %s = %s in %s" % (a.key, a.value,
-                                     "settings.yaml" if a.tracked
-                                     else "settings.local.yaml"))
-        return 0
-    if a.verb == "unset":
-        if not a.key:
-            print("usage: loopctl settings unset <key> [--tracked]")
-            return 2
-        S.unset_setting(a.key, tracked=a.tracked)
-        S.reset_cache()
-        print("unset %s" % a.key)
-        return 0
-    if a.verb == "example":
-        # print, never overwrite: the repo ships a tracked settings.yaml.
-        print(S._example_yaml_text())
-        return 0
-    return 2
 
 
 def cmd_should_run(a) -> int:
@@ -906,14 +1046,6 @@ def main(argv=None) -> int:
     s.add_argument("--reviewer")
     s.add_argument("--sweep-minutes", type=int, dest="sweep_minutes")
     s.set_defaults(fn=cmd_config)
-    s = sub.add_parser("settings", help="inspect/edit settings.yaml / settings.local.yaml")
-    s.add_argument("verb", choices=["show", "validate", "set", "unset", "example"],
-                   nargs="?", default="show")
-    s.add_argument("key", nargs="?", default=None)
-    s.add_argument("value", nargs="?", default=None)
-    s.add_argument("--tracked", action="store_true",
-                   help="write the tracked settings.yaml (never for secrets)")
-    s.set_defaults(fn=cmd_settings)
     s = sub.add_parser("should-run"); s.add_argument("--autopause", action="store_true"); s.set_defaults(fn=cmd_should_run)
     s = sub.add_parser("bump"); s.set_defaults(fn=cmd_bump)
     s = sub.add_parser("show-campaign"); s.set_defaults(fn=cmd_show_campaign)  # read-only

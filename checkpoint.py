@@ -6,7 +6,7 @@ round can be rolled back in one command -- the thing the loop promised in
 prose and never actually did (no `git tag` was ever executed; `git tag -l`
 was empty on a repo that had been "checkpointed" twice).
 
-Design (locked by the operator 2026-09-22):
+Design (locked by Gene 2026-09-22):
   * PUBLIC repo   -> fork to the user's account, work on the fork, never
                      touch upstream; a PR upstream only on explicit approval.
   * no remote / not a repo -> create a PRIVATE repo automatically and push.
@@ -53,17 +53,6 @@ CKPT_LOG = STATE / "checkpoints.json"
 TAG_RE = re.compile(r"^[A-Za-z0-9._/-]+$")
 
 
-def _git_author() -> tuple[str, str]:
-    """(name, email) for the loop's own commits/tags, from settings
-    (git.author_name / git.author_email). Falls back to the generic
-    defaults if the settings layer itself is unusable."""
-    try:
-        import settings as _S
-        return _S.git_author()
-    except Exception:
-        return ("Karpathy Loop", "loop@local")
-
-
 # --------------------------------------------------------------------------
 # shell helpers
 # --------------------------------------------------------------------------
@@ -89,8 +78,7 @@ def git(repo: Path, *args, check=False, timeout=300):
 
 
 def gh(*args, check=False, timeout=300):
-    import settings as _S
-    return run([_S.gh_cli(), *args], cwd=HERE, check=check, timeout=timeout)
+    return run(["gh", *args], cwd=HERE, check=check, timeout=timeout)
 
 
 # --------------------------------------------------------------------------
@@ -185,18 +173,6 @@ def ensure_remote(repo: Path, project: str, owner_hint: str | None = None,
     """
     res = {"action": "none", "safe": True, "detail": ""}
 
-    # GitHub master switch OFF (the shipped default): checkpoints are LOCAL
-    # tags only. No gh calls, no fork/repo creation, no network -- and this
-    # is a SUPPORTED mode, so it reports safe, not a refusal.
-    try:
-        import settings as _S
-        if not _S.github_enabled():
-            res.update(action="local-only", safe=True,
-                       detail="GitHub disabled by settings -- tags stay local")
-            return res
-    except Exception:
-        pass
-
     if not is_repo(repo):
         res.update(safe=False, action="not-a-repo",
                    detail="not a git repo; checkpointing impossible")
@@ -264,12 +240,11 @@ def ensure_remote(repo: Path, project: str, owner_hint: str | None = None,
         return res
 
     name = re.sub(r"[^A-Za-z0-9._-]+", "-", project).strip("-") or "project"
-    _aname, _aemail = _git_author()
     # is this local repo already git-initialised with commits?
     rc, out = git(repo, "rev-parse", "HEAD")
     if rc != 0:
         git(repo, "add", "-A")
-        git(repo, "-c", "user.email=%s" % _aemail, "-c", "user.name=%s" % _aname,
+        git(repo, "-c", "user.email=loop@local", "-c", "user.name=Karpathy Loop",
             "commit", "-m", "chore: initial commit before Karpathy Loop")
         rc, out = git(repo, "rev-parse", "HEAD")
 
@@ -300,6 +275,53 @@ def ensure_remote(repo: Path, project: str, owner_hint: str | None = None,
 # --------------------------------------------------------------------------
 # checkpoints
 # --------------------------------------------------------------------------
+def tag_only(project: str, workdir: str, round_no: int,
+             ref: str | None = None, push: bool = False) -> str:
+    """Create an annotated tag on a round BRANCH without merging anything (W6).
+
+    A round that stopped at the human merge gate has its work on kl/<project>/r<N>
+    in a preserved worktree. Canonical must not move. This tags the branch tip so
+    the round is findable and reproducible, and never runs a merge.
+
+    Idempotent like checkpoint(): an existing tag is never moved. Push defaults
+    to False -- a tag for unmerged work stays local unless a caller explicitly
+    asks, so nothing lands on a public remote before a human approved the merge.
+
+    Returns a short status string, never raises (same contract as checkpoint()).
+    """
+    tag = "kp/%s/r%02d" % (project, round_no)
+    repo = Path(workdir)
+    ref = ref or "HEAD"
+    try:
+        if not TAG_RE.match(tag):
+            return "failed: invalid tag name %r" % tag
+
+        rc, _ = git(repo, "rev-parse", "--verify", "refs/tags/%s" % tag)
+        if rc == 0:
+            return "tag %s already exists (not moved)" % tag
+
+        rc, out = git(repo, "-c", "user.email=loop@local",
+                      "-c", "user.name=Karpathy Loop",
+                      "tag", "-a", tag, "-m",
+                      "round %d (unmerged -- awaiting human merge)" % round_no,
+                      ref)
+        if rc != 0:
+            return "failed: tag %s could not be created: %s" % (tag, out[:200])
+
+        sha = short_sha(repo, ref)
+        if push:
+            rem = remotes(repo)
+            if "origin" in rem:
+                rc, out = git(repo, "push", "origin", "refs/tags/%s" % tag, timeout=600)
+                if rc != 0:
+                    return "tag %s at %s created locally; push failed: %s" % (tag, sha, out[:200])
+                return "tag %s at %s created and pushed" % (tag, sha)
+            return "tag %s at %s created (no origin remote; local only)" % (tag, sha)
+        return "tag %s at %s created (local only -- unmerged)" % (tag, sha)
+    except Exception as e:
+        return "failed: tag_only could not run: %s" % e
+
+
 def make_checkpoint(repo: Path, tag: str, message: str, push: bool = True,
                     dry: bool = False) -> dict:
     """Annotated tag at HEAD (+ push). Idempotent: refuses to move an existing tag."""
@@ -313,20 +335,13 @@ def make_checkpoint(repo: Path, tag: str, message: str, push: bool = True,
     if dry:
         return {"ok": True, "tag": tag, "detail": "dry-run"}
 
-    _aname, _aemail = _git_author()
-    rc, out = git(repo, "-c", "user.email=%s" % _aemail,
-                  "-c", "user.name=%s" % _aname,
+    rc, out = git(repo, "-c", "user.email=loop@local",
+                  "-c", "user.name=Karpathy Loop",
                   "tag", "-a", tag, "-m", message)
     if rc != 0:
         return {"ok": False, "tag": tag, "detail": out[:300]}
 
     res = {"ok": True, "tag": tag, "sha": short_sha(repo), "pushed": False}
-
-    try:
-        import settings as _S
-        push = push and _S.push_enabled()
-    except Exception:
-        pass
 
     if push:
         rem = remotes(repo)
@@ -348,23 +363,14 @@ def commit_all(repo: Path, message: str) -> dict:
         return {"ok": True, "committed": False, "detail": "working tree clean"}
 
     git(repo, "add", "-A")
-    _aname, _aemail = _git_author()
-    rc, out = git(repo, "-c", "user.email=%s" % _aemail,
-                  "-c", "user.name=%s" % _aname, "commit", "-m", message)
+    rc, out = git(repo, "-c", "user.email=loop@local",
+                  "-c", "user.name=Karpathy Loop", "commit", "-m", message)
     if rc != 0:
         return {"ok": False, "committed": False, "detail": out[:300]}
     return {"ok": True, "committed": True, "sha": short_sha(repo)}
 
 
 def push_branch(repo: Path, project: str) -> dict:
-    try:
-        import settings as _S
-        if not _S.push_enabled() or not _S.push_branches():
-            return {"ok": True, "skipped": True,
-                    "detail": "branch push disabled by settings (github off / "
-                              "push_branches false)"}
-    except Exception:
-        pass
     rem = remotes(repo)
     if "origin" not in rem:
         return {"ok": False, "detail": "no origin to push to"}
@@ -626,34 +632,23 @@ def cmd_status(a):
 
 
 # ---------------------------------------------------------------- plain talk
-# F-S (2026-10-05, the operator: "explain what was done as if I'm in fifth grade"):
+# F-S (2026-10-05, Gene: "explain what was done as if I'm in fifth grade"):
 # every checkpoint's git subject is engineer-speak. This translates each tag's
 # subject into 1-2 plain sentences, ONCE per tag, cached on disk -- the panel
 # polls every 30s and must never pay for (or wait on) an LLM call per render.
 PLAIN_CACHE = HERE / "state" / "plain_summaries.json"
-
-
-def _summary_endpoints() -> list:
-    """[(url, model), ...] for the plain-English summary LLM, read FRESH from
-    settings -- models.summary_url / summary_model (+ _2 fallback), env names
-    KL_LLM_URL / KL_LLM_MODEL. An OpenAI-compatible /v1/chat/completions
-    endpoint. EMPTY when unconfigured: summary generation is then simply
-    skipped -- there are no hardcoded servers or model names anywhere."""
-    try:
-        import settings as _S
-        eps = _S.summary_endpoints()
-        if eps:
-            return eps
-    except Exception:
-        pass
-    # historical env names (settings folds these too; belt and braces so the
-    # summaries keep working if the settings layer itself is broken)
-    out = []
-    for uk, mk in (("KL_LLM_URL", "KL_LLM_MODEL"), ("KL_LLM_URL_2", "KL_LLM_MODEL_2")):
-        u = os.environ.get(uk)
-        if u:
-            out.append((u, os.environ.get(mk) or "gpt-4o-mini"))
-    return out
+# GLM bottle (.127:8093) is the primary; the BASTION worker lane (d754
+# .159:8888, qwen3.8-flash-next) is the fallback. Tried in order, once.
+PLAIN_ENDPOINTS = [
+    u for u in (
+        os.environ.get("KL_LLM_URL"),
+        "http://192.168.1.49:8081/v1/chat/completions",
+        "http://192.168.1.159:8899/v1/chat/completions",
+    ) if u
+]
+PLAIN_MODELS = {
+    "8899": os.environ.get("KL_LLM_MODEL", "qwen3.8-flash-next"),
+}
 
 
 def _load_plain_cache() -> dict:
@@ -679,12 +674,13 @@ def _plain_for(tag: str, subject: str, project: str) -> str:
     usermsg = ("Change made to the %s project:\n%s\n\n"
                "Explain in 1-2 simple sentences what this did for the person "
                "using the app." % (project, subject[:600]))
-    for url, model in _summary_endpoints():
+    for url in PLAIN_ENDPOINTS:
+        model = PLAIN_MODELS.get(url.split(":")[-1].split("/")[0], "GLM-5.3-Flash-FP8")
         try:
             # Thinking models burn small max_tokens budgets on hidden
             # reasoning and return content:null (measured: 160 tokens -> None
             # every call). Disable thinking where supported (vLLM
-            # chat_template_kwargs) and budget generously.
+            # chat_template_kwargs, the BASTION lane) and budget generously.
             body = json.dumps({
                 "model": model, "max_tokens": 400, "temperature": 0.2,
                 "chat_template_kwargs": {"enable_thinking": False},
@@ -693,7 +689,7 @@ def _plain_for(tag: str, subject: str, project: str) -> str:
             }).encode("utf-8")
             req = urllib.request.Request(url, data=body,
                                          headers={"Content-Type": "application/json"})
-            with urllib.request.urlopen(req, timeout=25) as r:
+            with urllib.request.urlopen(req, timeout=45) as r:
                 data = json.loads(r.read().decode("utf-8"))
             text = (data.get("choices") or [{}])[0].get("message", {}).get("content", "")
             # worker models may emit <think> blocks -- strip them
@@ -716,71 +712,8 @@ def _plain_for(tag: str, subject: str, project: str) -> str:
     return text
 
 
-def _inflight_round(project: str, round_no: int | None = None) -> tuple:
-    """(entry, current_angle) for a project from the threads registry, or
-    (None, {}) when it has none. When round_no is given the angle must belong
-    to that round (or not name one), so a stale current_angle from a previous
-    round never captions a fresh message."""
-    try:
-        reg = json.loads((HERE / "state" / "threads.json").read_text(encoding="utf-8"))
-    except Exception:
-        reg = {}
-    e = reg.get(project) or {}
-    ca = e.get("current_angle") or {}
-    if ca and round_no is not None and ca.get("round") not in (None, round_no):
-        return None, {}
-    return (e, ca) if ca else (None, {})
-
-
-def _current_subject(brief: str, ca: dict, project: str) -> str:
-    """The engineer-speak description handed to the fifth-grade translator for
-    the in-flight round. Shared by cmd_current (panel) and plain_round_summary
-    (Discord) so the two can never drift."""
-    return ("The project: %s\n"
-            "This round (number %s) is applying the review angle '%s' "
-            "-- %s\n"
-            "The exact instruction the worker was given: %s"
-            % ((brief or project)[:300], ca.get("round"), ca.get("id"),
-               (ca.get("lens") or ""), (ca.get("prompt") or "")[:900]))
-
-
-def plain_round_summary(project: str, round_no: int | None = None) -> str:
-    """Public: the fifth-grade line for THIS project's round, used by
-    discord_notify.progress on round messages. Cache-first (the notify path
-    must never block the round on the LLM); asks the summary model only for
-    the in-flight round and caches per <project>/<angle>/<round>. Returns ""
-    when notifications-summaries are off, no endpoint is configured, or
-    nothing is in flight -- callers then just post the technical line."""
-    e, ca = _inflight_round(project, round_no)
-    if ca:
-        key = "current/%s/%s/r%s" % (project, ca.get("id"), ca.get("round"))
-        hit = _load_plain_cache().get(key)
-        if isinstance(hit, str) and hit:
-            return hit
-        # cache miss: generating a NEW summary needs an endpoint; without one
-        # we post the technical line only.
-        try:
-            if not _summary_endpoints():
-                return ""
-        except Exception:
-            return ""
-        brief = ""
-        try:
-            brief = json.loads((HERE / "state" / "repos" / ("%s.json" % project)).read_text(
-                encoding="utf-8")).get("what_it_is") or ""
-        except Exception:
-            pass
-        return _plain_current(key, _current_subject(brief, ca, project), project) or ""
-    # not in flight: a cached checkpoint summary for the finished round, if any
-    if round_no:
-        hit = _load_plain_cache().get("kp/%s/r%02d" % (project, round_no))
-        if isinstance(hit, str) and hit:
-            return hit
-    return ""
-
-
 def cmd_current(a):
-    """F-V (2026-10-05, the operator: fifth-grade summary of what the loop is working
+    """F-V (2026-10-05, Gene: fifth-grade summary of what the loop is working
     on RIGHT NOW). Emits the in-flight round as plain English: repo, angle,
     round, and what it's trying to build/prove/fix. Cached per
     <project>/<angle>/<round> so the 2.5s widget poll never pays an LLM call
@@ -800,15 +733,43 @@ def cmd_current(a):
         pass
     # The in-flight project: fresh round-started heartbeat, else the freshest
     # current_angle.started.
+    # F-R2 (2026-10-16, review agent 2): the fallback arm used to report a DEAD
+    # loop as in-flight forever — the runner sets current_angle but never
+    # clears it, and the fallback had no pid/staleness check, so after
+    # pause/stop/crash this printed {"running":true} permanently and the
+    # widget's "Working on right now" panel showed a stale round. Gate the
+    # fallback on the runner actually being alive: the heartbeat's pid must
+    # still exist AND its heartbeat must not be ancient.
     name, ca = None, {}
-    if hb.get("state") == "round-started" and (_t.time() - float(hb.get("ts") or 0)) < 4200:
+    _hb_alive = False
+    _hb_pid = hb.get("pid")
+    if _hb_pid:
+        try:
+            _chk = subprocess.run(
+                ["tasklist", "/FI", "PID eq %s" % _hb_pid, "/FO", "CSV", "/NH"],
+                capture_output=True, text=True, timeout=30,
+                errors="replace", creationflags=0x08000000)
+            _hb_alive = ('"%s"' % _hb_pid) in (_chk.stdout or "")
+        except Exception:
+            _hb_alive = False
+    _hb_fresh = hb.get("state") == "round-started" and \
+        (_t.time() - float(hb.get("ts") or 0)) < 4200
+    if _hb_fresh and _hb_alive:
         name = hb.get("project")
     if not name:
+        # stale/dead heartbeat: only trust current_angle if its started stamp
+        # is recent (a live round writes it at round start).
         best = 0.0
+        _now = _t.time()
         for n, e in reg.items():
             s = ((e.get("current_angle") or {}).get("started") or 0)
-            if s > best:
+            if s > best and (_now - s) < 7200:  # 2h = 2x round ceiling
                 best, name = s, n
+        if name and not (_hb_alive and _hb_fresh):
+            # runner not provably alive -> report not-running, not a stale round
+            print()
+            print(json.dumps({"running": False}))
+            return 0
     e = reg.get(name) or {}
     ca = e.get("current_angle") or {}
     if not ca:
@@ -824,7 +785,13 @@ def cmd_current(a):
     key = "current/%s/%s/r%s" % (name, ca.get("id"), ca.get("round"))
     plain = _plain_for(key, "", name)  # cache lookup only
     if not plain:
-        plain = _plain_current(key, _current_subject(brief, ca, name), name)
+        subject = ("The project: %s\n"
+                   "This round (number %s) is applying the review angle '%s' "
+                   "-- %s\n"
+                   "The exact instruction the worker was given: %s"
+                   % ((brief or name)[:300], ca.get("round"), ca.get("id"),
+                      (ca.get("lens") or ""), (ca.get("prompt") or "")[:900]))
+        plain = _plain_current(key, subject, name)
     print()
     print(json.dumps({
         "running": True, "project": name, "round": ca.get("round"),
@@ -848,7 +815,8 @@ def _plain_current(key: str, subject: str, project: str) -> str:
     usermsg = ("%s\n\nExplain simply what this worker is trying to do right "
                "now." % subject)
     text = ""
-    for url, model in _summary_endpoints():
+    for url in PLAIN_ENDPOINTS:
+        model = PLAIN_MODELS.get(url.split(":")[-1].split("/")[0], "GLM-5.3-Flash-FP8")
         try:
             body = json.dumps({
                 "model": model, "max_tokens": 400, "temperature": 0.2,
@@ -858,7 +826,7 @@ def _plain_current(key: str, subject: str, project: str) -> str:
             }).encode("utf-8")
             req = urllib.request.Request(url, data=body,
                                          headers={"Content-Type": "application/json"})
-            with urllib.request.urlopen(req, timeout=25) as r:
+            with urllib.request.urlopen(req, timeout=45) as r:
                 data = json.loads(r.read().decode("utf-8"))
             t = (data.get("choices") or [{}])[0].get("message", {}).get("content", "")
             t = re.sub(r"<think>.*?</think>", "", str(t), flags=re.S)
@@ -1043,6 +1011,95 @@ def main():
 
     a = ap.parse_args()
     sys.exit(a.fn(a))
+
+
+
+# ---- ported from public repo (settings-driven summary access for notify) ----
+
+def _summary_endpoints() -> list:
+    """[(url, model), ...] for the plain-English summary LLM, read FRESH from
+    settings -- models.summary_url / summary_model (+ _2 fallback), env names
+    KL_LLM_URL / KL_LLM_MODEL. An OpenAI-compatible /v1/chat/completions
+    endpoint. EMPTY when unconfigured: summary generation is then simply
+    skipped -- there are no hardcoded servers or model names anywhere."""
+    try:
+        import settings as _S
+        eps = _S.summary_endpoints()
+        if eps:
+            return eps
+    except Exception:
+        pass
+    # historical env names (settings folds these too; belt and braces so the
+    # summaries keep working if the settings layer itself is broken)
+    out = []
+    for uk, mk in (("KL_LLM_URL", "KL_LLM_MODEL"), ("KL_LLM_URL_2", "KL_LLM_MODEL_2")):
+        u = os.environ.get(uk)
+        if u:
+            out.append((u, os.environ.get(mk) or "gpt-4o-mini"))
+    return out
+
+
+def _inflight_round(project: str, round_no: int | None = None) -> tuple:
+    """(entry, current_angle) for a project from the threads registry, or
+    (None, {}) when it has none. When round_no is given the angle must belong
+    to that round (or not name one), so a stale current_angle from a previous
+    round never captions a fresh message."""
+    try:
+        reg = json.loads((HERE / "state" / "threads.json").read_text(encoding="utf-8"))
+    except Exception:
+        reg = {}
+    e = reg.get(project) or {}
+    ca = e.get("current_angle") or {}
+    if ca and round_no is not None and ca.get("round") not in (None, round_no):
+        return None, {}
+    return (e, ca) if ca else (None, {})
+
+
+def _current_subject(brief: str, ca: dict, project: str) -> str:
+    """The engineer-speak description handed to the fifth-grade translator for
+    the in-flight round. Shared by cmd_current (panel) and plain_round_summary
+    (Discord) so the two can never drift."""
+    return ("The project: %s\n"
+            "This round (number %s) is applying the review angle '%s' "
+            "-- %s\n"
+            "The exact instruction the worker was given: %s"
+            % ((brief or project)[:300], ca.get("round"), ca.get("id"),
+               (ca.get("lens") or ""), (ca.get("prompt") or "")[:900]))
+
+
+def plain_round_summary(project: str, round_no: int | None = None) -> str:
+    """Public: the fifth-grade line for THIS project's round, used by
+    discord_notify.progress on round messages. Cache-first (the notify path
+    must never block the round on the LLM); asks the summary model only for
+    the in-flight round and caches per <project>/<angle>/<round>. Returns ""
+    when notifications-summaries are off, no endpoint is configured, or
+    nothing is in flight -- callers then just post the technical line."""
+    e, ca = _inflight_round(project, round_no)
+    if ca:
+        key = "current/%s/%s/r%s" % (project, ca.get("id"), ca.get("round"))
+        hit = _load_plain_cache().get(key)
+        if isinstance(hit, str) and hit:
+            return hit
+        # cache miss: generating a NEW summary needs an endpoint; without one
+        # we post the technical line only.
+        try:
+            if not _summary_endpoints():
+                return ""
+        except Exception:
+            return ""
+        brief = ""
+        try:
+            brief = json.loads((HERE / "state" / "repos" / ("%s.json" % project)).read_text(
+                encoding="utf-8")).get("what_it_is") or ""
+        except Exception:
+            pass
+        return _plain_current(key, _current_subject(brief, ca, project), project) or ""
+    # not in flight: a cached checkpoint summary for the finished round, if any
+    if round_no:
+        hit = _load_plain_cache().get("kp/%s/r%02d" % (project, round_no))
+        if isinstance(hit, str) and hit:
+            return hit
+    return ""
 
 
 if __name__ == "__main__":

@@ -18,7 +18,7 @@ Rules implemented (all from angles.yaml `picker:`):
                         predicate says "not applicable" are filtered out.
 
 Usage:
-  python angle_pick.py pull --project project-a [--seed N] [--json]
+  python angle_pick.py pull --project tombs-and-tyrants [--seed N] [--json]
   python angle_pick.py list [--family gameplay]
   python angle_pick.py stats
   python angle_pick.py mark --angle lying-test --project X --result accepted|failed
@@ -28,6 +28,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import random
 import re
 import sys
@@ -54,7 +55,7 @@ def _strip_scalar(v: str):
 
 
 def _apply_overrides(data: dict) -> dict:
-    """Overlay state/angle_overrides.yaml (the operator's widget edits) onto the base angles."""
+    """Overlay state/angle_overrides.yaml (Gene's widget edits) onto the base angles."""
     try:
         from angles_store import load_overrides  # local: angles_store imports this module
         ovr = load_overrides()
@@ -138,6 +139,131 @@ def load_angles(path: Path = ANGLES_YAML, merged: bool = True) -> dict:
 # --------------------------------------------------------------------------
 # history / retirement bookkeeping
 # --------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+# W3: per-project angle scoping.
+#
+# An angle family that only makes sense for one kind of project must never be
+# dispatched to another. `projects: None` in angles.yaml means "any project",
+# which is right for correctness/robustness/performance but WRONG for gameplay:
+# secondbrain is a Python server and has no game loop to inspect.
+#
+# This is enforced HERE, in the picker -- not only in the prompt prose the child
+# may ignore. A family not listed for a project is not merely un-preferred; it is
+# not a candidate at all.
+# ---------------------------------------------------------------------------
+FAMILY_PROJECT_SCOPE = {
+    # gameplay only reaches projects that actually are games
+    "gameplay": {"tombs-and-tyrants"},
+}
+
+# Families that are meaningful for ANY project type. Everything not listed in
+# FAMILY_PROJECT_SCOPE is universally applicable.
+
+# W3: cap on consecutive prompt VARIANTS of one angle before the picker must
+# change family. Two, per the design: "different angle each pass".
+MAX_CONSECUTIVE_VARIANTS = 2
+
+
+def family_allowed(family: str, project: str) -> bool:
+    """Is this angle family meaningful for this project? (W3 scoping)
+
+    Unknown family -> allowed: an angle added later without a scope entry must
+    not silently vanish. The explicit map is the ONLY restriction.
+    """
+    allowed = FAMILY_PROJECT_SCOPE.get((family or "").strip().lower())
+    if allowed is None:
+        return True
+    return (project or "").strip() in allowed
+
+
+def consecutive_variants(hist: dict, project: str, angle_id: str) -> int:
+    """How many rounds in a row has this project used this angle? (W3 cap)
+
+    Reads the ledger's round rows newest-first and stops at the first row for a
+    different project or a different angle. A row for another project is not
+    evidence about THIS project's streak.
+    """
+    rows = hist.get("rounds") or []
+    n = 0
+    for r in reversed(rows):
+        if (r.get("project") or "") != project:
+            break             # the streak is per-project and CONSECUTIVE: a round
+                              # on another project interrupts it, it does not
+                              # bridge it. (Skipping instead let p2's rounds
+                              # count toward p1's streak -- caught in test.)
+        if (r.get("angle") or "") != angle_id:
+            break             # a different angle ended the streak
+        n += 1
+    return n
+
+
+def recent_families(hist: dict, project: str, limit: int) -> list:
+    """The last `limit` families used on THIS project, newest first."""
+    out = []
+    for r in reversed(hist.get("rounds") or []):
+        if (r.get("project") or "") != project:
+            continue
+        out.append((r.get("family") or "").strip().lower())
+        if len(out) >= limit:
+            break
+    return out
+
+
+def record_round(project: str, angle_id: str, family: str, result: str,
+                 round_no: int | None = None, note: str = "") -> dict:
+    """Record one round outcome in the GLOBAL ledger. Returns the angle stats.
+
+    THE FIX for the frozen ledger: this is called by the RUNNER, which is the
+    only party that observes the gate and decides acceptance. The child used to
+    be instructed to run `angle_pick.py mark` and did not, so 881 of 893 rounds
+    never reached the ledger and cooldown/rotation/retirement all went dead.
+
+    `result` is "accepted" or anything else (failure). Atomic write: a torn
+    ledger must never exist -- the picker reads it on every dispatch.
+    """
+    h = load_history()
+
+    # IDEMPOTENCE (W3, 2026-10-23): a round must be recorded ONCE. The runner
+    # can re-enter this path (a resumed round, a retried dispatch) and the
+    # ledger must not double-count, or cooldown/retirement silently skew. The
+    # identity of a round is (project, round_no); without a round number we
+    # cannot dedupe, so we count it (an unnumbered call is a distinct event).
+    if round_no is not None:
+        for _r in h.get("rounds") or []:
+            if (_r.get("project") == project
+                    and _r.get("round") == round_no):
+                return h.setdefault("angles", {}).setdefault(
+                    angle_id, {"used": 0, "accepted": 0, "failed": 0,
+                              "streak_fail": 0, "retired": False})
+
+    st = h.setdefault("angles", {}).setdefault(
+        angle_id, {"used": 0, "accepted": 0, "failed": 0,
+                  "streak_fail": 0, "retired": False})
+    st["used"] = int(st.get("used", 0)) + 1
+    if result == "accepted":
+        st["accepted"] = int(st.get("accepted", 0)) + 1
+        st["streak_fail"] = 0
+        st["retired"] = False      # a success re-qualifies a retired angle
+    else:
+        st["failed"] = int(st.get("failed", 0)) + 1
+        st["streak_fail"] = int(st.get("streak_fail", 0)) + 1
+        k = int(load_angles()["picker"].get("retire_after_failures", 0) or 0)
+        if k and st["streak_fail"] >= k:
+            st["retired"] = True
+    row = {"angle": angle_id, "project": project,
+           "family": family or "?", "result": result, "at": _now()}
+    if round_no is not None:
+        row["round"] = round_no
+    if note:
+        row["note"] = note[:200]
+    h.setdefault("rounds", []).append(row)
+    # keep the ledger bounded -- 500 rounds is far more than any decision needs
+    if len(h["rounds"]) > 500:
+        h["rounds"] = h["rounds"][-500:]
+    save_history(h)
+    return st
+
+
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
@@ -152,8 +278,12 @@ def load_history() -> dict:
 
 
 def save_history(h: dict) -> None:
+    """Atomic write (W3): the picker reads this on every dispatch, so a torn
+    ledger would silently reset cooldown/rotation/retirement."""
     STATE.mkdir(parents=True, exist_ok=True)
-    HISTORY.write_text(json.dumps(h, indent=2), encoding="utf-8")
+    tmp = HISTORY.with_suffix(".json.tmp")
+    tmp.write_text(json.dumps(h, indent=2), encoding="utf-8")
+    os.replace(tmp, HISTORY)
 
 
 def angle_stats(h: dict, angle_id: str) -> dict:
@@ -224,7 +354,7 @@ def is_applicable(angle: dict, facts: dict) -> bool:
 # --------------------------------------------------------------------------
 # the pick
 # --------------------------------------------------------------------------
-# PROMPT LAYER (the operator, 2026-09-27 -- locked design).
+# PROMPT LAYER (Gene, 2026-09-27 -- locked design).
 #
 # An angle alone is a lens, not a work order. Each angle now carries 4 PROMPTS
 # (angle_prompts.yaml), and a round consumes ONE angle + ONE unused prompt.
@@ -301,13 +431,25 @@ def pick(project: str, facts: dict | None = None, seed: int | None = None) -> di
         retire_k = int(cfg.get("retire_after_failures", 0) or 0)
         if retire_k and st.get("streak_fail", 0) >= retire_k:
             return False
+        # W3: per-project scoping. A gameplay angle must never reach a
+        # non-game project -- enforced here, not just in the prompt prose.
+        if not family_allowed(a.get("family", ""), project):
+            return False
+        # W3: 2 consecutive variants of one angle is the cap. After that the
+        # angle is not a candidate for THIS project until something else runs.
+        if consecutive_variants(hist, project, a["id"]) >= MAX_CONSECUTIVE_VARIANTS:
+            return False
         return is_applicable(a, facts)
 
     pool = [a for a in angles if usable(a)]
     if not pool:
-        # everything retired/inapplicable -- fall back to all, so we never
-        # deadlock the loop on an empty pool
-        pool = list(angles)
+        # everything retired/inapplicable -- fall back so the loop never
+        # deadlocks on an empty pool. W3: the fallback must still respect
+        # SCOPE (a gameplay angle on a server is wrong no matter how empty
+        # the pool is); the variant cap is relaxed here because a stuck pool
+        # is a worse failure than repeating an angle.
+        pool = [a for a in angles
+                if family_allowed(a.get("family", ""), project)] or list(angles)
 
     # --- cooldown: drop angles used in the last N rounds ----------------
     cooldown = int(cfg.get("cooldown_rounds", 0) or 0)
@@ -324,6 +466,8 @@ def pick(project: str, facts: dict | None = None, seed: int | None = None) -> di
         for r in hist.get("rounds", []):
             fam_hist[r.get("family", "?")] = fam_hist.get(r.get("family", "?"), 0) + 1
         fams = sorted({a["family"] for a in pool})
+        # W3: never rotate INTO a family that is out of scope for this project.
+        fams = [f for f in fams if family_allowed(f, project)] or fams
         # weight toward the least-used families
         least = min(fam_hist.get(f, 0) for f in fams)
         candidates = [f for f in fams if fam_hist.get(f, 0) == least]
@@ -337,7 +481,12 @@ def pick(project: str, facts: dict | None = None, seed: int | None = None) -> di
     rng.shuffle(shuffled)
     ordered_ids = [a["id"] for a in shuffled]
 
-    prompt = _next_unused_prompt(project, ordered_ids)
+    # W3: exclude angles that have already hit the consecutive-variant cap,
+    # so the prompt layer cannot depth-cycle one angle past the limit.
+    _cycle_ids = [aid for aid in ordered_ids
+                   if consecutive_variants(hist, project, aid)
+                   < MAX_CONSECUTIVE_VARIANTS]
+    prompt = _next_unused_prompt(project, _cycle_ids) if _cycle_ids else None
     chosen = None
     if prompt is not None:
         # Look up the owning angle in the FULL angle list, never in `pool`.
@@ -348,6 +497,15 @@ def pick(project: str, facts: dict | None = None, seed: int | None = None) -> di
         # prompt_id on a cycle that was only ~20% spent. Search `angles`.
         _aid_want = _angle_for_prompt(prompt)
         chosen = next((a for a in angles if a["id"] == _aid_want), None)
+        # W3: the prompt layer must not smuggle an angle past the picker's own
+        # constraints. A prompt can exist for an angle that is out of scope for
+        # this project, cooling down, retired, or at its consecutive-variant
+        # cap; handing it out would undo every guard above. If the owning angle
+        # is not in `pool` -- i.e. the picker already rejected it -- ignore the
+        # prompt and fall through to the plain pick.
+        if chosen is not None and chosen not in pool:
+            chosen = None
+            prompt = None
         if chosen is None:
             # A prompt exists for an angle that is not in angles.yaml. Do not
             # pretend the cycle is over; fall through to the plain pick and log it.

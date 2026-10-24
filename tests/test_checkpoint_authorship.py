@@ -26,17 +26,6 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 import karpathy_runner as kr  # noqa: E402
-import settings as S_mod      # noqa: E402
-
-
-def _enable_github(monkeypatch):
-    """These cases exercise the PUSH path against a temp BARE origin. GitHub
-    is off by default (safe shipped default), so flip the settings accessors
-    the checkpoint reads -- monkeypatch restores them per test."""
-    monkeypatch.setattr(kr._S, "github_enabled", lambda: True)
-    monkeypatch.setattr(S_mod, "github_enabled", lambda: True)
-    monkeypatch.setattr(kr._S, "push_enabled", lambda loop_cfg=None: True)
-    monkeypatch.setattr(S_mod, "push_enabled", lambda loop_cfg=None: True)
 
 
 def _git(repo, *args):
@@ -60,8 +49,7 @@ def _make_repo(tmp: tempfile.TemporaryDirectory):
     return repo, bare
 
 
-def test_foreign_tag_fails_loudly_and_never_pushes(monkeypatch):
-    _enable_github(monkeypatch)
+def test_foreign_tag_fails_loudly_and_never_pushes():
     with tempfile.TemporaryDirectory() as d:
         t = tempfile.TemporaryDirectory(dir=d)
         repo, bare = _make_repo(t)
@@ -81,8 +69,7 @@ def test_foreign_tag_fails_loudly_and_never_pushes(monkeypatch):
         assert _git(repo, "rev-parse", "refs/tags/kp/proj/r01").stdout.strip() == shaA
 
 
-def test_tag_already_at_head_publishes_push_only(monkeypatch):
-    _enable_github(monkeypatch)
+def test_tag_already_at_head_publishes_push_only():
     with tempfile.TemporaryDirectory() as d:
         t = tempfile.TemporaryDirectory(dir=d)
         repo, bare = _make_repo(t)
@@ -98,8 +85,7 @@ def test_tag_already_at_head_publishes_push_only(monkeypatch):
         assert pushed == _git(repo, "rev-parse", "HEAD").stdout.strip()
 
 
-def test_clean_publish_tags_and_pushes(monkeypatch):
-    _enable_github(monkeypatch)
+def test_clean_publish_tags_and_pushes():
     with tempfile.TemporaryDirectory() as d:
         t = tempfile.TemporaryDirectory(dir=d)
         repo, bare = _make_repo(t)
@@ -111,8 +97,7 @@ def test_clean_publish_tags_and_pushes(monkeypatch):
         assert remote == _git(repo, "rev-parse", "HEAD").stdout.strip()
 
 
-def test_no_remote_still_tags_and_reports_gap(monkeypatch):
-    _enable_github(monkeypatch)
+def test_no_remote_still_tags_and_reports_gap():
     with tempfile.TemporaryDirectory() as d:
         repo = pathlib.Path(d) / "repo2"
         repo.mkdir()

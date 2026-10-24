@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Pair + connect + install Project B in ONE shot, so the code cannot time out
+# Pair + connect + install SecondBrain in ONE shot, so the code cannot time out
 # between me reading it and using it.
 #
 # Usage: bash pair-and-install.sh <PAIRING_CODE>
@@ -9,9 +9,9 @@
 # minutes to return. Reading the code and pairing must happen together.
 set -u
 A="$LOCALAPPDATA/Android/Sdk/platform-tools/adb.exe"
-A="$HOME/AppData/Local/Android/Sdk/platform-tools/adb.exe"
+A="/c/Users/gene/AppData/Local/Android/Sdk/platform-tools/adb.exe"
 CODE="${1:?usage: pair-and-install.sh <PAIRING_CODE>}"
-APK="$HOME/PROJECT B/android/app/build/outputs/apk/debug/app-debug.apk"
+APK="/c/Users/gene/ANDROID NOTES LIKE GENSPARK/android/app/build/outputs/apk/debug/app-debug.apk"
 
 echo "=== 1. fresh mDNS scan (ports rotate every time the dialog opens) ==="
 SVC=$("$A" mdns services 2>&1 | tr -d '\r')
@@ -52,10 +52,10 @@ if "$A" devices | grep -q "device$"; then
   "$A" install -r "$APK" 2>&1 | tail -6
   echo
   echo "=== 6. verified: is it installed, and what version? ==="
-  "$A" shell dumpsys package com.example.project-b 2>&1 | grep -E "versionName|versionCode|firstInstallTime|lastUpdateTime" | head -5
+  "$A" shell dumpsys package com.gene.secondbrain 2>&1 | grep -E "versionName|versionCode|firstInstallTime|lastUpdateTime" | head -5
   echo
   echo "=== 7. does the app now have a pending upload queue? ==="
-  "$A" shell run-as com.example.project-b ls -la files/recordings 2>&1 | head -10 || echo "(run-as unavailable on a release-signed build)"
+  "$A" shell run-as com.gene.secondbrain ls -la files/recordings 2>&1 | head -10 || echo "(run-as unavailable on a release-signed build)"
 else
   echo
   echo "!! still no device -- pairing did not complete. Get a NEW code and rerun."

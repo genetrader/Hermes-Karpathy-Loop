@@ -5,7 +5,7 @@ import json
 import subprocess
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(r"C:\CODING\project-improver")
 PLUG = ROOT / "review" / "plugin.js"
 src = PLUG.read_text(encoding="utf-8")
 
@@ -60,7 +60,7 @@ print()
 print("ALL RENDER DECISIONS CORRECT" if ok and all(checks.values()) else "PROBLEM FOUND")
 
 # 3. Live sanity: the real backend currently reports paused + stale, NOT wedged.
-p = subprocess.run([r"<LOCALAPPDATA>\..\AppData\Local\hermes\hermes-agent\venv\Scripts\python.exe",
+p = subprocess.run([r"C:\Users\gene\AppData\Local\hermes\hermes-agent\venv\Scripts\python.exe",
                     "loopctl.py", "status", "--json"],
                    cwd=str(ROOT), capture_output=True, text=True, timeout=120)
 d = json.loads(p.stdout)

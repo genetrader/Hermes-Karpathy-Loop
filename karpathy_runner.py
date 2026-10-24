@@ -2,7 +2,7 @@
 """
 karpathy_runner.py -- the continuous round runner (Start/Pause model).
 
-the operator's model (2026-09-23, verbatim intent): "It starts when I start it and it
+Gene's model (2026-09-23, verbatim intent): "It starts when I start it and it
 runs until it reaches a certain threshold... then saving a GitHub checkpoint...
 ends the run with the updated checkpoint... goes to another project or does
 another round... It's either running or it's not running."
@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import json
 import os
+import pathlib
 import re
 import subprocess
 import msvcrt
@@ -39,14 +40,10 @@ import angle_pick                  # noqa: E402
 import improver as I               # noqa: E402
 import scope                       # noqa: E402
 import discord_notify as dn        # noqa: E402
+import seat_preflight as pf        # noqa: E402
 
-import settings as _S            # noqa: E402  machine config: the ONE place
-
-# Everything machine-specific comes from settings.py (defaults -> settings.yaml
-# -> settings.local.yaml -> env). Nothing here may hardcode a home dir, an
-# interpreter path, a model seat, or a server.
-HERMES_HOME = _S.hermes_home()
-HERMES_PY = _S.hermes_python()
+HERMES_HOME = Path(r"C:\Users\gene\AppData\Local\hermes")
+HERMES_PY = HERMES_HOME / "hermes-agent" / "venv" / "Scripts" / "python.exe"
 
 # --- model seats -----------------------------------------------------------------
 # F3.7 / T2-3 (2026-09-30): seats are NOT module constants anymore. The implementer
@@ -57,8 +54,10 @@ HERMES_PY = _S.hermes_python()
 # children against a dead endpoint for hours because nothing validated the seat.
 # main() now validates both seats at startup (_validate_seats) and refuses to run
 # the loop on a dead or malformed one.
-BUILDER_FALLBACK = (os.environ.get("KL_BUILDER_MODEL")
-                    or _S.builder_fallback())
+BUILDER_FALLBACK = os.environ.get(
+    "KL_BUILDER_MODEL", "custom:glm53-flash-4x-spark-tp4:GLM-5.3-Flash-FP8")
+REVIEWER_FALLBACK = os.environ.get(
+    "KL_REVIEWER_MODEL", "custom:evo-x2:qwen3.8-flash-next")
 # Test isolation (2026-10-01): tests that drive run_round() must NOT pollute the
 # LIVE runner.log -- 367 "t round 1" junk lines from a test run leaked into the
 # monitor's Recent activity feed. Any process can point the log elsewhere with
@@ -67,7 +66,7 @@ LOG = Path(os.environ.get("KL_RUNNER_LOG", str(ROOT / "logs" / "runner.log")))
 # Per-round wall-clock ceiling. Rounds normally take 50-60 min; this is generous
 # but bounded so a single hung child cannot stall the rotation for hours (it was
 # 7200s with no kill).
-ROUND_TIMEOUT = _S.round_timeout()
+ROUND_TIMEOUT = int(os.environ.get("KL_ROUND_TIMEOUT", "4200"))
 # Written at the START and END of every round. `activity.py` and the widget read
 # this to tell a HEALTHY loop from one whose status flag says running while
 # nothing is actually happening (the 2026-09-28 wedge: flag said RUNNING, no
@@ -85,9 +84,9 @@ def _persist_entry(name: str, entry: dict) -> None:
     and the "refusal consumes the slot" fix was dead code. Called from every
     early-return path in run_round."""
     try:
-        reg = threads.load()
-        reg[name] = entry
-        threads.save(reg)
+        def _persist_refusal(reg):
+            reg[name] = entry
+        threads.update(_persist_refusal)
     except Exception as e:
         log("%s: refusal state NOT persisted: %s" % (name, e))
 
@@ -176,10 +175,10 @@ def _other_runner_pids() -> list:
     """PIDs of any OTHER karpathy_runner.py python processes on this box.
 
     The pid-file lock alone cannot see a live runner that never registered
-    (2026-10-06 incident: an old zombie runner predating the lock kept
-    rotating repos while a fresh runner held runner.pid -- two rounds ran at
-    once and collided on worktrees). The backstop scans real process command
-    lines and refuses to start alongside any sibling.
+    (2026-10-06 incident: an Oct-2 zombie runner predating the lock kept
+    rotating repos while a fresh Oct-6 runner held runner.pid -- two rounds
+    ran at once and collided on worktrees). The backstop scans real process
+    command lines and refuses to start alongside any sibling.
     """
     try:
         out = subprocess.run(
@@ -191,9 +190,12 @@ def _other_runner_pids() -> list:
             errors="replace", creationflags=0x08000000).stdout or ""
     except Exception:
         return []
+    # Exclude our OWN ancestry: karpathy_runner.py appears in our own cmdline
+    # AND in a venv->uv wrapper parent (venv python relaunches via the uv
+    # interpreter, so the direct parent is the same script). Walk parents.
     mine = set()
     pid = os.getpid()
-    for _ in range(4):
+    for _ in range(4):            # self + up to 3 ancestors is plenty
         mine.add(pid)
         try:
             out2 = subprocess.run(
@@ -225,6 +227,8 @@ def _acquire_single_flight() -> bool:
        lives in the FILE HANDLE, not the file contents -- Windows releases it
        automatically when the owning process dies, so there is no stale-file
        guessing and no window where a crashed runner blocks the next start.
+       This replaces the old O_EXCL pid-file dance whose stale-reclaim logic
+       handed the lock to a second runner while a pre-lock zombie was alive.
     2. PROCESS-SCAN BACKSTOP: refuse if any other karpathy_runner.py image is
        running, whatever it thinks about locks (catches zombies from before
        this fix, and any future code path that forgets to take the lock).
@@ -235,11 +239,13 @@ def _acquire_single_flight() -> bool:
     try:
         PID_FILE.parent.mkdir(parents=True, exist_ok=True)
         _LOCK_FILE.parent.mkdir(parents=True, exist_ok=True)
+        # Layer 2 first (cheap, decisive against zombies)
         others = _other_runner_pids()
         if others:
             log("START REFUSED -- another karpathy_runner.py is already alive "
                 "(pid %s). One runner at a time." % ", ".join(map(str, sorted(others))))
             return False
+        # Layer 1: OS-held byte lock
         _LOCK_FILE.touch(exist_ok=True)
         fd = os.open(str(_LOCK_FILE), os.O_RDWR)
         try:
@@ -251,11 +257,13 @@ def _acquire_single_flight() -> bool:
         _lock_handle = fd
         os.lseek(fd, 0, os.SEEK_SET)
         os.write(fd, str(os.getpid()).encode())
+        # diagnostics pid file for older readers
         PID_FILE.write_text(str(os.getpid()), encoding="utf-8")
         return True
     except Exception as exc:
         log("lock acquisition failed: %r" % (exc,))
         return False
+
 
 def is_running() -> bool:
     """Is a runner process alive? (pid file + process check)
@@ -268,8 +276,9 @@ def is_running() -> bool:
     here too: match the IMAGE NAME and the PID in the CSV row.
     """
     # 2026-10-06 double-runner fix: ANY live karpathy_runner.py counts. A
-    # zombie that never held runner.pid would otherwise read as dead and the
-    # watchdog would respawn alongside it.
+    # zombie started before the lock existed (or that lost its pid file)
+    # would otherwise read as dead and the watchdog would respawn alongside
+    # it -- the exact two-repos-at-once incident.
     if _other_runner_pids():
         return True
     try:
@@ -368,7 +377,7 @@ def _is_dirty(workdir: str) -> bool | None:
 # survives only as the post-merge gate-disagreement restore and as a reject-path
 # safety net that must be a no-op when the isolation held).
 # ---------------------------------------------------------------------------
-WT_ABANDON_SECS = _S.worktree_abandon_secs()
+WT_ABANDON_SECS = int(os.environ.get("KL_WT_ABANDON_SECS", str(6 * 3600)))
 _WT_DEP_DIRS = (".venv", "venv", "node_modules")
 _CREATE_NO_WINDOW = 0x08000000
 
@@ -478,7 +487,7 @@ def _discover_dep_dirs(canonical: str, wt: Path) -> list:
     """Dependency dirs to junction, at ANY depth (review HIGH-2, 2026-10-01).
 
     The old code junctioned only TOP-LEVEL .venv/venv/node_modules, so
-    project-b's `cd server && .venv/...` gate could never pass in a
+    secondbrain's `cd server && .venv/...` gate could never pass in a
     worktree (its venv lives at server/.venv) and every round on that repo
     rejected forever. Discovery asks GIT for the repo's own ignored,
     untracked directories (`ls-files --others --ignored --directory`) and
@@ -539,6 +548,57 @@ def _discover_dep_dirs(canonical: str, wt: Path) -> list:
     return found
 
 
+def _seed_env_files(canonical: str, wt: Path, notes: list) -> None:
+    """Copy gitignored .env files from the canonical checkout into the worktree.
+
+    Gates and the app itself read untracked env files (server/.env supplies
+    SB_OPENAI_MODEL etc.); a fresh worktree lacks them, so a test that
+    attributes authority to a configured model (graph_enrichment's job-api)
+    raises LLMUnavailable and the runner gate fails EVERY round no matter what
+    the child changed -- 30 straight secondbrain rejections (r38-r67) traced to
+    exactly this. Children discovered the workaround per-round; the runner must
+    provision it like the dep junctions. Copy-on-write, never junction: the
+    child must not be able to write back into the operator's secrets, and the
+    r67 'copied .env in, gate passed' precedent is what this codifies.
+    Only files git itself declares ignored (check-ignore) are copied -- a
+    tracked .env is already in the checkout and a non-ignored one must never
+    ride into a commit.
+    """
+    can = Path(canonical)
+    try:
+        r = subprocess.run(
+            ["git", "-C", canonical, "ls-files", "--others", "--ignored",
+             "--exclude-standard", "--", "*.env", ".env", "*.env.local"],
+            capture_output=True, text=True, timeout=120,
+            errors="replace", creationflags=_CREATE_NO_WINDOW)
+        cands = [] if r.returncode != 0 else (r.stdout or "").splitlines()
+    except Exception:
+        cands = []
+    if not cands:
+        # git could not enumerate (or nothing ignored): the well-known shape.
+        cands = ["server/.env", ".env"]
+    for rel in cands:
+        rel = rel.strip().replace("\\", "/").rstrip("/")
+        if not rel:
+            continue
+        src = can / rel
+        dst = wt / rel
+        if not src.is_file() or dst.exists():
+            continue
+        try:
+            chk = subprocess.run(["git", "-C", canonical, "check-ignore", "-q", "--", rel],
+                                 capture_output=True, timeout=60,
+                                 creationflags=_CREATE_NO_WINDOW)
+            if chk.returncode != 0:
+                continue                       # not ignored: never copy it in
+            dst.parent.mkdir(parents=True, exist_ok=True)
+            import shutil
+            shutil.copyfile(src, dst)
+            notes.append("seeded %s (from canonical, gitignored)" % rel)
+        except Exception as e:
+            notes.append("seed %s failed: %s" % (rel, e))
+
+
 def _provision_worktree_deps(canonical: str, wt: Path) -> list:
     """Junction the repo's untracked dependency dirs into the worktree.
 
@@ -594,6 +654,7 @@ def _provision_worktree_deps(canonical: str, wt: Path) -> list:
                 made.remove(d)
         except Exception:
             pass
+    _seed_env_files(canonical, wt, notes)
     try:
         (wt.parent / (wt.name + ".deps.json")).write_text(
             json.dumps({"junctions": made}), encoding="utf-8")
@@ -627,7 +688,27 @@ def _cleanup_junctions(wt: Path) -> list:
                 or {}).get("junctions") or []
     except Exception:
         made = list(_WT_DEP_DIRS)   # best effort: the known dep names
-    for d in made:
+    # F-B6 (2026-10-16, review agent 1): the sidecar/fallback covers only the
+    # RECORDED junction names — a nested junction (server/.venv, the exact
+    # secondbrain shape) is missed when the sidecar write failed, is corrupt,
+    # or the runner died between mklink and the write. `git worktree remove
+    # --force` then deletes THROUGH the link and empties the canonical dep
+    # dir (reproduced by the reviewer). So: walk the worktree for REPARSE
+    # POINTS and clean every one found, sidecar or not.
+    _found = set(str(d) for d in made)
+    try:
+        for _root, _dirs, _files in os.walk(wt):
+            for _d in list(_dirs):
+                _p = Path(_root) / _d
+                if _is_reparse_point(_p):
+                    _rel = _p.relative_to(wt)
+                    _found.add(str(_rel))
+                    # do not descend into a junction: its children belong to
+                    # the canonical target, not the worktree
+                    _dirs.remove(_d)
+    except Exception:
+        pass
+    for d in sorted(_found):
         p = wt / str(d)
         if p.exists() or p.is_symlink():
             note = _rmdir_link(p)
@@ -636,7 +717,7 @@ def _cleanup_junctions(wt: Path) -> list:
                 # npm/uv sometimes REPLACES our junction with a real
                 # directory (it removes node_modules and reinstalls).
                 # That dir is worktree-local disposable data -- delete it
-                # so containment can finish (the operator, r14 quarantine case).
+                # so containment can finish (Gene, r14 quarantine case).
                 import shutil as _sh
                 try:
                     _sh.rmtree(p)
@@ -783,7 +864,7 @@ def _recover_abandoned_worktrees() -> int:
         return 0
     now = time.time()
     try:
-        reg = threads.load()
+        reg = threads.load(strict=True)   # W4: sweep is best-effort, not a crash
     except Exception:
         return 0
     changed = False
@@ -801,6 +882,17 @@ def _recover_abandoned_worktrees() -> int:
             except Exception:
                 continue
             if age_h * 3600.0 < WT_ABANDON_SECS:
+                continue
+            # An EMPTY directory is not an abandoned round -- there is no
+            # worktree content to inspect and nothing to lose. It is usually
+            # delete-pending residue (a handle that was open when removal was
+            # attempted). Quarantining for it starves the repo (2026-10-11:
+            # the husk that refused tombs-and-tyrants 223 times never
+            # contained a round at all).
+            try:
+                if not any(wt.iterdir()):
+                    continue
+            except Exception:
                 continue
             name = proj_dir.name
             entry = reg.get(name) if isinstance(reg.get(name), dict) else {}
@@ -822,11 +914,19 @@ def _recover_abandoned_worktrees() -> int:
                     if _slugify(p.get("name") or "") == name:
                         mroot = p.get("path")
                 if mroot:
-                    rnd = int(_re.match(r"r(\d+)$", wt.name).group(1))
-                    subprocess.run(["git", "-C", mroot, "branch", "-D",
-                                    _branch_for(name, rnd)],
-                                   capture_output=True, text=True, timeout=60,
-                                   creationflags=_CREATE_NO_WINDOW)
+                    # F-B5 (2026-10-16, review agent 1): this used `_re.match`
+                    # but only `re` is imported — NameError, swallowed by the
+                    # bare except, so the round branch was NEVER deleted and
+                    # every post-quarantine round refused on
+                    # `branch already exists` until the branch was deleted by
+                    # hand. Use the module-level `re`.
+                    _m = re.match(r"r(\d+)$", wt.name)
+                    if _m:
+                        rnd = int(_m.group(1))
+                        subprocess.run(["git", "-C", mroot, "branch", "-D",
+                                        _branch_for(name, rnd)],
+                                       capture_output=True, text=True, timeout=60,
+                                       creationflags=_CREATE_NO_WINDOW)
             except Exception:
                 pass
     # F5 review hardening (2026-09-30): a crash between the ff-merge and
@@ -871,6 +971,8 @@ def _recover_abandoned_worktrees() -> int:
         log("integration-window sweep failed: %s" % _e)
     if changed:
         try:
+            # W4: the sweep already holds a registry snapshot; persist it under
+            # the lock so it cannot clobber a concurrent round's save.
             threads.save(reg)
         except Exception as e:
             log("worktree recovery could not persist quarantine: %s" % e)
@@ -942,70 +1044,36 @@ def _validate_seats(cfg: dict, config_path: Path | None = None) -> None:
             "twice)")
 
 
+class _SimpleResult:
+    """F-Q: duck-typed subprocess.CompletedResult for the Popen-based checkpoint
+    (Popen + communicate returns attributes bare; this keeps `.returncode` /
+    `.stdout` / `.stderr` reads identical to the old subprocess.run path)."""
+    __slots__ = ("returncode", "stdout", "stderr")
+
+    def __init__(self, returncode: int, stdout: str, stderr: str):
+        self.returncode = returncode
+        self.stdout = stdout or ""
+        self.stderr = stderr or ""
+
+
 def checkpoint(project: str, workdir: str, round_no: int) -> str:
     """
-    End-of-round checkpoint: tag locally; push branch + tag to GitHub ONLY
-    when settings allow it.
+    End-of-round checkpoint: tag locally, push branch + tag to GitHub.
 
-    github.enabled=false (the shipped default) = LOCAL TAGS ONLY: the tag is
-    the checkpoint and the rollback anchor, the push is skipped silently --
-    it is a supported mode, not a config error, so it must not log warnings
-    or fail the round. github.push_branches=false still pushes the tag but
-    leaves the working branch local. The runtime loopctl toggle
-    (loopctl config --push-github false) is honoured on top of the settings
-    master switch.
-
-    Checkpoint policy when pushing (user-locked): push branches + tags every
-    round. Public repos must already be your own fork; pushing a tag never
-    creates a PR. Returns a short status string, never raises.
+    Checkpoint policy (user-locked): push branches + tags every round. Public
+    repos must already be the genetrader fork; pushing a tag never creates a PR.
+    Returns a short status string, never raises.
     """
     tag = "kp/%s/r%02d" % (project, round_no)
     out = []
     env = dict(os.environ)   # hardening block below; needed by the tag check too
-    # ---- settings gate: WHAT may leave this machine -------------------------
-    try:
-        _lc_ckpt = loopctl.load()
-    except Exception:
-        _lc_ckpt = {}
-    _push_ok = _S.push_enabled(_lc_ckpt)
-    _push_branches = _S.push_branches()
-    if not _S.github_enabled():
-        # GitHub is OFF: tag locally and stop. The F1-6 authorship guard still
-        # applies -- a tag that exists at a DIFFERENT sha is someone else's
-        # and is never moved, even locally. One quiet note in the status,
-        # never a warning, never a retry, never a network call.
-        _intended_off = _head_full_sha(workdir)
-        try:
-            _t = subprocess.run(
-                ["git", "-c", "credential.helper=", "-C", workdir,
-                 "rev-parse", "refs/tags/%s" % tag],
-                capture_output=True, text=True, timeout=60,
-                errors="replace", creationflags=0x08000000, env=env)
-        except Exception as e:
-            return "failed: tag check could not run: %s" % e
-        _existing_off = (_t.stdout or "").strip() if _t.returncode == 0 else ""
-        if _existing_off:
-            if not (_intended_off and _existing_off == _intended_off):
-                return ("failed: tag %s already exists at %s (HEAD is %s) -- "
-                        "refusing to move a tag the runner did not create"
-                        % (tag, (_existing_off or "?")[:8],
-                           (_intended_off or "?")[:8]))
-            return ("published: tag already at this sha; "
-                    "push skipped (github disabled)")
-        r = subprocess.run(["git", "-c", "credential.helper=", "-C", workdir,
-                            "tag", tag],
-                           capture_output=True, text=True, timeout=300,
-                           errors="replace", creationflags=0x08000000, env=env)
-        if r.returncode != 0:
-            return "failed at tag: %s" % ((r.stderr or r.stdout or "").strip()[:200])
-        return "published: tag rc=0; push skipped (github disabled)"
     # F1-6 AUTHORSHIP (2026-09-30): the runner is the only author of checkpoint
     # tags. Before touching anything, read the tag's CURRENT sha. A tag that
     # already exists is either (a) this round's earlier publish attempt -- its
     # sha must equal the HEAD we are about to publish -- or (b) someone else's
     # tag (a stray child tag, a previous round under a colliding number). Case
     # (b) is T2-1: 88 of 112 logged checkpoints were rc=128 "already exists",
-    # and kp/project-a/r34 pointed at a commit that was NOT round 34's
+    # and kp/tombs-and-tyrants/r34 pointed at a commit that was NOT round 34's
     # state. A mismatched tag is NEVER moved and NEVER pushed over.
     _intended = _head_full_sha(workdir)
     try:
@@ -1030,7 +1098,7 @@ def checkpoint(project: str, workdir: str, round_no: int) -> str:
         out.append("tag already at this sha")
     # NEVER let git open a credential dialog. This runs headless, so a missing
     # credential must FAIL FAST rather than pop Windows Git's `helper-selector`
-    # GUI and block a round on a prompt nobody is watching (the operator saw that dialog
+    # GUI and block a round on a prompt nobody is watching (Gene saw that dialog
     # and reasonably asked whether it was ours).
     # Belt AND braces. GIT_TERMINAL_PROMPT alone was NOT enough: with
     # credential.helper=helper-selector configured, git still invoked the helper
@@ -1063,32 +1131,24 @@ def checkpoint(project: str, workdir: str, round_no: int) -> str:
         has_remote = bool((rp.stdout or "").strip())
     except Exception:
         pass
-    # With a token in settings (env / settings.local.yaml), hand git and gh a
-    # NON-interactive bearer header instead of relying on any stored
-    # credential; without one the fail-fast hardening above stands.
-    if _push_ok and has_remote:
-        try:
-            if _S.github_token():
-                env.update(_S.push_env(env))
-        except Exception:
-            pass
     steps = [["tag", tag]] if _need_tag else []
-    if has_remote and _push_ok:
-        # branch + tag when github.push_branches (default); tag only otherwise
-        if _push_branches:
-            steps.append(["push", "origin", "HEAD", tag])
-        else:
-            steps.append(["push", "origin", tag])
-    elif has_remote:
-        out.append("push skipped (github disabled)")
+    if has_remote:
+        steps.append(["push", "origin", "HEAD", tag])
     else:
         out.append("push skipped (no git remote)")
     _failed_step = None
     for args in steps:
+        _p = None  # F-Q: Popen handle so a hung transport can be killed (see below)
         try:
-            r = subprocess.run(["git", "-c", "credential.helper=", "-C", workdir] + args,
-                               capture_output=True, text=True, timeout=300,
-                               errors="replace", creationflags=0x08000000, env=env)
+            _p = subprocess.Popen(["git", "-c", "credential.helper=", "-C", workdir] + args,
+                                  stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                  text=True, errors="replace",
+                                  creationflags=0x08000000, env=env)
+            try:
+                _o, _e = _p.communicate(timeout=120)
+                r = _SimpleResult(_p.returncode, _o, _e)
+            except subprocess.TimeoutExpired:
+                raise  # handled by the hang path below
             # F-P (2026-10-04): an https push with an EMPTY credential helper
             # fails rc=128 every round ("could not read Username") -- the local
             # tag still lands, so work is never lost, but nothing reaches
@@ -1099,18 +1159,67 @@ def checkpoint(project: str, workdir: str, round_no: int) -> str:
             if (r.returncode != 0 and args[0] == "push"
                     and "could not read Username" in (r.stderr or "")):
                 try:
-                    r = subprocess.run(
+                    _p2 = subprocess.Popen(
                         ["git", "-c", "credential.helper=!gh auth git-credential",
                          "-C", workdir] + args,
-                        capture_output=True, text=True, timeout=300,
-                        errors="replace", creationflags=0x08000000, env=env)
+                        stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                        text=True, errors="replace",
+                        creationflags=0x08000000, env=env)
+                    _o2, _e2 = _p2.communicate(timeout=120)
+                    r = _SimpleResult(_p2.returncode, _o2, _e2)
                     out.append("push retried via gh credential helper rc=%s"
                                % r.returncode)
+                except subprocess.TimeoutExpired:
+                    try:
+                        subprocess.run(["taskkill", "/F", "/T", "/PID", str(_p2.pid)],
+                                       capture_output=True, timeout=15,
+                                       creationflags=0x08000000)
+                    except Exception:
+                        pass
+                    out.append("push gh-retry TIMEOUT -- left for a later round")
+                    if _failed_step is None:
+                        _failed_step = args[0]
+                    continue
                 except Exception as e:
                     out.append("push gh-retry ERR %s" % e)
             out.append("%s rc=%s" % (args[0], r.returncode))
             if r.returncode != 0 and _failed_step is None:
                 _failed_step = args[0]
+        except subprocess.TimeoutExpired:
+            # F-Q: hung transport -- the child git is still alive holding the
+            # lock. Kill it, then retry ONCE; if the retry also hangs, record
+            # honestly and move on (the ref lands on a later round's push).
+            if _p is not None:
+                try:
+                    subprocess.run(["taskkill", "/F", "/T", "/PID", str(_p.pid)],
+                                   capture_output=True, timeout=15,
+                                   creationflags=0x08000000)
+                except Exception:
+                    pass
+            out.append("%s TIMEOUT -- killed, retrying once" % args[0])
+            try:
+                _p3 = subprocess.Popen(["git", "-c", "credential.helper=", "-C", workdir] + args,
+                                       stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                       text=True, errors="replace",
+                                       creationflags=0x08000000, env=env)
+                _o3, _e3 = _p3.communicate(timeout=120)
+                out.append("%s retry rc=%s" % (args[0], _p3.returncode))
+                if _p3.returncode != 0 and _failed_step is None:
+                    _failed_step = args[0]
+            except subprocess.TimeoutExpired:
+                try:
+                    subprocess.run(["taskkill", "/F", "/T", "/PID", str(_p3.pid)],
+                                   capture_output=True, timeout=15,
+                                   creationflags=0x08000000)
+                except Exception:
+                    pass
+                out.append("%s retry TIMEOUT -- left for a later round" % args[0])
+                if _failed_step is None:
+                    _failed_step = args[0]
+            except Exception as e:
+                out.append("%s retry ERR %s" % (args[0], e))
+                if _failed_step is None:
+                    _failed_step = args[0]
         except Exception as e:
             out.append("%s ERR %s" % (args[0], e))
             if _failed_step is None:
@@ -1118,6 +1227,47 @@ def checkpoint(project: str, workdir: str, round_no: int) -> str:
     if _failed_step is not None:
         return "failed at %s: %s" % (_failed_step, "; ".join(out))
     return "published: %s" % "; ".join(out)
+
+
+class GatelessProject(ValueError):
+    """An enabled project has no gate command (W4/W5: config error, not a round)."""
+
+
+def _require_gate(proj: dict) -> None:
+    """Refuse to run a project that cannot be verified.
+
+    A gate is the runner's INDEPENDENT measurement of the round. Without one,
+    _run_gate() returns None, None never reads as pass, and every round the
+    project runs auto-rejects forever -- a silent infinite loop that burns
+    rounds and model time while reporting nothing. That is a CONFIG error, so
+    the loop pauses and surfaces it instead of spinning.
+    """
+    if (proj.get("gate") or "").strip():
+        return
+    raise GatelessProject(
+        "project %r has no gate command, so no round can ever be verified. "
+        "Add a gate to improve.yaml (or disable the project)."
+        % proj.get("name"))
+
+
+def _pause_config_error(reason: str) -> None:
+    """Pause the loop on a config error, once, and surface it to the operator."""
+    try:
+        cfg = loopctl.load()
+        if cfg.get("paused_reason") == reason:
+            return                    # already surfaced -- do not spam
+        cfg["running"] = False
+        cfg["paused_reason"] = reason[:400]
+        cfg["paused_at"] = time.strftime("%Y-%m-%dT%H:%M:%S+00:00",
+                                          time.gmtime())
+        loopctl.save(cfg)
+        log("CONFIG ERROR -- LOOP PAUSED: %s" % reason)
+    except Exception as e:
+        log("could not record the config-error pause: %s" % e)
+    try:
+        dn.stuck("loop config error", reason)
+    except Exception:
+        pass
 
 
 def _run_gate(proj: dict) -> dict | None:
@@ -1135,14 +1285,72 @@ def _run_gate(proj: dict) -> dict | None:
     if not gate_cmd:
         return None
     workdir = proj.get("path") or ""
-    timeout = int(proj.get("gate_timeout") or _S.gate_timeout_default())
+    timeout = int(proj.get("gate_timeout") or 900)
     env = dict(os.environ)
+    # GATE ISOLATION (2026-10-08): never let the RUNNER's own venv leak into the
+    # gate child. Launched from an activate.d-injecting venv, the runner passes
+    # PYTHONPATH down and the project interpreter imports the RUNNER's packages
+    # (broken pydantic_core -> rc=4) so the worktree gate fails EVERY round while
+    # children in clean shells pass. The gate measures the PROJECT tree only:
+    # strip interpreter-hijack vars. (post-merge gate already ran clean-env.)
+    for _hij in ("PYTHONPATH", "PYTHONHOME", "VIRTUAL_ENV"):
+        env.pop(_hij, None)
     env.update({
         "GIT_TERMINAL_PROMPT": "0",
         "GCM_INTERACTIVE": "never",
     })
+    # F-Z (2026-10-05, Gene: "every round says gate failed"): shell=True on
+    # Windows means cmd.exe, which cannot execute a RELATIVE forward-slash
+    # tool path like `.venv/Scripts/python.exe ...` -- cmd tokenizes on the
+    # first `/` and tries to run a command named `.venv` ("'.venv' is not
+    # recognized"). The gate failed EVERY round for that reason while the
+    # same string passed in bash. Fix: on Windows resolve the first token
+    #     against the workdir to a full backslash path; leave absolute paths and
+    #     plain commands (pytest, npm) untouched.
+    #   F-Z2 (2026-10-06, secondbrain audit): the loop went on rejecting
+    #     secondbrain rounds for NEW reasons after F-Z:
+    #     1. The token resolver trusted Path.exists() alone. A junctioned dep
+    #        dir (server/.venv) reports exists() True and the resolver then
+    #        handed cmd.exe the CANONICAL target path -- the wrong interpreter
+    #        for the worktree gate, which can hard-fail "No pyvenv.cfg file"
+    #        (rc 106, reproduced). A candidate must now be a REGULAR file to be
+    #        rewritten; anything else (dir, junction, missing) stays verbatim
+    #        so cmd resolves the relative path inside the workdir itself.
+    #     2. A `cd <sub>` inside the gate was resolved but never verified: if
+    #        the subdir does not exist in the tree, the old code fell through
+    #        and ran the gate in the REPO ROOT -- measuring the wrong tree.
+    #        A gate whose cd target is missing now fails LOUD with a named
+    #        detail; a mis-measured gate must never look like a real verdict.
+    _run_cmd = gate_cmd
+    if os.name == "nt" and workdir:
+        mcd = re.match(r"\s*cd\s+([^&]+?)\s*&&\s*(.*)$", gate_cmd, re.S)
+        if mcd:
+            sub = (pathlib.Path(workdir) / mcd.group(1).strip().strip('"').strip("'")).resolve()
+            if not sub.is_dir():
+                return {"cmd": gate_cmd, "ok": False,
+                        "detail": "gate cannot run: cd target does not exist "
+                                  "in this tree: %s" % sub}
+            def _fix2(m):
+                tok = m.group(0)
+                if tok.lower().startswith(("http:", "https:")):
+                    return tok
+                cand = (sub / tok).resolve()
+                if cand.is_file():
+                    return '"%s"' % cand
+                return tok
+            _run_cmd = ('cd "%s" && ' % sub) + re.sub(r'[A-Za-z0-9_.-]*/[A-Za-z0-9_./-]+', _fix2, mcd.group(2))
+        if _run_cmd == gate_cmd:
+            def _fix(m):
+                tok = m.group(0)
+                if tok.lower().startswith(("http:", "https:")):
+                    return tok
+                cand = (pathlib.Path(workdir) / tok).resolve()
+                if cand.is_file():
+                    return '"%s"' % cand
+                return tok
+            _run_cmd = re.sub(r'[A-Za-z0-9_.-]*/[A-Za-z0-9_./-]+', _fix, gate_cmd)
     try:
-        r = subprocess.run(gate_cmd, shell=True, cwd=workdir or None,
+        r = subprocess.run(_run_cmd, shell=True, cwd=workdir or None,
                            capture_output=True, text=True, timeout=timeout,
                            errors="replace", env=env,
                            creationflags=0x08000000)
@@ -1228,7 +1436,143 @@ def _answer_block(ans: dict | None, project: str) -> str:
     return "\n".join(lines) + "\n"
 
 
-def run_round(proj: dict, entry: dict) -> int:
+def _lane_gate(lc: dict) -> tuple[bool, dict]:
+    """W1: probe both seats before dispatch. Returns (may_dispatch, preflight).
+
+    Three outcomes:
+      * both seats answer -> dispatch (ok=True)
+      * a seat fails at the TRANSPORT layer -> the breaker counts it; after
+        PROVIDER_FAILURE_HALT consecutive failures the loop pauses itself
+        (ok=False) and raises a [STUCK] attention item. This is the Oct 15 fix.
+      * both seats answer but are ONE family -> dispatch anyway, but the round
+        will be marked review-invalid (W2). Never halt for that.
+
+    A model REFUSAL during the probe is not a failure -- it proves the lane is
+    alive -- so it resets the breaker and dispatch proceeds.
+    """
+    impl = (lc.get("implementer") or "").strip() or BUILDER_FALLBACK
+    rev = (lc.get("reviewer") or "").strip() or REVIEWER_FALLBACK
+    cfg = pf._load_config()
+    impl_p = pf.probe(impl, cfg)
+    rev_p = pf.probe(rev, cfg)
+    sep = pf.families_differ(impl_p, rev_p)
+    preflight = {"implementer": impl_p, "reviewer": rev_p, "separation": sep}
+
+    for role, res in (("implementer", impl_p), ("reviewer", rev_p)):
+        # INCONCLUSIVE (empty content, finish_reason=length) proves the lane is
+        # answering -- record it as ok so a healthy reasoning lane is not halted.
+        verdict = pf.OK if res.get("verdict") == pf.INCONCLUSIVE else res.get("verdict")
+        rec = pf.record(ROOT, role, verdict, res.get("seat") or "",
+                        detail=res.get("detail") or "")
+        if rec.get("tripped"):
+            reason = ("%s seat %r failed %d rounds in a row at the provider "
+                      "layer (last: %s)" % (role, rec.get("seat"), rec["streak"],
+                                             (res.get("detail") or "")[:160]))
+            _pause_lane_down(reason)
+            preflight["reason"] = reason
+            return False, preflight
+
+    return True, preflight
+
+
+def _pause_lane_down(reason: str) -> None:
+    """Set loop state to paused:lane-down and raise a STUCK item for the human.
+
+    Deliberately does NOT clear the breaker: a human restart is what clears it
+    (loopctl reset-lane). Auto-clearing is how a dead lane gets retried forever.
+
+    Writes to THIS runner's ROOT explicitly. loopctl binds STATE/LOOP at import
+    from its own file path, so calling loopctl.save() from a redirected root
+    (tests, drills) would pause the LIVE loop -- a control acting on a place
+    the operator is not looking at.
+    """
+    loop_path = Path(ROOT) / "state" / "loop.json"
+    try:
+        loop_path.parent.mkdir(parents=True, exist_ok=True)
+        st = json.loads(loop_path.read_text(encoding="utf-8")) if loop_path.exists() else {}
+        st["running"] = False
+        st["paused_reason"] = "lane-down"
+        st["paused_detail"] = reason
+        st["paused_at"] = time.time()
+        tmp = loop_path.with_suffix(".json.tmp")
+        tmp.write_text(json.dumps(st, indent=2), encoding="utf-8")
+        os.replace(tmp, loop_path)      # atomic: a torn loop.json must never exist
+    except Exception as e:
+        log("LANE GATE: could not set paused:lane-down -- %s" % e)
+    try:
+        dn.stuck("(global)", "LANE DOWN -- loop paused: " + reason)
+    except Exception as e:
+        log("LANE GATE: stuck notify failed -- %s" % e)
+
+
+def _auto_merge_enabled(proj: dict) -> bool:
+    """W6: is unattended integration explicitly enabled FOR THIS PROJECT?
+
+    Default is OFF -- the Sep 22 contract is "nothing merges to main without
+    you." A project opts in with `auto_merge: true` in improve.yaml, or with
+    KL_AUTO_MERGE=1 in the environment for a deliberate one-off.
+
+    Absent, false, or any non-true value means NO. A missing key is not consent.
+    """
+    import os as _os
+    v = proj.get("auto_merge", None)
+    if isinstance(v, str):
+        v = v.strip().lower() in ("1", "true", "yes", "on")
+    if bool(v):
+        return True
+    return _os.environ.get("KL_AUTO_MERGE", "").strip() in ("1", "true", "yes")
+
+
+def _merge_approved(entry: dict, round_no: int) -> tuple[bool, str]:
+    """W6: has a HUMAN approved merging THIS round?
+
+    The runner never writes `approved_by` -- it can only read it. An approval
+    is per-round on purpose: approving round 7 says nothing about round 8, so a
+    stale approval can never launder a later round.
+
+    Returns (approved, detail).
+    """
+    ap = entry.get("approved_by")
+    if not ap:
+        return False, "no approval recorded on the work order"
+    ap_round = entry.get("approved_round")
+    if ap_round is not None:
+        try:
+            if int(ap_round) != int(round_no):
+                return False, ("approval is for round %s, this is round %d"
+                               % (ap_round, round_no))
+        except (TypeError, ValueError):
+            return False, "approval round is unreadable (%r)" % (ap_round,)
+    return True, "approved by %s" % ap
+
+
+def _merge_eligibility(proj: dict, entry: dict, round_no: int) -> dict:
+    """W6 + W2 combined: may this round integrate into canonical?
+
+    Three independent conditions, all required:
+      1. the round was accepted (the caller only asks after acceptance)
+      2. the review was family-valid (W2) -- a review-invalid round is never
+         merge-eligible, even when auto_merge is on
+      3. either auto_merge is explicitly enabled for this project, OR a human
+         approval is recorded on the work order
+    """
+    out = {"eligible": False, "reason": "", "auto_merge": _auto_merge_enabled(proj)}
+    if entry.get("review_valid") is not True:
+        out["reason"] = ("review-invalid: %s"
+                         % ((entry.get("review_family") or {}).get("reason")
+                            or "family separation was not established"))
+        return out
+    if out["auto_merge"]:
+        out["eligible"] = True
+        out["reason"] = "auto_merge enabled for this project"
+        return out
+    ok, detail = _merge_approved(entry, round_no)
+    out["eligible"] = ok
+    out["reason"] = detail
+    return out
+
+
+def run_round(proj: dict, entry: dict, preflight: dict | None = None) -> int:
     """One round in this project's thread. Returns the hermes rc.
 
     F3 ISOLATION BOUNDARY (2026-09-30): the child runs inside a disposable
@@ -1247,17 +1591,24 @@ def run_round(proj: dict, entry: dict) -> int:
 
     round_no = int(entry.get("rounds") or 0) + 1
     facts = I.repo_facts(proj)
+
     angle = angle_pick.pick(name, facts=facts)
 
     # MODEL SEATS (F3.7): the implementer seat comes from loop.json, validated
     # at startup by _validate_seats(); the reviewer seat rides to the prompt.
     _lc = loopctl.load()
-    # Priority: loopctl config (loopctl config --implementer) > settings.yaml /
-    # settings.local.yaml / env (models.implementer) > BUILDER_FALLBACK.
-    _builder = ((_lc.get("implementer") or "").strip()
-                or _S.implementer_seat() or _S.builder_fallback())
-    _seats = {"reviewer": ((_lc.get("reviewer") or "").strip()
-                           or _S.reviewer_seat())}
+    _builder = (_lc.get("implementer") or "").strip() or BUILDER_FALLBACK
+    # W1/W2: the probed seat identities this round was dispatched under.
+    # Recorded on the entry so an accepted round can be audited later -- the
+    # seat LABEL is not evidence of which model actually answered.
+    if isinstance(preflight, dict):
+        entry["preflight"] = {
+            "implementer": preflight.get("implementer"),
+            "reviewer": preflight.get("reviewer"),
+            "separation": preflight.get("separation"),
+            "at": time.time(),
+        }
+    _seats = {"reviewer": (_lc.get("reviewer") or "").strip()}
 
     # Record the repo's HEAD BEFORE the child touches anything, so the end of the
     # round can prove a commit actually appeared. Without this the "did the round
@@ -1327,10 +1678,26 @@ def run_round(proj: dict, entry: dict) -> int:
     # so live entries carried "working tree is DIRTY..." next to rounds that
     # ran fine -- the panel lied about 3 of 4 repos.
     entry.pop("round_refused", None)
+
+    # ---- W4/W5: CONFIG CHECK, AFTER SAFETY --------------------------------
+    # A gateless project can never accept a round: _run_gate() returns None,
+    # None never reads as pass, so every round auto-rejects forever. That is a
+    # CONFIG error, not a round -- pause and surface it. Checked here, AFTER
+    # the dirty/no-HEAD refusals, so a genuine safety refusal keeps rc=1 and
+    # its own reason instead of being masked by the config pause.
+    try:
+        _require_gate(proj)
+    except GatelessProject as _ge:
+        _pause_config_error(str(_ge))
+        entry["last_rc"] = 2
+        entry["last_nudge"] = time.time()
+        _persist_entry(name, entry)
+        return 2
+
     for _n in _provision_worktree_deps(_workdir, wt):
         log("%s: worktree %s" % (name, _n))
 
-    # ---- SURFACE SCOPE (the operator, 2026-09-28) ---------------------------------
+    # ---- SURFACE SCOPE (Gene, 2026-09-28) ---------------------------------
     # A surface is a sub-category of a repo that can be worked on independently.
     # Surfaces ROUND-ROBIN inside a project, so the project still counts as one
     # visit: `last_nudge` below is untouched and a surface is never a rotation
@@ -1376,7 +1743,7 @@ def run_round(proj: dict, entry: dict) -> int:
                                 canonical=_workdir, worktree_branch=_branch_for(name, round_no),
                                 human_answer=_answer_block(_ans, name))
 
-    # CONSUME THE PROMPT the moment it is issued (the operator, 2026-09-27 -- locked).
+    # CONSUME THE PROMPT the moment it is issued (Gene, 2026-09-27 -- locked).
     # `pick()` already selected an UNUSED prompt for this repo's cycle; recording
     # it here means it can never be re-issued, INCLUDING when the round comes back
     # not-applicable. That is deliberate: a dead prompt must not be retried forever
@@ -1418,15 +1785,18 @@ def run_round(proj: dict, entry: dict) -> int:
     entry["last_angle"] = _aid
     entry["session_id"] = sid
     try:
-        _reg = threads.load()
-        _reg[name] = entry
-        threads.save(_reg)
+        def _mark_angle(reg):
+            reg[name] = entry
+        threads.update(_mark_angle)
     except Exception as e:
         log("%s: could not persist current_angle: %s" % (name, e))
 
     try:
+        # F-AA: use the resolved _aid (id/angle/name fallback chain) -- the
+        # raw .get("id") emitted "angle None" in every Discord start message
+        # because angle_pick stores the id under `angle`, not `id`.
         dn.progress(name, "round %d: angle %s -- starting" %
-                    (round_no, (angle or {}).get("id")), round_no=round_no)
+                    (round_no, _aid or "unknown"), round_no=round_no)
     except SystemExit as _e:
         log("%s: discord token missing (round start notify skipped): %s" % (name, _e))
     except Exception as _e:
@@ -1436,7 +1806,7 @@ def run_round(proj: dict, entry: dict) -> int:
             % (name, type(_e).__name__, _e))
 
     cmd = [str(HERMES_PY), "-m", "hermes_cli.main",
-           "-p", _S.hermes_profile() or threads.PROFILE, "--model", _builder,
+           "-p", threads.PROFILE, "--model", _builder,
            "-z", prompt, "--resume", sid]
     # Popen (not subprocess.run) so a TIMEOUT gives us the child's PID to kill.
     # With subprocess.run the handle is discarded and `_kill_tree(None)` was a
@@ -1489,7 +1859,7 @@ def run_round(proj: dict, entry: dict) -> int:
     entry["last_nudge"] = time.time()
     entry["last_rc"] = rc
     entry["last_angle"] = _aid
-    # Round-duration telemetry (the operator, 2026-10-01): how long THIS round
+    # Round-duration telemetry (Gene, 2026-10-01): how long THIS round
     # ran, plus a bounded per-repo history for the avg/round display.
     # The clock starts at the angle pick (current_angle.started) -- the
     # child's actual working window. Refusals return before the angle
@@ -1506,7 +1876,7 @@ def run_round(proj: dict, entry: dict) -> int:
     entry["session_id"] = sid
     entry["title"] = threads.title_for(name)
 
-    # ---- CAMPAIGN PROPOSAL (surfaces, the operator 2026-09-28) ---------------------
+    # ---- CAMPAIGN PROPOSAL (surfaces, Gene 2026-09-28) ---------------------
     # PURE. This block only computes what the campaign WOULD become; it changes
     # no state. (External review / Saul, 2026-09-29: the previous version mutated
     # campaign state HERE -- before the runner knew whether the round had passed
@@ -1625,6 +1995,53 @@ def run_round(proj: dict, entry: dict) -> int:
     # evidence. Derive the git facts (read-only) and the runner's OWN gate
     # measurement, and merge them into THIS row before the registry is saved.
     # A missing value stays missing (renders "unknown"), never fabricated.
+
+    # ---- W1: CLASSIFY THIS ROUND'S OUTPUT (provider death vs refusal) ----
+    # The Oct 15 death spiral in one sentence: a dead lane returns NOTHING, and
+    # nothing in the loop could tell that from a model declining the angle -- so
+    # rounds 174-180 "completed" against an endpoint that never answered.
+    # classify() is the same rule seat_preflight uses for its probe: empty output,
+    # a timeout marker, or a canned transport string is a PROVIDER FAILURE and
+    # increments the seat's breaker; anything a child actually wrote is a real
+    # round outcome and RESETS it. Only provider failures can ever halt the loop.
+    _round_verdict = pf.classify((_out or "") + "\n" + (_err or ""))
+    entry["lane_verdict"] = _round_verdict
+    try:
+        _rec = pf.record(ROOT, "implementer", _round_verdict, _builder,
+                         detail=(tail or "")[:200])
+        if _round_verdict == pf.PROVIDER_FAILURE:
+            log("%s round %d: LANE PROVIDER FAILURE (streak %d/%d)"
+                % (name, round_no, _rec["streak"], pf.PROVIDER_FAILURE_HALT))
+        entry["lane_streak"] = _rec["streak"]
+        entry["lane_tripped"] = _rec["tripped"]
+    except Exception as _le:
+        log("%s: lane breaker update failed: %s" % (name, _le))
+
+    # ---- W2: REVIEW VALIDITY (cross-family, PROBED not labelled) ----------
+    # A round is only merge-eligible when the reviewer's PROBED family differs
+    # from the implementer's. The seat LABELS are not evidence: three slugs in
+    # config.yaml point at one endpoint, and an alias-honoring lane answers any
+    # name (verified live 2026-10-23: asking 18888 for GLM returns DeepSeek).
+    # When separation cannot be established the round still completes its gate
+    # but is marked review-invalid and must NOT be published.
+    try:
+        _sep = (preflight or {}).get("separation") or {}
+        entry["review_family"] = {
+            "implementer_served": (preflight or {}).get("implementer", {}).get("served"),
+            "reviewer_served": (preflight or {}).get("reviewer", {}).get("served"),
+            "differ": bool(_sep.get("differ")),
+            "reason": _sep.get("reason") or "no preflight recorded",
+        }
+        entry["review_valid"] = bool(_sep.get("differ"))
+        if not _sep.get("differ"):
+            log("%s round %d: REVIEW INVALID -- %s (round is NOT merge-eligible)"
+                % (name, round_no, _sep.get("reason") or "no preflight"))
+    except Exception as _re2:
+        entry["review_valid"] = False
+        entry["review_family"] = {"differ": False, "reason": "preflight unavailable"}
+        log("%s: review-family check failed: %s -- treating as review-invalid"
+            % (name, _re2))
+
     _ev = None      # F1-1: kept in a local so the acceptance block can read the
                     # gate WITHOUT a round-trip through the registry. The old
                     # code read entry["evidence"] -- a key NOTHING writes -- so
@@ -1768,6 +2185,38 @@ def run_round(proj: dict, entry: dict) -> int:
     #
     # Any failure in 1-4 must prevent 5. `state_persisted` records that 4 happened.
     entry["round_accepted"] = bool(_round_ok)
+
+    # ---- W3: RECORD THE ANGLE OUTCOME IN THE GLOBAL LEDGER ---------------
+    # state/angle_history.json froze on day one (12 rows, all 2026-09-23)
+    # while 893 rounds ran. Cause: the ONLY writer was an instruction in the
+    # round prompt telling the CHILD to run `angle_pick.py mark`. Children did
+    # not, so cooldown (8 rounds), family rotation and retirement (4 fails) all
+    # read a day-one snapshot and stopped working.
+    #
+    # The runner is the only party that measures the gate and decides
+    # acceptance, so it records the outcome itself. A child's self-report is
+    # not evidence; this verdict is runner-observed.
+    try:
+        _aid_rec = (angle or {}).get("angle") or _aid
+        _fam_rec = (angle or {}).get("family") or ""
+        if _aid_rec:
+            _st = angle_pick.record_round(
+                name, _aid_rec, _fam_rec,
+                "accepted" if _round_ok else "failed",
+                round_no=round_no,
+                note=(_why[0] if _why else ""),
+            )
+            entry["angle_stats"] = _st
+            if _st.get("retired"):
+                log("%s round %d: ANGLE RETIRED -- %s after %d consecutive "
+                    "failures (used=%d)"
+                    % (name, round_no, _aid_rec, _st.get("streak_fail"),
+                       _st.get("used", 0)))
+    except Exception as _ae:
+        # Never let a ledger write break a round: the work is already done.
+        log("%s round %d: angle ledger update failed: %s: %s"
+            % (name, round_no, type(_ae).__name__, _ae))
+
     entry["acceptance_detail"] = _why
     state_persisted = False
 
@@ -1895,9 +2344,9 @@ def run_round(proj: dict, entry: dict) -> int:
     # never describe a scheduler state that was not written, and a quarantined
     # repo must actually be quarantined ON DISK for the selector's reload.
     try:
-        reg = threads.load()
-        reg[name] = entry
-        threads.save(reg)
+        def _persist_round(reg):
+            reg[name] = entry
+        threads.update(_persist_round)
         state_persisted = True
     except Exception as e:
         log("%s round %d: STATE PERSIST FAILED: %s: %s -- refusing to publish a "
@@ -1912,58 +2361,82 @@ def run_round(proj: dict, entry: dict) -> int:
     _wt_keep = False      # True = preserve the worktree + branch for inspection
     if _round_ok and state_persisted and campaign_commit_error is None:
         _branch = _branch_for(name, round_no)
-        _merge_fail = None
-        try:
-            _mrg = subprocess.run(["git", "-C", _workdir, "merge", "--ff-only",
-                                   _branch], capture_output=True, text=True,
-                                  timeout=300, errors="replace",
-                                  creationflags=0x08000000)
-            if _mrg.returncode != 0:
-                _merge_fail = ("canonical ff-merge failed rc=%s: %s"
-                               % (_mrg.returncode,
-                                  ((_mrg.stderr or _mrg.stdout or "").strip()[-300:])))
-        except Exception as e:
-            _merge_fail = "canonical ff-merge could not run: %s" % e
-        if _merge_fail:
-            # ff-only either moves the branch or fails atomically: canonical
-            # is still at the anchor. The WORK is good -- preserve the
-            # worktree + branch for a human, publish nothing.
+        # ---- W6: HUMAN MERGE GATE --------------------------------------
+        # The Sep 22 contract: nothing merges to main without Gene. The
+        # shipped code had drifted into an unconditional ff-merge on accept.
+        # Integration now requires BOTH a family-valid review (W2) and either
+        # an explicit per-project auto_merge flag or a recorded human approval.
+        # Default is STOP AT BRANCH + TAG.
+        _elig = _merge_eligibility(proj, entry, round_no)
+        entry["merge_eligibility"] = _elig
+        if not _elig["eligible"]:
+            # Preserve the work for a human: branch + worktree stay, tag the
+            # round so it is findable, and touch canonical not at all.
             _wt_keep = True
-            entry["merge_error"] = _merge_fail
-            log("%s round %d: INTEGRATION FAILED -- %s. Work preserved in %s "
-                "(branch %s); publishing nothing." % (name, round_no, _merge_fail, wt, _branch))
-            ck = "SKIPPED (not published: %s)" % _merge_fail
-            entry["publication_state"] = "failed"
+            try:
+                _tg = checkpoint.tag_only(name, _workdir, round_no)
+            except Exception as _te:
+                _tg = "tag failed: %s" % _te
+            entry["publication_state"] = "awaiting-merge"
+            entry["merge_gate"] = _elig["reason"]
+            log("%s round %d: MERGE GATE -- %s. Stopped at branch %s + tag "
+                "(%s); canonical untouched, worktree preserved for human merge."
+                % (name, round_no, _elig["reason"], _branch, _tg))
+            ck = "STOPPED AT BRANCH+TAG (%s): %s" % (_branch, _elig["reason"])
         else:
-            # post-merge gate in CANONICAL -- the authoritative tree. The
-            # worktree gate already passed; a disagreement is an environment
-            # anomaly and must be LOUD, never silently published.
-            _cgate = _run_gate(proj) if (proj.get("gate") or "").strip() else None
-            entry["post_merge_gate"] = _cgate
-            if _cgate is not None and _cgate.get("ok") is not True:
-                _rb = _reset_canonical(_workdir, entry["pre_round_head"])
-                entry["last_rollback"] = _rb
-                log("%s round %d: POST-MERGE GATE DISAGREEMENT -- canonical "
-                    "gate: %s. %s" % (name, round_no, (_cgate or {}).get("detail"), _rb))
-                if _rb.startswith(("RESET UNVERIFIED", "RESET FAILED")):
-                    entry["quarantined"] = True
-                    entry["quarantine_reason"] = _rb
-                    log("%s: QUARANTINED -- %s" % (name, _rb))
-                _wt_keep = True   # the work exists but is unpublishable: keep it
-                ck = "SKIPPED (not published: post-merge gate failed in canonical)"
+            _do_integrate = True
+            _merge_fail = None
+            try:
+                _mrg = subprocess.run(["git", "-C", _workdir, "merge", "--ff-only",
+                                       _branch], capture_output=True, text=True,
+                                      timeout=300, errors="replace",
+                                      creationflags=0x08000000)
+                if _mrg.returncode != 0:
+                    _merge_fail = ("canonical ff-merge failed rc=%s: %s"
+                                   % (_mrg.returncode,
+                                      ((_mrg.stderr or _mrg.stdout or "").strip()[-300:])))
+            except Exception as e:
+                _merge_fail = "canonical ff-merge could not run: %s" % e
+            if _merge_fail:
+                # ff-only either moves the branch or fails atomically: canonical
+                # is still at the anchor. The WORK is good -- preserve the
+                # worktree + branch for a human, publish nothing.
+                _wt_keep = True
+                entry["merge_error"] = _merge_fail
+                log("%s round %d: INTEGRATION FAILED -- %s. Work preserved in %s "
+                    "(branch %s); publishing nothing." % (name, round_no, _merge_fail, wt, _branch))
+                ck = "SKIPPED (not published: %s)" % _merge_fail
                 entry["publication_state"] = "failed"
             else:
-                ck = checkpoint(name, _workdir, round_no)
-                entry["publication_state"] = ("published" if ck.startswith("published")
-                                              else "failed")
-                # the branch is merged and the dir content lives in canonical:
-                # delete the worktree regardless of push outcome.
-                _rm = _remove_worktree(_workdir, name, round_no)
-                entry["worktree_removed"] = _rm
-                if not _rm.startswith(("worktree removed", "worktree already gone")):
-                    log("%s round %d: worktree cleanup failed: %s"
-                        % (name, round_no, _rm))
-                entry["worktree"] = None
+                # post-merge gate in CANONICAL -- the authoritative tree. The
+                # worktree gate already passed; a disagreement is an environment
+                # anomaly and must be LOUD, never silently published.
+                _cgate = _run_gate(proj) if (proj.get("gate") or "").strip() else None
+                entry["post_merge_gate"] = _cgate
+                if _cgate is not None and _cgate.get("ok") is not True:
+                    _rb = _reset_canonical(_workdir, entry["pre_round_head"])
+                    entry["last_rollback"] = _rb
+                    log("%s round %d: POST-MERGE GATE DISAGREEMENT -- canonical "
+                        "gate: %s. %s" % (name, round_no, (_cgate or {}).get("detail"), _rb))
+                    if _rb.startswith(("RESET UNVERIFIED", "RESET FAILED")):
+                        entry["quarantined"] = True
+                        entry["quarantine_reason"] = _rb
+                        log("%s: QUARANTINED -- %s" % (name, _rb))
+                    _wt_keep = True   # the work exists but is unpublishable: keep it
+                    ck = "SKIPPED (not published: post-merge gate failed in canonical)"
+                    entry["publication_state"] = "failed"
+                else:
+                    ck = checkpoint(name, _workdir, round_no)
+                    entry["publication_state"] = ("published" if ck.startswith("published")
+                                                  else "failed")
+                    # the branch is merged and the dir content lives in canonical:
+                    # delete the worktree regardless of push outcome.
+                    _rm = _remove_worktree(_workdir, name, round_no)
+                    entry["worktree_removed"] = _rm
+                    if not _rm.startswith(("worktree removed", "worktree already gone")):
+                        log("%s round %d: worktree cleanup failed: %s"
+                            % (name, round_no, _rm))
+                    entry["worktree"] = None
     else:
         _pub_why = list(_why)
         if campaign_commit_error is not None:
@@ -1994,9 +2467,9 @@ def run_round(proj: dict, entry: dict) -> int:
     # save keeps the publication verdict durable without changing the F2-8
     # ordering guarantee (publish still happens only after the F1-5 save).
     try:
-        _reg2 = threads.load()
-        _reg2[name] = entry
-        threads.save(_reg2)
+        def _mark_pub(reg):
+            reg[name] = entry
+        threads.update(_mark_pub)
     except Exception as e:
         log("%s round %d: post-publish state save failed: %s: %s"
             % (name, round_no, type(e).__name__, e))
@@ -2064,7 +2537,28 @@ def main() -> int:
                 time.sleep(300)
                 continue
 
-            reg = threads.load()
+            try:
+                reg = threads.load()
+            except threads.RegistryCorrupt as _ce:
+                # W4: FAIL CLOSED. The old behavior (empty registry) forgot every
+                # quarantine and resumed running on repos whose trees are in an
+                # unknown state. Pause and surface instead.
+                log("REGISTRY CORRUPT -- PAUSING THE LOOP: %s" % _ce)
+                try:
+                    lc = loopctl.load()
+                    lc["running"] = False
+                    lc["paused_reason"] = ("threads.json corrupt: %s" % _ce)[:400]
+                    lc["paused_at"] = time.strftime("%Y-%m-%dT%H:%M:%S+00:00",
+                                                    time.gmtime())
+                    loopctl.save(lc)
+                except Exception as _pe:
+                    log("could not record the pause: %s" % _pe)
+                try:
+                    dn.stuck("threads.json corrupt",
+                             "the loop PAUSED rather than run on unknown state: %s" % _ce)
+                except Exception:
+                    pass
+                return 2
             # A QUARANTINED repo must not be selected. The quarantine is set when a
             # rejected round could not be rolled back cleanly (Saul's blocker #6): the
             # tree is in an unknown state, so continuing to run there risks publishing
@@ -2103,8 +2597,23 @@ def main() -> int:
 
             heartbeat("round-started", project=proj["name"],
                       round_no=(entry.get("rounds") or 0) + 1)
+            # ---- W1 LANE PREFLIGHT + CIRCUIT BREAKER ----------------------
+            # The Oct 15 death spiral: rounds 174-180 burned into a dead lane
+            # because nothing probed the seats before dispatch. Probe BOTH seats
+            # now, record the ACTUAL model each endpoint serves, and halt the
+            # loop when a seat has failed 3 rounds running at the transport layer.
+            _dispatch_ok, _preflight = _lane_gate(lc)
+            if not _dispatch_ok:
+                heartbeat("idle", project=proj["name"])
+                log("LANE GATE: dispatch halted -- %s" % _preflight.get("reason"))
+                try:
+                    dn.progress(proj["name"], "LOOP HALTED (lane-down): %s"
+                                % _preflight.get("reason"))
+                except Exception:
+                    pass
+                return 3          # runner exits; watchdog honours running:false
             try:
-                run_round(proj, entry)
+                run_round(proj, entry, preflight=_preflight)
             except Exception as e:
                 log("%s: round CRASHED: %s" % (proj["name"], e))
                 try:

@@ -13,15 +13,12 @@ Design notes (why this is safe):
 import json
 import sqlite3
 import sys
-from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
+sys.path.insert(0, r"C:/CODING/project-improver")
 import threads as T  # noqa: E402
 
-# The Hermes sessions DB, resolved through the settings layer (hermes.home)
-# -- never a personal absolute path in tracked code.
-DB = str(T.STATE_DB)
-REG = str(Path(__file__).resolve().parent / "state" / "threads.json")
+DB = r"C:/Users/gene/AppData/Local/hermes/state.db"
+REG = r"C:/CODING/project-improver/state/threads.json"
 
 reg = json.load(open(REG, encoding="utf-8"))
 tips = {}
