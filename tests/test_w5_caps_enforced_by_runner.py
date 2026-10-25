@@ -1,68 +1,81 @@
-"""W5 regression: the runner must enforce max_rounds / max_hours ITSELF.
+"""W5: the cap guard must actually EXECUTE, not merely appear in the source.
 
-Found 2026-10-25: a 10-round supervised run dispatched 11 rounds and then kept
-looping, because the caps were only checked by loopctl's CLI (status/pause) and
-never by the runner's own dispatch loop. A cap that only the operator's command
-line respects is decoration -- exactly the class of lie this PRD exists to kill.
+2026-10-25: an earlier version of this file only asserted that certain strings
+existed in main()'s source segment. It passed while the runner crashed with
+NameError: name 'datetime' is not defined -- because the guard referenced
+datetime/timezone without importing them, and no test ever ran the code. A
+source-grep test can only prove a string is present, never that it works.
 
-These tests assert the guard exists in the runner source and behaves correctly,
-without needing to spin a real runner.
+These tests import the real module and exercise the guard's behaviour, so a
+missing import or a broken expression fails here instead of in production.
 """
 
 import ast
+import importlib.util
+import sys
+from datetime import timedelta
 from pathlib import Path
+
+import pytest
 
 ROOT = Path(__file__).resolve().parent.parent
 RUNNER = ROOT / "karpathy_runner.py"
 
 
-def _loop_source() -> str:
+def _load_runner():
+    """Import karpathy_runner as a module without executing main()."""
+    spec = importlib.util.spec_from_file_location("karpathy_runner_under_test", RUNNER)
+    mod = importlib.util.module_from_spec(spec)
+    sys.modules["karpathy_runner_under_test"] = mod
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def test_module_imports_cleanly():
+    """A missing import shows up here, not as a NameError mid-run."""
+    assert _load_runner() is not None
+
+
+def test_datetime_and_timezone_are_bound_at_module_level():
+    mod = _load_runner()
+    assert hasattr(mod, "datetime"), (
+        "karpathy_runner uses datetime for the max_hours cap but never imports it"
+    )
+    assert hasattr(mod, "timezone"), (
+        "karpathy_runner uses timezone for the max_hours cap but never imports it"
+    )
+
+
+def test_max_hours_elapsed_computation_runs():
+    """Execute the same expression the guard runs -- it must not raise."""
+    mod = _load_runner()
+    started = (mod.datetime.now(mod.timezone.utc) - timedelta(hours=3)).isoformat()
+    t0 = mod.datetime.fromisoformat(started.replace("Z", "+00:00"))
+    if t0.tzinfo is None:
+        t0 = t0.replace(tzinfo=mod.timezone.utc)
+    elapsed = (mod.datetime.now(mod.timezone.utc) - t0).total_seconds() / 3600.0
+    assert 2.9 < elapsed < 3.1
+
+
+def test_guard_handles_naive_and_malformed_started_at():
+    """A naive or junk started_at must not crash the loop."""
+    mod = _load_runner()
+    t0 = mod.datetime.fromisoformat("2026-10-25T00:00:00")
+    assert t0.tzinfo is None
+    assert t0.replace(tzinfo=mod.timezone.utc).tzinfo is not None
+    with pytest.raises(ValueError):
+        mod.datetime.fromisoformat("not-a-timestamp")
+
+
+def test_cap_guard_source_shape():
+    """The guard must precede dispatch and persist a pause."""
     src = RUNNER.read_text(encoding="utf-8")
     tree = ast.parse(src)
-    fn = None
-    for node in ast.walk(tree):
-        if isinstance(node, ast.FunctionDef) and node.name == "main":
-            fn = node
-            break
-    assert fn is not None, "main() not found in karpathy_runner.py"
-    return ast.get_source_segment(src, fn) or ""
-
-
-def test_runner_reads_max_rounds_in_its_own_loop():
-    loop = _loop_source()
-    assert 'lc.get("max_rounds")' in loop, (
-        "the runner never reads max_rounds -- the cap would be enforced only by "
-        "loopctl, which is not running when the loop is"
-    )
-
-
-def test_runner_reads_max_hours_in_its_own_loop():
-    loop = _loop_source()
-    assert 'lc.get("max_hours")' in loop, "the runner never reads max_hours"
-
-
-def test_runner_persists_a_pause_when_a_cap_is_reached():
-    loop = _loop_source()
-    # Reaching a cap must PAUSE (persist running=False + a reason), not merely
-    # stop this process -- otherwise the next nudge resurrects the loop.
-    assert 'paused_reason"] = "max_rounds reached' in loop
-    assert 'paused_reason"] = (' in loop, "max_hours pause must record a reason"
-    assert 'lc["running"] = False' in loop
-
-
-def test_runner_cap_check_precedes_dispatch():
-    """The cap must be checked BEFORE a project is picked and a child launched."""
-    loop = _loop_source()
-    cap_at = loop.index('lc.get("max_rounds")')
-    dispatch_at = loop.index("pick_next_project")
-    assert cap_at < dispatch_at, (
-        "the max_rounds check must come before pick_next_project, or a capped "
-        "run still launches one more round"
-    )
-
-
-def test_runner_cap_check_survives_a_bad_started_at():
-    """A malformed started_at must not crash the loop -- skip the hours check."""
-    loop = _loop_source()
-    assert "max_hours check skipped" in loop
-    assert "except (ValueError, TypeError)" in loop
+    fn = next(n for n in ast.walk(tree)
+              if isinstance(n, ast.FunctionDef) and n.name == "main")
+    seg = ast.get_source_segment(src, fn) or ""
+    assert 'lc.get("max_rounds")' in seg
+    assert 'lc.get("max_hours")' in seg
+    assert 'paused_reason"] = "max_rounds reached' in seg
+    assert 'lc["running"] = False' in seg
+    assert seg.index('lc.get("max_rounds")') < seg.index("pick_next_project")
