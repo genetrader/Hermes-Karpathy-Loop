@@ -2521,6 +2521,44 @@ def main() -> int:
                 log("loop paused -- runner exiting cleanly")
                 return 0
 
+            # W5 (2026-10-25): the caps must be enforced HERE, in the loop, not
+            # only in loopctl's status/pause CLI. Before this, max_rounds and
+            # max_hours were decoration: a 10-round supervised run kept
+            # dispatching past the cap because nothing in the runner ever read
+            # them. Reaching a cap pauses the loop (persisted) and exits.
+            _mr = int(lc.get("max_rounds") or 0)
+            _done = int(lc.get("rounds_done") or 0)
+            if _mr and _done >= _mr:
+                log("CAP REACHED: max_rounds %d/%d -- pausing the loop"
+                    % (_done, _mr))
+                lc["running"] = False
+                lc["paused_reason"] = "max_rounds reached (%d/%d)" % (_done, _mr)
+                lc["paused_at"] = time.strftime("%Y-%m-%dT%H:%M:%S+00:00",
+                                                time.gmtime())
+                loopctl.save(lc)
+                return 0
+            _mh = float(lc.get("max_hours") or 0)
+            if _mh:
+                _started = lc.get("started_at") or ""
+                try:
+                    _t0 = datetime.fromisoformat(_started.replace("Z", "+00:00"))
+                    if _t0.tzinfo is None:
+                        _t0 = _t0.replace(tzinfo=timezone.utc)
+                    _elapsed_h = (datetime.now(timezone.utc) - _t0).total_seconds() / 3600.0
+                    if _elapsed_h >= _mh:
+                        log("CAP REACHED: max_hours %.1f/%.1f -- pausing the loop"
+                            % (_elapsed_h, _mh))
+                        lc["running"] = False
+                        lc["paused_reason"] = ("max_hours reached (%.1f/%.1f h)"
+                                               % (_elapsed_h, _mh))
+                        lc["paused_at"] = time.strftime(
+                            "%Y-%m-%dT%H:%M:%S+00:00", time.gmtime())
+                        loopctl.save(lc)
+                        return 0
+                except (ValueError, TypeError) as _te:
+                    log("max_hours check skipped -- bad started_at %r (%s)"
+                        % (_started, _te))
+
             m = I.load_manifest()
             # Picker wrote a name into loop.json that improve.yaml lacks? Upsert a
             # minimal enabled block for it, else the rotator never sees the repo
